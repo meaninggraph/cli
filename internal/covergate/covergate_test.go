@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"os"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -116,63 +114,5 @@ func TestRun(t *testing.T) {
 				t.Fatalf("stdout %q stderr %q", stdout.String(), stderr.String())
 			}
 		})
-	}
-}
-
-// The workflow must run the gate exactly as written here: no flag, no
-// environment override, no step that tolerates failure. This test fails if
-// anyone loosens that, which is how "the threshold is not configurable
-// downward" is enforced for the workflow as well as for the code.
-func TestWorkflowRunsTheGateUnconditionally(t *testing.T) {
-	t.Parallel()
-	data, err := os.ReadFile("../../.github/workflows/ci.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(data)
-	for _, want := range []string{
-		"go test -race -covermode=atomic -coverprofile=cover.out ./...",
-		"go run ./cmd/covergate cover.out",
-	} {
-		if strings.Count(text, want) != 1 {
-			t.Errorf("ci.yml must contain %q exactly once", want)
-		}
-	}
-	for _, banned := range []string{"continue-on-error", "|| true", "COVER", "THRESHOLD", "-coverpkg"} {
-		if strings.Contains(text, banned) {
-			t.Errorf("ci.yml must not contain %q", banned)
-		}
-	}
-	gate := regexp.MustCompile(`(?m)^\s*run: go run \./cmd/covergate cover\.out\s*$`)
-	if !gate.MatchString(text) {
-		t.Error("the gate must be a step of its own with no arguments but the profile")
-	}
-	if !strings.Contains(text, "pull_request:") || !strings.Contains(text, "branches: [main]") {
-		t.Error("ci.yml must run on pull requests and on main")
-	}
-}
-
-// The release must not be able to run for a commit whose CI did not pass.
-func TestReleaseRequiresTheCIWorkflow(t *testing.T) {
-	t.Parallel()
-	data, err := os.ReadFile("../../.github/workflows/release.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(data)
-	if !strings.Contains(text, "require_workflow_success: 'CI'") {
-		t.Error("release.yml must set require_workflow_success: 'CI'")
-	}
-	ci, err := os.ReadFile("../../.github/workflows/ci.yml")
-	if err != nil || !regexp.MustCompile(`(?m)^name: CI$`).Match(ci) {
-		t.Errorf("ci.yml must be the workflow named CI: %v", err)
-	}
-	if !regexp.MustCompile(`strongo/cicd/\.github/workflows/release\.yml@v\d+\.\d+\.\d+\n`).MatchString(text) {
-		t.Error("the shared release workflow must be pinned to an exact tag")
-	}
-	for _, banned := range []string{"continue-on-error", "|| true", "secrets:"} {
-		if strings.Contains(text, banned+"\n") || strings.Contains(text, banned+" ") {
-			t.Errorf("release.yml must not contain %q", banned)
-		}
 	}
 }

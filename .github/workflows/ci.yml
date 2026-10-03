@@ -1,24 +1,26 @@
 name: CI
 
-# Pull requests and main. The `test` job is the quality gate: formatting, vet,
-# every test with the race detector, and 100% statement coverage. The gate
-# compares covered with total statements in the cover profile, exactly; there
-# is no threshold to set. The release workflow refuses to release a commit this
-# workflow did not pass (require_workflow_success: CI), so nothing uncovered
-# can ship.
+# The quality gate: formatting, vet, every test with the race detector, 100%
+# statement coverage (the gate compares covered with total statements in the
+# cover profile, exactly; there is no threshold to set), and the GoReleaser
+# check and snapshot build.
+#
+# It runs on pull requests, and the release workflow calls it (workflow_call)
+# as the first job of every release: the release job `needs` it, so a commit
+# that this workflow did not pass is never tagged or published. CI is not also
+# started by a push to main, which would be a second run of the same gate.
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Only a superseded pull-request run is cancelled: cancelling a run on main
-  # would make the release guard see a cancelled CI.
+  # Only a superseded pull-request run is cancelled: a run for main is one gate
+  # of a release, and cancelling it would stop the release.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -26,8 +28,8 @@ jobs:
     name: Format, vet, test, coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
           cache: true
@@ -46,20 +48,20 @@ jobs:
     name: GoReleaser check and snapshot build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
           cache: true
       - name: Check the GoReleaser configuration
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           version: v2.18.2
           args: check
       - name: Snapshot build of every release artifact
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           version: v2.18.2
           args: release --snapshot --clean --skip=publish
