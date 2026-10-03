@@ -1,0 +1,77 @@
+version: 2
+
+project_name: meaninggraph
+
+before:
+  hooks:
+    # Verify tidiness; never impose it. A mutating `go mod tidy` would rewrite
+    # go.mod inside the ephemeral release runner, so GoReleaser could build and
+    # publish something other than the tagged tree. `-diff` writes nothing and
+    # exits non-zero on drift, so the release stops instead of healing itself.
+    - go mod tidy -diff
+
+builds:
+  - id: meaninggraph
+    main: ./cmd/meaninggraph
+    binary: meaninggraph
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/strongo/buildinfo.version={{.Version}}
+      - -X github.com/strongo/buildinfo.commit={{.FullCommit}}
+      - -X github.com/strongo/buildinfo.date={{.Date}}
+
+archives:
+  - id: meaninggraph
+    ids:
+      - meaninggraph
+    # The names self-update expects: meaninggraph_<version>_<os>_<arch>.tar.gz
+    # (.zip on windows), next to meaninggraph_<version>_checksums.txt.
+    name_template: "meaninggraph_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "meaninggraph_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+# macOS signing and notarisation. Inactive until the five credentials are set as
+# secrets and forwarded by .github/workflows/release.yml: `isEnvSet` keeps this
+# block a no-op for snapshot builds and for releases made without them, which
+# then publish unsigned binaries.
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids: [meaninggraph]
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        wait: true
+        issuer_id: "{{ .Env.NOTARIZE_ISSUER_ID }}"
+        key_id: "{{ .Env.NOTARIZE_KEY_ID }}"
+        key: "{{ .Env.NOTARIZE_KEY }}"
+        timeout: 20m
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch

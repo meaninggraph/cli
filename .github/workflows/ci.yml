@@ -41,3 +41,31 @@ jobs:
         run: go test -race -covermode=atomic -coverprofile=cover.out ./...
       - name: Every statement is covered
         run: go run ./cmd/covergate cover.out
+
+  package:
+    name: GoReleaser check and snapshot build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check the GoReleaser configuration
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.18.2
+          args: check
+      - name: Snapshot build of every release artifact
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.18.2
+          args: release --snapshot --clean --skip=publish
+      - name: Run the packaged linux binary
+        run: |
+          set -eu
+          bin="$(find dist -type f -name meaninggraph -path '*linux_amd64*')"
+          "$bin" --version
+          "$bin" check testdata/corpus/core --address github.com/meaninggraph/core --profile universal

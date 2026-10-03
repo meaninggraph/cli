@@ -151,3 +151,28 @@ func TestWorkflowRunsTheGateUnconditionally(t *testing.T) {
 		t.Error("ci.yml must run on pull requests and on main")
 	}
 }
+
+// The release must not be able to run for a commit whose CI did not pass.
+func TestReleaseRequiresTheCIWorkflow(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile("../../.github/workflows/release.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "require_workflow_success: 'CI'") {
+		t.Error("release.yml must set require_workflow_success: 'CI'")
+	}
+	ci, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil || !regexp.MustCompile(`(?m)^name: CI$`).Match(ci) {
+		t.Errorf("ci.yml must be the workflow named CI: %v", err)
+	}
+	if !regexp.MustCompile(`strongo/cicd/\.github/workflows/release\.yml@v\d+\.\d+\.\d+\n`).MatchString(text) {
+		t.Error("the shared release workflow must be pinned to an exact tag")
+	}
+	for _, banned := range []string{"continue-on-error", "|| true", "secrets:"} {
+		if strings.Contains(text, banned+"\n") || strings.Contains(text, banned+" ") {
+			t.Errorf("release.yml must not contain %q", banned)
+		}
+	}
+}
