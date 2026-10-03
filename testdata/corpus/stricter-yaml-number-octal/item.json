@@ -1,0 +1,6 @@
+{
+  "description": "An octal year.",
+  "expect": "refuse",
+  "rule": "yaml-number",
+  "stricter": "Numbers are decimal in the subset; the reference parser reads 0o3751 as 2025."
+}

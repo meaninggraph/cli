@@ -1,0 +1,6 @@
+{
+  "description": "HCL: key = \"Id\" instead of a list.",
+  "expect": "refuse",
+  "rule": "models",
+  "stricter": "JavaScript accepts a string key because String.includes finds a property name inside it as a substring; the CLI requires a list, as ModelSpec does."
+}

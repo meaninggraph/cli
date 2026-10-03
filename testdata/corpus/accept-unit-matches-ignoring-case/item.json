@@ -1,0 +1,4 @@
+{
+  "description": "unit USD matches the label \"US dollar\" through its alias or code.",
+  "expect": "accept"
+}

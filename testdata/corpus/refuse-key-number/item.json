@@ -1,0 +1,5 @@
+{
+  "description": "A number as a key of codes.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

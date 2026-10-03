@@ -1,0 +1,4 @@
+{
+  "description": "1_000 is a string in YAML 1.2.",
+  "expect": "accept"
+}

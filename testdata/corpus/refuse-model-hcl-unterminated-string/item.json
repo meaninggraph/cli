@@ -1,0 +1,5 @@
+{
+  "description": "HCL: unterminated string.",
+  "expect": "refuse",
+  "rule": "models"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "role foreign-key on a plain property.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

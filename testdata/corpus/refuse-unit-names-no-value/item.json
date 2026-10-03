@@ -1,0 +1,5 @@
+{
+  "description": "A unit that names none of the values.",
+  "expect": "refuse",
+  "rule": "unit"
+}

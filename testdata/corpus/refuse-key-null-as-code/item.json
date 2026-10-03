@@ -1,0 +1,5 @@
+{
+  "description": "A code named null: YAML reads the key as null (the reference turns it into an empty name).",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

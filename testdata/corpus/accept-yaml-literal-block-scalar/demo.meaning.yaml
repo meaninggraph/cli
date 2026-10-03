@@ -1,0 +1,18 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: |
+      Line one.
+      Line two.
+  - id: b
+    kind: entity
+    labels: {en: b}
+    description: >
+      Folded
+      text.
+

@@ -1,0 +1,5 @@
+{
+  "description": "A component field named constructor.",
+  "expect": "refuse",
+  "rule": "models"
+}

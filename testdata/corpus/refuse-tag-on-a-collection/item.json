@@ -1,0 +1,5 @@
+{
+  "description": "labels: !!set {en: thing}.",
+  "expect": "refuse",
+  "rule": "yaml-tag"
+}

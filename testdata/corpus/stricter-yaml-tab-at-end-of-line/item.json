@@ -1,0 +1,6 @@
+{
+  "description": "Tabs after the last thing of a line.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "A tab at the end of a line is refused: the subset reads a tab only inside quotes, in a comment and between two characters of plain and block text."
+}

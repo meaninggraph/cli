@@ -1,0 +1,5 @@
+{
+  "description": "of names a concept that is not declared.",
+  "expect": "refuse",
+  "rule": "unknown-concept"
+}

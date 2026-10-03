@@ -1,0 +1,4 @@
+{
+  "description": "min and max are allowed on a ratio.",
+  "expect": "accept"
+}

@@ -1,0 +1,6 @@
+{
+  "description": "A directory with no meaning file.",
+  "expect": "refuse",
+  "rule": "no-meaning-files",
+  "stricter": "The reference checker returns no problems for no files (only core's own rules ask for one); a check that read nothing must not pass silently in CI."
+}

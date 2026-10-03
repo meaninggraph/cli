@@ -1,0 +1,6 @@
+{
+  "description": "YAML: an explicit !!int tag.",
+  "expect": "refuse",
+  "rule": "yaml-tag",
+  "stricter": "The subset has no tags at all; the reference parser reads !!int."
+}

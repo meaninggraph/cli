@@ -1,0 +1,4 @@
+{
+  "description": "A last line of fewer spaces than the text is indented by.",
+  "expect": "accept"
+}

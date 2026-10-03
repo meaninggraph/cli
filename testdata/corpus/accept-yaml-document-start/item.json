@@ -1,0 +1,4 @@
+{
+  "description": "A --- line starts the document, after a comment.",
+  "expect": "accept"
+}

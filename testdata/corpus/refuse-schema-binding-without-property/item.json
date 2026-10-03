@@ -1,0 +1,5 @@
+{
+  "description": "role identifier without property.",
+  "expect": "refuse",
+  "rule": "schema"
+}

@@ -1,0 +1,4 @@
+{
+  "description": "A ? at the end of a plain word inside flow collections.",
+  "expect": "accept"
+}

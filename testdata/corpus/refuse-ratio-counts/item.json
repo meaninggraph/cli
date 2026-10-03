@@ -1,0 +1,5 @@
+{
+  "description": "A ratio with aggregation count.",
+  "expect": "refuse",
+  "rule": "ratio-aggregation"
+}

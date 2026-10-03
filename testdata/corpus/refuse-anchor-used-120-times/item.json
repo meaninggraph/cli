@@ -1,0 +1,5 @@
+{
+  "description": "One anchor used 120 times: the reference parser stops at 100 uses.",
+  "expect": "refuse",
+  "rule": "yaml-anchor"
+}

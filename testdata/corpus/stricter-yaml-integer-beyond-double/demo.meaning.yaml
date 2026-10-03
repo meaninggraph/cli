@@ -1,0 +1,10 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: m
+    kind: measure
+    labels: {en: m}
+    description: A m.
+    measure: {formula: x, scale: 9007199254740993}

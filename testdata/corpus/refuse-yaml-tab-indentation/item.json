@@ -1,0 +1,5 @@
+{
+  "description": "A tab as indentation.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

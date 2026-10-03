@@ -1,0 +1,5 @@
+{
+  "description": "year: 2025.5.",
+  "expect": "refuse",
+  "rule": "schema"
+}

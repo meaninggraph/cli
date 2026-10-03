@@ -1,0 +1,10 @@
+{
+  "description": "A supplied graph with a number as a value label that nothing uses.",
+  "expect": "refuse",
+  "rule": "unresolved-graph",
+  "stricter": "A supplied graph must itself be valid against the schema; the reference checker reads it without validating it, and only fails when a rule reads the label.",
+  "check": "main",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/stricter-supplied-graph-number-label/dep"
+  }
+}

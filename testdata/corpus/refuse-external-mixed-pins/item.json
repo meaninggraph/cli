@@ -1,0 +1,8 @@
+{
+  "description": "Two different pins for one other graph.",
+  "expect": "refuse",
+  "rule": "pin-mismatch",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

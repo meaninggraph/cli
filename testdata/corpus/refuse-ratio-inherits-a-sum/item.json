@@ -1,0 +1,5 @@
+{
+  "description": "A ratio that inherits aggregation sum through extends.",
+  "expect": "refuse",
+  "rule": "ratio-aggregation"
+}

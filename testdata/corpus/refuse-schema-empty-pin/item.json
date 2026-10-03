@@ -1,0 +1,5 @@
+{
+  "description": "A reference with an empty ?ref=.",
+  "expect": "refuse",
+  "rule": "schema"
+}

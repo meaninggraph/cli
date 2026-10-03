@@ -1,0 +1,5 @@
+{
+  "description": "year as a string.",
+  "expect": "refuse",
+  "rule": "schema"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "A binding to a module not listed in models.",
+  "expect": "refuse",
+  "rule": "binding-model"
+}

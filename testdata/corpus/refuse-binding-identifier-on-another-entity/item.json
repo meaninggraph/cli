@@ -1,0 +1,5 @@
+{
+  "description": "An identifier on an entity other than the concept's own.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

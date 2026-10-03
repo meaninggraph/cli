@@ -1,0 +1,5 @@
+{
+  "description": "An identifier but no entity binding.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

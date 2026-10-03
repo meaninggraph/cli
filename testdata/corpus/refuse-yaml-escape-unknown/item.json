@@ -1,0 +1,5 @@
+{
+  "description": "A double-quoted escape that YAML does not have.",
+  "expect": "refuse",
+  "rule": "yaml-escape"
+}

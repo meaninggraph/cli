@@ -1,0 +1,5 @@
+{
+  "description": "role value on a reference property.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

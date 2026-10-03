@@ -1,0 +1,5 @@
+{
+  "description": "A concept whose source is not declared.",
+  "expect": "refuse",
+  "rule": "undeclared-source"
+}

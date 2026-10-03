@@ -1,0 +1,5 @@
+{
+  "description": "A reference to the graph's own address resolves to itself.",
+  "expect": "accept",
+  "address": "github.com/org/me"
+}

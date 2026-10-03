@@ -1,0 +1,5 @@
+{
+  "description": "A word that names two values in different languages.",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

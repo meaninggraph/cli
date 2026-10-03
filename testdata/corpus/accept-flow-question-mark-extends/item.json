@@ -1,0 +1,7 @@
+{
+  "description": "A concept written as a flow mapping that extends a pinned concept of another graph.",
+  "expect": "accept",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

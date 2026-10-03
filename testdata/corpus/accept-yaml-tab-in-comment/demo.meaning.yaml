@@ -1,0 +1,11 @@
+# a	comment
+format: meaning/draft-1 # b	c
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  # c	d
+  - id: a
+    kind: entity
+    labels: {en: a} # e	f
+    description: A demo. #	g

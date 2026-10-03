@@ -1,0 +1,6 @@
+{
+  "description": "An integer that a double cannot hold exactly, where the schema wants a number.",
+  "expect": "refuse",
+  "rule": "yaml-number",
+  "stricter": "An integer beyond 2^53 is refused; the reference parser rounds it to a double and accepts it."
+}

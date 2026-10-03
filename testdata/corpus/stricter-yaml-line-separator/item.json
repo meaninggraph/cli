@@ -1,0 +1,6 @@
+{
+  "description": "U+2028 inside a line.",
+  "expect": "refuse",
+  "rule": "yaml-character",
+  "stricter": "The subset has no U+2028, U+2029 or U+0085 (YAML 1.1 line breaks); the reference parser accepts them in a line."
+}

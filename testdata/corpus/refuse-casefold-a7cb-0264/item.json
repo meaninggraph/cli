@@ -1,0 +1,5 @@
+{
+  "description": "Two values labelled \\uA7CB and \\u0264, which Unicode 16 case-folds together.",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

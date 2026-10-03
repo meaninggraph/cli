@@ -1,0 +1,5 @@
+{
+  "description": "A foreign key to an entity that does not hold the instances.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

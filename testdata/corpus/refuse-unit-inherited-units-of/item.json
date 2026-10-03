@@ -1,0 +1,5 @@
+{
+  "description": "A unit checked against an inherited units-of.",
+  "expect": "refuse",
+  "rule": "unit"
+}

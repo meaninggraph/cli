@@ -1,0 +1,6 @@
+{
+  "description": "A closing ... line.",
+  "expect": "refuse",
+  "rule": "yaml-documents",
+  "stricter": "A meaning file is one document, optionally started by a --- line; the reference parser accepts a closing ... marker."
+}

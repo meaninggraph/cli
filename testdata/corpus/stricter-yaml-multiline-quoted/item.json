@@ -1,0 +1,6 @@
+{
+  "description": "A double-quoted value over two lines.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "A quoted value must fit on one line in the subset (a block scalar does the job); the reference parser folds it."
+}

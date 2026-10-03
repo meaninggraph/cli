@@ -1,0 +1,5 @@
+{
+  "description": "A foreign-key attribute with no values-of.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

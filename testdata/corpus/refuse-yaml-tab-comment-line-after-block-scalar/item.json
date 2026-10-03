@@ -1,0 +1,5 @@
+{
+  "description": "A comment line indented by a tab right after a block scalar.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

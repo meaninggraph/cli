@@ -1,0 +1,5 @@
+{
+  "description": "An entity extends a measure.",
+  "expect": "refuse",
+  "rule": "extends-kind"
+}

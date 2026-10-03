@@ -1,0 +1,6 @@
+{
+  "description": "An explicit key with ?.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "The subset has no explicit keys; the reference parser reads them."
+}

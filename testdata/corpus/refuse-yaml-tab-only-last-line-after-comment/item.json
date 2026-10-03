@@ -1,0 +1,5 @@
+{
+  "description": "A last line that is only a tab, without a line break, after an indented comment.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

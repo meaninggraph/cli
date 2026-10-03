@@ -1,0 +1,8 @@
+{
+  "description": "A pinned and an unpinned reference to one graph.",
+  "expect": "refuse",
+  "rule": "pin-mismatch",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

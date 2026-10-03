@@ -1,0 +1,6 @@
+{
+  "description": "A block scalar with an indentation indicator.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "The subset has no indentation indicators; the reference parser reads them."
+}

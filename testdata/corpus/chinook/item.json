@@ -1,0 +1,9 @@
+{
+  "description": "The Chinook meaning graph of github.com/datatug/chinookdb at commit 8c9e62ed6641c0a00faa3867167d928af4c44b06 (model/), bound to its ModelSpec model and extending core.",
+  "expect": "accept",
+  "check": "model",
+  "address": "github.com/datatug/chinookdb",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "description": "A line of a tab after a key that has no value.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

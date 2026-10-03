@@ -1,0 +1,6 @@
+{
+  "description": "A cycle written with the graph's own address.",
+  "expect": "refuse",
+  "rule": "extends-cycle",
+  "address": "github.com/org/me"
+}

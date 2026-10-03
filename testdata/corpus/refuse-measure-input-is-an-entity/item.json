@@ -1,0 +1,5 @@
+{
+  "description": "A measure computed from an entity.",
+  "expect": "refuse",
+  "rule": "measure-input"
+}

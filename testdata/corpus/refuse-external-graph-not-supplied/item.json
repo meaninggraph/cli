@@ -1,0 +1,5 @@
+{
+  "description": "A reference to a graph that was not supplied.",
+  "expect": "refuse",
+  "rule": "unresolved-graph"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "A binding to a property the entity lacks.",
+  "expect": "refuse",
+  "rule": "binding-model"
+}

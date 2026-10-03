@@ -1,0 +1,5 @@
+{
+  "description": "A tab after a dash.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

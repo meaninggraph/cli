@@ -1,0 +1,16 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: revenue
+    kind: measure
+    labels: {en: revenue}
+    description: A revenue.
+    measure: {formula: x, aggregation: sum}
+  - id: online-revenue
+    kind: measure
+    labels: {en: online-revenue}
+    description: A online-revenue.
+    extends: revenue
+    measure: {formula: x}

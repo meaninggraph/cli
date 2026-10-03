@@ -1,0 +1,5 @@
+{
+  "description": "Concept id line-2: each word starts with a letter.",
+  "expect": "refuse",
+  "rule": "schema"
+}

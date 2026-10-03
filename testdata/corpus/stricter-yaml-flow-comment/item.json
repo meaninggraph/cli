@@ -1,0 +1,6 @@
+{
+  "description": "A comment inside a flow sequence.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "The subset has no comments inside [ ] or { }; the reference parser accepts them."
+}

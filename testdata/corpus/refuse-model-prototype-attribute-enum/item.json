@@ -1,0 +1,5 @@
+{
+  "description": "An enum with an attribute named hasOwnProperty.",
+  "expect": "refuse",
+  "rule": "models"
+}

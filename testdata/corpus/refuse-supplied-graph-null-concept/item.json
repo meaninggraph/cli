@@ -1,0 +1,9 @@
+{
+  "description": "A supplied graph whose concepts hold a null item.",
+  "expect": "refuse",
+  "rule": "unresolved-graph",
+  "check": "main",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/refuse-supplied-graph-null-concept/dep"
+  }
+}

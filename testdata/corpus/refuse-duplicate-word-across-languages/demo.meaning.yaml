@@ -1,0 +1,12 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: c
+    kind: entity
+    labels: {en: c}
+    description: A c.
+    values:
+      - {id: a, labels: {en: A}}
+      - {id: b, labels: {en: B, ru: a}}

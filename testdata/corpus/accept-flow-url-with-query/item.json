@@ -1,0 +1,4 @@
+{
+  "description": "URLs with a query string in flow mappings (a source url and a measure query).",
+  "expect": "accept"
+}

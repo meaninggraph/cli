@@ -1,0 +1,4 @@
+{
+  "description": "A plain description with a blank line inside it, which is a line break in its value.",
+  "expect": "accept"
+}

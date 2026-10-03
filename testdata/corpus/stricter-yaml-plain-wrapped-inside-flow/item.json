@@ -1,0 +1,6 @@
+{
+  "description": "A plain scalar of a flow sequence that continues on the next line.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "A plain scalar inside [ ] or { } must be on one line; put it in quotes or on one line."
+}

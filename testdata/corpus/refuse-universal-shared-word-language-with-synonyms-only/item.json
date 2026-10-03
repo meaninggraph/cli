@@ -1,0 +1,7 @@
+{
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core",
+  "description": "A language that has synonyms but no label counts.",
+  "expect": "refuse",
+  "rule": "ambiguous-word"
+}

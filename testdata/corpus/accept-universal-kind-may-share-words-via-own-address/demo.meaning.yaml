@@ -1,0 +1,17 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+license: CC0-1.0
+concepts:
+  - id: person
+    kind: entity
+    labels: {en: person}
+    description: A person.
+    synonyms: {en: [human]}
+  - id: employee
+    kind: entity
+    labels: {en: employee}
+    description: A employee.
+    extends: 'meaning://github.com/meaninggraph/core/person'
+    synonyms: {en: [human]}

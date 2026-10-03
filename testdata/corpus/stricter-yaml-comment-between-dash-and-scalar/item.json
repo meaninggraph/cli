@@ -1,0 +1,6 @@
+{
+  "description": "A comment line between a dash and its plain value: the two parsers read different synonyms.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "The reference parser lowers its indentation after a comment line there and reads one synonym, \"item - object\", where a reader that skips the comment reads two."
+}

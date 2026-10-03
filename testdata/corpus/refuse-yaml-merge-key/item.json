@@ -1,0 +1,5 @@
+{
+  "description": "YAML 1.2 core schema has no merge keys: << is an unknown key.",
+  "expect": "refuse",
+  "rule": "yaml-anchor"
+}

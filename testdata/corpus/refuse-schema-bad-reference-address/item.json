@@ -1,0 +1,5 @@
+{
+  "description": "A reference with an uppercase host-less address.",
+  "expect": "refuse",
+  "rule": "schema"
+}

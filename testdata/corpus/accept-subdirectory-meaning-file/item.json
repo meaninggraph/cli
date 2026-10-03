@@ -1,0 +1,4 @@
+{
+  "description": "A meaning file below the checked directory is not read (the CLI warns).",
+  "expect": "accept"
+}

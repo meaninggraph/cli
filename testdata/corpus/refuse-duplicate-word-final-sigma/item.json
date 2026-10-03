@@ -1,0 +1,5 @@
+{
+  "description": "ΟΔΟΣ and οδος lower-case to the same word (final sigma).",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

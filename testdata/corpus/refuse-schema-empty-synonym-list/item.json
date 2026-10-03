@@ -1,0 +1,5 @@
+{
+  "description": "synonyms with an empty list.",
+  "expect": "refuse",
+  "rule": "schema"
+}

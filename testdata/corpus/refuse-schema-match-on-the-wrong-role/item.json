@@ -1,0 +1,5 @@
+{
+  "description": "match on a foreign-key binding.",
+  "expect": "refuse",
+  "rule": "schema"
+}

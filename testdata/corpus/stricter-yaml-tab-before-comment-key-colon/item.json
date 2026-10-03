@@ -1,0 +1,6 @@
+{
+  "description": "A tab between a quoted key and its colon.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "Tabs are accepted only where they cannot change what is read; one between a key and its colon is not one of those places."
+}

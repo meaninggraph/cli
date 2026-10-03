@@ -1,0 +1,4 @@
+{
+  "description": "A comment line between a key and its block sequence, at every indent.",
+  "expect": "accept"
+}

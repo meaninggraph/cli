@@ -1,0 +1,8 @@
+{
+  "description": "A concept that the other graph does not have.",
+  "expect": "refuse",
+  "rule": "unknown-concept",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

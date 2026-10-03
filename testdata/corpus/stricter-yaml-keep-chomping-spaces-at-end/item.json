@@ -1,0 +1,6 @@
+{
+  "description": "Keep chomping, ending in a line of spaces without a line break.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "Keep chomping (|+, >+) is outside the subset: the reference parser reads \"Kept text.\" and a line break, and a reader that counts the last line of spaces reads one more."
+}

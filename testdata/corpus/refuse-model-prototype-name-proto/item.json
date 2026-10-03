@@ -1,0 +1,5 @@
+{
+  "description": "A model with an entity named __proto__, a property of Object.prototype: the reference checker refuses the model, and so does the CLI, saying why.",
+  "expect": "refuse",
+  "rule": "models"
+}

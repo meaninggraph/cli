@@ -1,0 +1,5 @@
+{
+  "description": "A %YAML 1.1 directive: the reference then reads no as a boolean.",
+  "expect": "refuse",
+  "rule": "yaml-directive"
+}

@@ -1,0 +1,1555 @@
+{
+  "generated_by": "scripts/differential/regenerate.sh",
+  "node_checker": {
+    "repository": "https://github.com/meaninggraph/core",
+    "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7",
+    "node": "v24.20.0",
+    "ajv": "8.20.0",
+    "ajv_formats": "3.0.1",
+    "yaml": "2.9.1"
+  },
+  "items": {
+    "accept-bound-concepts-of-every-kind": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-external-pinned-reference": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-model-reference-with-pin": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-extends": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-in-text": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-input": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-url-with-query": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-hcl-comments-and-escapes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-kind-of-a-summing-measure": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-medial-sigma-is-not-final-sigma": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-minimal": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-model-path-with-dotdot": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-narrowing-to-a-kind": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-own-address-reference": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-ratio-min-and-max": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-ratio-none-overrides-inherited-sum": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-same-word-in-two-languages": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-subdirectory-meaning-file": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-unit-matches-ignoring-case": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-universal-kind-may-share-words-via-own-address": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-universal-minimal": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-comment-after": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-fewer-spaces-line-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-folded-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-folded-strip-blank-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-literal-blank-lines-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-literal-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-strip-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-bom-then-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-bom-then-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-comment-before-nested-collection": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-comments-and-flow": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-crlf": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-date-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-document-start": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-exponent-scale": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-flow-over-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-json-escapes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-literal-block-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-nul-and-bell-escapes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-plain-scalar-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-plain-scalar-over-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-quoted-keys": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-quoted-number": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-sequence-at-key-indent": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-signed-hex-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-block-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-double-quotes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-plain-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-single-quotes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-underscore-number-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-utf8-bom": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-yes-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "chinook": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "core": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "refuse-anchor-used-120-times": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Excessive alias count indicates a resource exhaustion attack"
+      ]
+    },
+    "refuse-binding-display-name-not-a-string": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.AlbumId has role display-name but is an int, not a string"
+      ]
+    },
+    "refuse-binding-foreign-key-from-core-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.ArtistId has role foreign-key, but customer has no entity binding in this repository, so it cannot be checked that Artist holds its instances; bind customer (or a concept of this repository that extends it) to its entity"
+      ]
+    },
+    "refuse-binding-foreign-key-not-a-reference": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.Title has role foreign-key but is not a reference (it is a string)"
+      ]
+    },
+    "refuse-binding-foreign-key-target-unbound": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.ArtistId has role foreign-key, but artist has no entity binding in this repository, so it cannot be checked that Artist holds its instances; bind artist (or a concept of this repository that extends it) to its entity"
+      ]
+    },
+    "refuse-binding-foreign-key-without-values-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.ArtistId has role foreign-key, so a needs values-of: the entity its references point at"
+      ]
+    },
+    "refuse-binding-foreign-key-wrong-target": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.ArtistId references Artist, but the instances of album are Album rows"
+      ]
+    },
+    "refuse-binding-identifier-not-in-key": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.Title has role identifier but is not in the key of Album [AlbumId]"
+      ]
+    },
+    "refuse-binding-identifier-on-another-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.AlbumId has role identifier, but a is bound to the entity Artist; the property must be on that entity"
+      ]
+    },
+    "refuse-binding-identifier-without-entity-binding": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Artist.ArtistId has role identifier, but a has no entity binding, so it cannot be checked which entity the property must sit on"
+      ]
+    },
+    "refuse-binding-missing-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///chinook.Artists: module chinook has no entity Artists"
+      ]
+    },
+    "refuse-binding-missing-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///chinook.Artist: entity Artist has no property Nme"
+      ]
+    },
+    "refuse-binding-other-repository": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec://github.com/org/repo/chinook.Artist points at another repository; this check resolves same-repository models only"
+      ]
+    },
+    "refuse-binding-two-entity-bindings": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: has 2 entity bindings (chinook.Artist, chinook.Album); a concept binds one entity"
+      ]
+    },
+    "refuse-binding-unlisted-module": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///music.Artist: module music is not listed in models"
+      ]
+    },
+    "refuse-binding-value-on-a-reference": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Album.ArtistId has role value but is a reference to Artist; bind it with role foreign-key"
+      ]
+    },
+    "refuse-casefold-10d50-10d70": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"𐵰\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7cb-0264": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ɤ\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7cc-a7cd": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ꟍ\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7da-a7db": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ꟛ\" names both v1 and v2"
+      ]
+    },
+    "refuse-comment-glued-to-a-flow-mapping": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Comments must be separated from other tokens by white space characters at line 8, column 20:"
+      ]
+    },
+    "refuse-cr-only-line-endings": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Nested mappings are not allowed in compact mappings at line 1, column 9:"
+      ]
+    },
+    "refuse-duplicate-concept": {
+      "verdict": "refuse",
+      "problems": [
+        "concept a is declared twice (a.meaning.yaml and b.meaning.yaml)"
+      ]
+    },
+    "refuse-duplicate-source": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: source s is declared twice"
+      ]
+    },
+    "refuse-duplicate-value-id": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: value a is declared twice"
+      ]
+    },
+    "refuse-duplicate-word": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"shared\" names both a and b"
+      ]
+    },
+    "refuse-duplicate-word-across-languages": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"a\" names both a and b"
+      ]
+    },
+    "refuse-duplicate-word-dotted-capital-i": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"i̇\" names both a and b"
+      ]
+    },
+    "refuse-duplicate-word-final-sigma": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"οδος\" names both a and b"
+      ]
+    },
+    "refuse-entity-true-reference": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ref: true.T references true, but the instances of t are true rows"
+      ]
+    },
+    "refuse-extends-attribute-to-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: an attribute cannot extend e, which is an entity; extends means \"is a kind of\", and an attribute may extend only attribute or dimension"
+      ]
+    },
+    "refuse-extends-cycle": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: extends forms a cycle (a -> b -> a)",
+        "demo.meaning.yaml: concept b: extends forms a cycle (b -> a -> b)"
+      ]
+    },
+    "refuse-extends-cycle-through-own-address": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: extends forms a cycle (a -> a)"
+      ]
+    },
+    "refuse-extends-entity-to-measure": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept employee: an entity cannot extend revenue, which is a measure; extends means \"is a kind of\", and an entity may extend only entity"
+      ]
+    },
+    "refuse-extends-itself": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: extends forms a cycle (a -> a)"
+      ]
+    },
+    "refuse-external-graph-not-supplied": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept customer extends: no source configured for meaning://github.com/meaninggraph/core"
+      ]
+    },
+    "refuse-external-kind-mismatch": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept takings: an entity cannot extend meaning://github.com/meaninggraph/core/revenue?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7, which is a measure; extends means \"is a kind of\", and an entity may extend only entity"
+      ]
+    },
+    "refuse-external-mixed-pins": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept invoice extends: meaning://github.com/meaninggraph/core is pinned to both \"cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7\" and \"main\"; use one pin per repository"
+      ]
+    },
+    "refuse-external-pinned-and-unpinned": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept invoice extends: meaning://github.com/meaninggraph/core is pinned to both \"cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7\" and \"\"; use one pin per repository",
+        "demo.meaning.yaml: concept invoice extends: meaning://github.com/meaninggraph/core is read from git and needs a ?ref= pin"
+      ]
+    },
+    "refuse-external-ratio-inherits-a-sum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept takings: aggregation sum on a ratio (it is computed from the measure meaning://github.com/meaninggraph/core/revenue?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7); a ratio is recomputed per group from its inputs, so its aggregation is none; sum is inherited from revenue, state aggregation: none"
+      ]
+    },
+    "refuse-external-unknown-concept": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept client extends: concept client does not exist in meaning://github.com/meaninggraph/core"
+      ]
+    },
+    "refuse-external-unpinned": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept customer extends: meaning://github.com/meaninggraph/core is read from git and needs a ?ref= pin"
+      ]
+    },
+    "refuse-external-wrong-repository": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept customer extends: no source configured for meaning://github.com/org/other"
+      ]
+    },
+    "refuse-key-null-as-code": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes must match pattern \"^[a-z][a-z0-9-]*$\"",
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes property name must be valid"
+      ]
+    },
+    "refuse-key-null-as-module": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /models must match pattern \"^[A-Za-z][A-Za-z0-9_]*$\"",
+        "demo.meaning.yaml: schema: /models property name must be valid",
+        "demo.meaning.yaml: concept artist: modelspec:///Null.Artist: module Null is not listed in models"
+      ]
+    },
+    "refuse-key-number": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes must match pattern \"^[a-z][a-z0-9-]*$\"",
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes property name must be valid"
+      ]
+    },
+    "refuse-key-true-as-module": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept artist: modelspec:///True.Artist: module True is not listed in models"
+      ]
+    },
+    "refuse-kind-of-a-ratio-sums": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept wrong: aggregation sum on a ratio (it is computed from the measure revenue); a ratio is recomputed per group from its inputs, so its aggregation is none"
+      ]
+    },
+    "refuse-measure-dimension-is-an-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept m: measure.dimensions names e, which is an entity; a measure is grouped by dimensions or attributes only"
+      ]
+    },
+    "refuse-measure-input-is-an-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept m: measure.inputs names e, which is an entity; a measure is computed from attributes and measures only"
+      ]
+    },
+    "refuse-model-file-missing": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: ENOENT: no such file or directory, open 'model.hcl'"
+      ]
+    },
+    "refuse-model-hcl-duplicate-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 3: duplicate entity \"A\""
+      ]
+    },
+    "refuse-model-hcl-duplicate-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 3: duplicate property \"Id\" in entity \"A\""
+      ]
+    },
+    "refuse-model-hcl-expression": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 3: int is not a literal (expressions are not ModelSpec v0)"
+      ]
+    },
+    "refuse-model-hcl-interpolation": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 2: string interpolation is not ModelSpec v0"
+      ]
+    },
+    "refuse-model-hcl-map-value": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 2: map-style values are not ModelSpec v0 syntax; use named blocks"
+      ]
+    },
+    "refuse-model-hcl-top-level-attribute": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: top-level attributes are not ModelSpec v0"
+      ]
+    },
+    "refuse-model-hcl-unknown-block": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 1: top-level table blocks are not supported by this converter (entity, component, enum)"
+      ]
+    },
+    "refuse-model-hcl-unterminated-string": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 1: unterminated string"
+      ]
+    },
+    "refuse-model-one-bad-module-loses-the-others": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: ENOENT: no such file or directory, open 'missing.hcl'",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-component": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute valueOf",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute __proto__",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-enum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute hasOwnProperty",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-field": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 14: duplicate attribute constructor",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 17: duplicate attribute toString",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-component": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate component \"valueOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-constructor": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"constructor\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-defineGetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineGetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-defineSetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineSetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-enum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate enum \"hasOwnProperty\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-field": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 14: duplicate field \"constructor\" in component \"C\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-hasOwnProperty": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"hasOwnProperty\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-isPrototypeOf": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"isPrototypeOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-lookupGetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupGetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-lookupSetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupSetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 16: duplicate property \"toString\" in entity \"Song\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-propertyIsEnumerable": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"propertyIsEnumerable\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-proto": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__proto__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-toLocaleString": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"toLocaleString\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-toString": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"toString\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-valueOf": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"valueOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-models-path-with-trailing-slash": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: ENOTDIR: not a directory, open 'model.hcl/'",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-narrowing-changes-units-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept wrong: units-of mass is neither currency nor a kind of it, which base requires"
+      ]
+    },
+    "refuse-narrowing-changes-values-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept wrong: values-of city is neither country nor a kind of it, which base requires"
+      ]
+    },
+    "refuse-number-beyond-a-double": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure/scale must be number"
+      ]
+    },
+    "refuse-of-names-a-measure": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: of names m, which is a measure, not an entity"
+      ]
+    },
+    "refuse-own-address-with-pin": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept b extends: meaning://github.com/org/me/a?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7 pins this repository's own concept; a reference to the repository itself cannot carry ?ref="
+      ]
+    },
+    "refuse-own-address-without-address-flag": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept b extends: no source configured for meaning://github.com/org/me"
+      ]
+    },
+    "refuse-question-mark-flow-key": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure must NOT have additional properties (?aggregation)"
+      ]
+    },
+    "refuse-ratio-averages": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ratio: aggregation average on a ratio (it is computed from the measure revenue); a ratio is recomputed per group from its inputs, so its aggregation is none"
+      ]
+    },
+    "refuse-ratio-counts": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ratio: aggregation count on a ratio (it is computed from the measure revenue); a ratio is recomputed per group from its inputs, so its aggregation is none"
+      ]
+    },
+    "refuse-ratio-inherits-a-sum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ratio: aggregation sum on a ratio (it is computed from the measure revenue); a ratio is recomputed per group from its inputs, so its aggregation is none; sum is inherited from revenue, state aggregation: none"
+      ]
+    },
+    "refuse-ratio-sums": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ratio: aggregation sum on a ratio (it is computed from the measure revenue); a ratio is recomputed per group from its inputs, so its aggregation is none"
+      ]
+    },
+    "refuse-reference-last-segment-is-the-id": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a of: no source configured for meaning://github.com/org"
+      ]
+    },
+    "refuse-schema-bad-language-tag": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels must match pattern \"^[a-z]{2,3}(-[A-Z]{2})?$\"",
+        "demo.meaning.yaml: schema: /concepts/0/labels property name must be valid"
+      ]
+    },
+    "refuse-schema-bad-model-address": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/bindings/0/model must match pattern \"^modelspec://([A-Za-z0-9.-]+(/[A-Za-z0-9._-]+)+)?/[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_]*(\\?ref=[A-Za-z0-9._/-]+)?$\"",
+        "demo.meaning.yaml: concept a: modelspec:///Artist is not a modelspec:// reference"
+      ]
+    },
+    "refuse-schema-bad-module-name": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /models must match pattern \"^[A-Za-z][A-Za-z0-9_]*$\"",
+        "demo.meaning.yaml: schema: /models property name must be valid"
+      ]
+    },
+    "refuse-schema-bad-reference-address": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/of must match pattern \"^([a-z][a-z0-9]*(-[a-z][a-z0-9]*)*|meaning://[A-Za-z0-9.-]+(/[A-Za-z0-9._-]+)+/[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*(\\?ref=[A-Za-z0-9._/-]+)?)$\"",
+        "demo.meaning.yaml: concept a of: Meaning://x is not a concept reference"
+      ]
+    },
+    "refuse-schema-bad-source-url": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /sources/0/url must match format \"uri\""
+      ]
+    },
+    "refuse-schema-binding-without-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/bindings/1 must have required property 'property'",
+        "demo.meaning.yaml: schema: /concepts/0/bindings/1 must match \"else\" schema"
+      ]
+    },
+    "refuse-schema-concept-id-too-long": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/id must NOT have more than 80 characters"
+      ]
+    },
+    "refuse-schema-concept-id-word-starts-with-digit": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/id must match pattern \"^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$\""
+      ]
+    },
+    "refuse-schema-concept-is-a-string": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema",
+        "demo.meaning.yaml: schema: /concepts/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema",
+        "demo.meaning.yaml: schema: /concepts/0 must be object"
+      ]
+    },
+    "refuse-schema-concepts-empty": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts must NOT have fewer than 1 items"
+      ]
+    },
+    "refuse-schema-concepts-is-a-mapping": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "object is not iterable (cannot read property Symbol(Symbol.iterator))"
+      ]
+    },
+    "refuse-schema-description-is-null": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/description must be string"
+      ]
+    },
+    "refuse-schema-empty-pin": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/of must match pattern \"^([a-z][a-z0-9]*(-[a-z][a-z0-9]*)*|meaning://[A-Za-z0-9.-]+(/[A-Za-z0-9._-]+)+/[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*(\\?ref=[A-Za-z0-9._/-]+)?)$\"",
+        "demo.meaning.yaml: concept a of: meaning://github.com/org/repo/thing?ref= is not a concept reference"
+      ]
+    },
+    "refuse-schema-empty-synonym-list": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/synonyms/en must NOT have fewer than 1 items"
+      ]
+    },
+    "refuse-schema-entity-binding-with-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/bindings/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0/bindings/0 must match \"then\" schema"
+      ]
+    },
+    "refuse-schema-entity-with-unit": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema"
+      ]
+    },
+    "refuse-schema-file-id-too-long": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /id must match pattern \"^[a-z0-9][a-z0-9-]{0,79}$\""
+      ]
+    },
+    "refuse-schema-label-is-a-list": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels/en must be string"
+      ]
+    },
+    "refuse-schema-labels-without-english": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels must have required property 'en'"
+      ]
+    },
+    "refuse-schema-match-on-the-wrong-role": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/1/bindings/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/1/bindings/0 must match \"else\" schema"
+      ]
+    },
+    "refuse-schema-measure-on-an-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must NOT be valid",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"else\" schema"
+      ]
+    },
+    "refuse-schema-measure-without-formula": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure must have required property 'formula'"
+      ]
+    },
+    "refuse-schema-measure-without-measure-block": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must have required property 'measure'",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema"
+      ]
+    },
+    "refuse-schema-missing-description": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must have required property 'description'"
+      ]
+    },
+    "refuse-schema-missing-format": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: / must have required property 'format'"
+      ]
+    },
+    "refuse-schema-name-is-a-boolean": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /name must be string"
+      ]
+    },
+    "refuse-schema-name-is-a-number": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /name must be string"
+      ]
+    },
+    "refuse-schema-repeated-synonym": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/synonyms/en must NOT have duplicate items (items ## 1 and 0 are identical)"
+      ]
+    },
+    "refuse-schema-role-not-allowed-for-kind": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/bindings/0/role must be equal to one of the allowed values (entity, identifier, display-name, foreign-key)",
+        "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema"
+      ]
+    },
+    "refuse-schema-scale-infinite": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure/scale must be number"
+      ]
+    },
+    "refuse-schema-scale-zero": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure/scale must be > 0"
+      ]
+    },
+    "refuse-schema-source-year-is-a-string": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /sources/0/year must be integer"
+      ]
+    },
+    "refuse-schema-source-year-is-fractional": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /sources/0/year must be integer"
+      ]
+    },
+    "refuse-schema-unknown-aggregation": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure/aggregation must be equal to one of the allowed values (sum, count, average, min, max, none)"
+      ]
+    },
+    "refuse-schema-unknown-key": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must NOT have additional properties (colour)"
+      ]
+    },
+    "refuse-schema-unknown-kind": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/kind must be equal to one of the allowed values (entity, attribute, measure, dimension)"
+      ]
+    },
+    "refuse-schema-uppercase-concept-id": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/id must match pattern \"^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$\""
+      ]
+    },
+    "refuse-schema-value-id-uppercase": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/values/0/id must match pattern \"^[a-z0-9][a-z0-9-]{0,79}$\""
+      ]
+    },
+    "refuse-schema-values-and-values-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/1 must NOT be valid"
+      ]
+    },
+    "refuse-schema-wrong-format-version": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /format must be equal to constant"
+      ]
+    },
+    "refuse-supplied-graph-null-concept": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept customer extends: meaning://github.com/meaninggraph/core?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7 cannot be read: Cannot read properties of null (reading 'id')"
+      ]
+    },
+    "refuse-supplied-graph-number-label-used": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "word.toLowerCase is not a function"
+      ]
+    },
+    "refuse-tag-on-a-collection": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Set items must all have null values at line 8, column 13:"
+      ]
+    },
+    "refuse-undeclared-source": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: source nope is not declared in sources"
+      ]
+    },
+    "refuse-unit-inherited-units-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept price: unit \"franc\" must name exactly one value of currency (units-of), but names none"
+      ]
+    },
+    "refuse-unit-names-no-value": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept amount: unit \"franc\" must name exactly one value of currency (units-of), but names none"
+      ]
+    },
+    "refuse-unit-names-two-values": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept amount: unit \"Z\" must name exactly one value of currency (units-of), but names a, b"
+      ]
+    },
+    "refuse-units-of-names-an-attribute": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: units-of names x, which is an attribute, not an entity"
+      ]
+    },
+    "refuse-universal-has-bindings": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///x.A: module x is not listed in models",
+        "demo.meaning.yaml: concept a: bindings belong in a dataset repository, not in the universal concepts"
+      ]
+    },
+    "refuse-universal-has-models": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models belong in a dataset repository, not in the universal concepts"
+      ]
+    },
+    "refuse-universal-licence-missing": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: license must be CC0-1.0"
+      ]
+    },
+    "refuse-universal-licence-wrong": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: license must be CC0-1.0"
+      ]
+    },
+    "refuse-universal-meaning-file-in-subdirectory": {
+      "verdict": "refuse",
+      "problems": [
+        "more/extra.meaning.yaml: meaning files are read from the repository root only; move it there"
+      ]
+    },
+    "refuse-universal-no-license-file": {
+      "verdict": "refuse",
+      "problems": [
+        "LICENSE is missing"
+      ]
+    },
+    "refuse-universal-no-meaning-file": {
+      "verdict": "refuse",
+      "problems": [
+        "no *.meaning.yaml file in the repository root"
+      ]
+    },
+    "refuse-universal-shared-word": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept population: \"people\" (en) is also a word of concept person; one word must name one concept"
+      ]
+    },
+    "refuse-universal-shared-word-language-with-synonyms-only": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept population: \"Leute\" (de) is also a word of concept person; one word must name one concept"
+      ]
+    },
+    "refuse-unknown-extends": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a extends: concept gone is not declared in this repository"
+      ]
+    },
+    "refuse-unknown-of": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a of: concept gone is not declared in this repository"
+      ]
+    },
+    "refuse-utf16-file": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: / must be object"
+      ]
+    },
+    "refuse-values-of-names-a-measure": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: values-of names m, which is a measure, not an entity"
+      ]
+    },
+    "refuse-yaml-1-1-directive": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels/en must be string"
+      ]
+    },
+    "refuse-yaml-bom-indented-first-line": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "All mapping items must start at the same column at line 2, column 1:"
+      ]
+    },
+    "refuse-yaml-comment-between-key-and-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 6, column 3:"
+      ]
+    },
+    "refuse-yaml-comment-between-key-and-scalar-in-a-concept": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 11, column 7:"
+      ]
+    },
+    "refuse-yaml-duplicate-key": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Map keys must be unique at line 4, column 1:"
+      ]
+    },
+    "refuse-yaml-empty-file": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: / must be object"
+      ]
+    },
+    "refuse-yaml-escape-unknown": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Invalid escape sequence \\q at line 9, column 21:"
+      ]
+    },
+    "refuse-yaml-flow-mapping-entry-without-value": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels/fr must be string"
+      ]
+    },
+    "refuse-yaml-lone-carriage-return": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Nested mappings are not allowed in compact mappings at line 1, column 9:"
+      ]
+    },
+    "refuse-yaml-merge-key": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0 must NOT have additional properties (x)",
+        "demo.meaning.yaml: schema: /concepts/0 must NOT have additional properties (<<)"
+      ]
+    },
+    "refuse-yaml-nesting-over-the-limit": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/description must be string"
+      ]
+    },
+    "refuse-yaml-syntax": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Nested mappings are not allowed in compact mappings at line 2, column 5:"
+      ]
+    },
+    "refuse-yaml-tab-after-dash": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 6, column 4:"
+      ]
+    },
+    "refuse-yaml-tab-blank-line-after-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar lines must not be less indented than their first line at line 12, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-comment-after-empty-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar values in collections must be indented at line 6, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-comment-between-key-and-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 11, column 7:"
+      ]
+    },
+    "refuse-yaml-tab-comment-line-after-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar lines must not be less indented than their first line at line 11, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-in-plain-continuation-blank-line": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "All mapping items must start at the same column at line 10, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-indentation": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 10, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-line-after-key-without-value": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 6, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-only-last-line-after-comment": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 11, column 1:"
+      ]
+    },
+    "refuse-yaml-two-documents": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Source contains multiple documents; please use YAML.parseAllDocuments() at line 10, column 1:"
+      ]
+    },
+    "stricter-binding-to-a-prototype-name-entity": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-binding-to-a-prototype-name-property": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-empty-directory": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-hcl-key-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-supplied-graph-number-label": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-supplied-graph-unknown-key": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-anchor": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-block-scalar-on-the-next-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-block-scalar-spaces-line-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-bom-inside-text": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-comment-between-dash-and-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-del-character": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-directive": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-document-end-marker": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-explicit-int-tag": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-explicit-key": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-flow-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-flow-pair": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/synonyms/en/0 must be string"
+      ]
+    },
+    "stricter-yaml-indentation-indicator": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-integer-beyond-double": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-keep-chomping": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-keep-chomping-spaces-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-key-over-1024": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 5, column 1:"
+      ]
+    },
+    "stricter-yaml-key-true": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-latin1": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-line-separator": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-multiline-quoted": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-number-hex": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-number-octal": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-plain-continues-with-bracket": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-plain-continues-with-quote": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-plain-wrapped-inside-flow": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-str-tag": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-after-colon": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-at-end-of-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-before-comment-key-colon": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-comment-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-in-block-scalar-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-in-flow-collection": {
+      "verdict": "accept",
+      "problems": []
+    }
+  }
+}

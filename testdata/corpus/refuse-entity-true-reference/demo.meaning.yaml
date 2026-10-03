@@ -1,0 +1,22 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+models: {m: model.hcl}
+concepts:
+  - id: t
+    kind: entity
+    labels: {en: t}
+    description: A t.
+    bindings:
+      - model: modelspec:///m.true
+        role: entity
+  - id: ref
+    kind: attribute
+    labels: {en: ref}
+    description: A ref.
+    values-of: t
+    bindings:
+      - model: modelspec:///m.true
+        role: foreign-key
+        property: T

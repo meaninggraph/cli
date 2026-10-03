@@ -1,0 +1,4 @@
+{
+  "description": "A file with CRLF line ends, as Windows editors write it.",
+  "expect": "accept"
+}

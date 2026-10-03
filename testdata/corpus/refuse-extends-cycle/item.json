@@ -1,0 +1,5 @@
+{
+  "description": "a extends b extends a.",
+  "expect": "refuse",
+  "rule": "extends-cycle"
+}

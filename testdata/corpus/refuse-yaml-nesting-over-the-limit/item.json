@@ -1,0 +1,5 @@
+{
+  "description": "Flow sequences nested 70 levels deep.",
+  "expect": "refuse",
+  "rule": "yaml-limit"
+}

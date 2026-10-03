@@ -1,0 +1,4 @@
+entity "A" {
+}
+entity "A" {
+}

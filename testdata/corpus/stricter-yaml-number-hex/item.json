@@ -1,0 +1,6 @@
+{
+  "description": "A hexadecimal year.",
+  "expect": "refuse",
+  "rule": "yaml-number",
+  "stricter": "Numbers are decimal in the subset; the reference parser reads 0x7E5 as 2021."
+}

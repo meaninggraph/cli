@@ -1,0 +1,61 @@
+name: Release
+
+# Continuous delivery: every merge to main runs the quality gate (ci.yml) and,
+# only when it passes, the shared strongo/cicd release workflow, which derives
+# the next version from the conventional commits since the last tag, tags it,
+# and publishes the archives and SHA-256 checksums GoReleaser builds as a GitHub
+# release; it then downloads the published archives and runs them.
+#
+# Which commits release (the git-cliff configuration of the shared workflow):
+# a feat: commit cuts a minor release and the other conventional commits, fix:
+# but also perf:, revert:, test:, build: and style:, a patch release; only
+# chore:, ci:, docs: and refactor: commits are skipped. A breaking change
+# (feat!:) is capped to a minor bump while allow_major_version_bump is false.
+#
+# The only trigger is a push to main: there is no tag trigger, no manual
+# trigger and no schedule, so a tag pushed by hand releases nothing, and every
+# release is preceded by the gate in the same run. The release job `needs` the
+# gate job, which calls ci.yml: not a check that the release looks for and
+# skips when it finds none, but a job that must succeed first.
+#
+# Nothing here needs a secret: the default GITHUB_TOKEN creates the tag and the
+# release, and no publisher (tap, bucket, store) needs another token. Adding
+# macOS signing later takes two things together: the five credentials as
+# secrets forwarded to the shared workflow, and require_notarized_macos: true
+# (the shared workflow refuses signing secrets without that gate).
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Quality gate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  release:
+    name: Release
+    needs: gate
+    if: github.ref == 'refs/heads/main'
+    # Pinned to the commit of the v1.21.0 tag of strongo/cicd, not to the tag.
+    uses: strongo/cicd/.github/workflows/release.yml@5d96b1f3fbb3f12bb1e2762ff5ba54ccb9506504 # v1.21.0
+    permissions:
+      contents: write
+    with:
+      # Matches go.mod's go directive.
+      go_version: '1.27.0'
+      # Pre-1.0: a breaking commit is capped to a minor bump. To cut v1.0.0, set
+      # this to true in the commit that is meant to release it (a feat!: or a
+      # BREAKING CHANGE: commit), let the run after the gate tag v1.0.0, and set
+      # it back to false. A tag pushed by hand does not publish anything.
+      allow_major_version_bump: false

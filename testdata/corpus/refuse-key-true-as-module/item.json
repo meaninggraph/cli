@@ -1,0 +1,5 @@
+{
+  "description": "models: {True: ...} with a binding to the module True. YAML reads the key True as the boolean (the reference turns it into \"true\").",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

@@ -1,0 +1,6 @@
+{
+  "description": "A binding to modelspec:///chinook.constructor, an entity the model does not have.",
+  "expect": "refuse",
+  "rule": "binding-model",
+  "stricter": "The reference checker looks entities up in a plain object, so constructor is found (it is Object.prototype.constructor) and the binding passes; the CLI is right to refuse it."
+}

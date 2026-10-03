@@ -1,0 +1,5 @@
+{
+  "description": "labels without en.",
+  "expect": "refuse",
+  "rule": "schema"
+}

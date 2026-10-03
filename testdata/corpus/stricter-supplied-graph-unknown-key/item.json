@@ -1,0 +1,10 @@
+{
+  "description": "A supplied graph with a key the schema does not know.",
+  "expect": "refuse",
+  "rule": "unresolved-graph",
+  "stricter": "A supplied graph must itself be valid against the schema; the reference checker does not validate the graphs it reads other than the one it checks.",
+  "check": "main",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/stricter-supplied-graph-unknown-key/dep"
+  }
+}

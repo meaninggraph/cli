@@ -1,0 +1,5 @@
+{
+  "description": "The first unreadable module drops the modules that were read.",
+  "expect": "refuse",
+  "rule": "models"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "One alias naming two values.",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

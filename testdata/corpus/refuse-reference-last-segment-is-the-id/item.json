@@ -1,0 +1,5 @@
+{
+  "description": "The last segment of meaning://github.com/org/repo?ref=abc is the concept id: it names concept repo of the graph github.com/org, which is not available.",
+  "expect": "refuse",
+  "rule": "unresolved-graph"
+}

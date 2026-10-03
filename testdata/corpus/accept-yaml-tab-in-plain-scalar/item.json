@@ -1,0 +1,4 @@
+{
+  "description": "A tab inside a plain description, and on a wrapped line of it.",
+  "expect": "accept"
+}

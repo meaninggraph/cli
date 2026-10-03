@@ -1,0 +1,4 @@
+{
+  "description": "A quoted number is a string.",
+  "expect": "accept"
+}

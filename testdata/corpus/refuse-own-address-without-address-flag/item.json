@@ -1,0 +1,5 @@
+{
+  "description": "The own address is unknown, so the reference is to another graph.",
+  "expect": "refuse",
+  "rule": "unresolved-graph"
+}

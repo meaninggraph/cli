@@ -1,0 +1,5 @@
+{
+  "description": "The same source id twice.",
+  "expect": "refuse",
+  "rule": "duplicate-source"
+}
