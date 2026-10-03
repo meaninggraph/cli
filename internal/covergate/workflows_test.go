@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"reflect"
-	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -59,10 +61,21 @@ func parseWorkflow(data []byte) (workflowFile, error) {
 	return w, dec.Decode(&w)
 }
 
-var (
-	pinnedAction  = regexp.MustCompile(`^[a-z0-9-]+/[a-z0-9-]+@[0-9a-f]{40}$`)
-	pinnedRelease = regexp.MustCompile(`^strongo/cicd/\.github/workflows/release\.yml@[0-9a-f]{40}$`)
-)
+// Every action and the shared workflow is used at one commit, listed here: a
+// different commit (even a valid 40-hex id) is a change to review and to make
+// in this file. The comments in the workflows name the tag each commit is.
+var pinnedActions = map[string]string{
+	"actions/checkout":             "d23441a48e516b6c34aea4fa41551a30e30af803", // v6
+	"actions/setup-go":             "924ae3a1cded613372ab5595356fb5720e22ba16", // v6
+	"goreleaser/goreleaser-action": "f06c13b6b1a9625abc9e6e439d9c05a8f2190e94", // v7
+}
+
+const pinnedRelease = "strongo/cicd/.github/workflows/release.yml@5d96b1f3fbb3f12bb1e2762ff5ba54ccb9506504" // v1.21.0
+
+// workflowFiles are the workflow files the repository may hold. A second one,
+// calling the shared release workflow on a tag with no gate, would be a way to a
+// release that skips the gate, so the directory is closed to anything else.
+var workflowFiles = []string{"ci.yml", "release.yml"}
 
 // stepIs compares a step with what it must be: its fields, and nothing that
 // could switch it off or let it fail.
@@ -71,8 +84,8 @@ func stepIs(got workflowStep, want workflowStep) error {
 		return fmt.Errorf("step %q must not carry if or continue-on-error", got.Name+got.Run+got.Uses)
 	}
 	switch {
-	case want.Uses != "" && (!strings.HasPrefix(got.Uses, want.Uses+"@") || !pinnedAction.MatchString(got.Uses)):
-		return fmt.Errorf("step uses %q, want %s pinned to a commit", got.Uses, want.Uses)
+	case want.Uses != "" && got.Uses != want.Uses+"@"+pinnedActions[want.Uses]:
+		return fmt.Errorf("step uses %q, want %s at the commit %s", got.Uses, want.Uses, pinnedActions[want.Uses])
 	case want.Uses == "" && got.Uses != "":
 		return fmt.Errorf("step uses %q, want the command %q", got.Uses, want.Run)
 	case got.Run != want.Run:
@@ -122,6 +135,11 @@ func checkCI(data []byte) error {
 	}
 	if !reflect.DeepEqual(w.Permissions, map[string]string{"contents": "read"}) {
 		return fmt.Errorf("permissions are %v, want contents: read", w.Permissions)
+	}
+	// Only a superseded pull-request run is cancelled: cancelling a run for main
+	// would cancel the gate of a release.
+	if !reflect.DeepEqual(w.Concurrency, map[string]any{"group": "ci-${{ github.ref }}", "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"}) {
+		return fmt.Errorf("concurrency is %v", w.Concurrency)
 	}
 	if len(w.Jobs) != 2 {
 		return fmt.Errorf("the workflow has %d jobs, want test and package", len(w.Jobs))
@@ -174,6 +192,11 @@ func checkRelease(data []byte) error {
 	if !reflect.DeepEqual(w.Permissions, map[string]string{"contents": "read"}) {
 		return fmt.Errorf("permissions are %v, want contents: read", w.Permissions)
 	}
+	// A second push must wait for a release that is between its tag and its
+	// publication, not cancel it.
+	if !reflect.DeepEqual(w.Concurrency, map[string]any{"group": "release-${{ github.ref }}", "cancel-in-progress": false}) {
+		return fmt.Errorf("concurrency is %v, want a group per ref that never cancels", w.Concurrency)
+	}
 	if len(w.Jobs) != 2 {
 		return fmt.Errorf("the workflow has %d jobs, want gate and release", len(w.Jobs))
 	}
@@ -189,8 +212,8 @@ func checkRelease(data []byte) error {
 	if !ok {
 		return errors.New("job release is missing")
 	}
-	if !pinnedRelease.MatchString(release.Uses) {
-		return fmt.Errorf("job release uses %q, want the shared release workflow pinned to a commit", release.Uses)
+	if release.Uses != pinnedRelease {
+		return fmt.Errorf("job release uses %q, want %s", release.Uses, pinnedRelease)
 	}
 	needsGate := release.Needs == "gate" || reflect.DeepEqual(release.Needs, []any{"gate"})
 	if !needsGate || release.If != "github.ref == 'refs/heads/main'" || release.ContinueOnError != nil || len(release.Steps) != 0 {
@@ -251,6 +274,10 @@ func TestWorkflowChecksCatchEveryLoosening(t *testing.T) {
 		{"a branch filter on pull requests", "  pull_request:\n", "  pull_request:\n    branches: [elsewhere]\n"},
 		{"the call trigger removed", "  workflow_call:\n", ""},
 		{"a push trigger added", "  pull_request:\n", "  push:\n    branches: [main]\n  pull_request:\n"},
+		{"another commit for an action", "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16", "actions/setup-go@0000000000000000000000000000000000000000"},
+		{"another commit for the release tool", "goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94", "goreleaser/goreleaser-action@0123456789abcdef0123456789abcdef01234567"},
+		{"every run cancelled", "cancel-in-progress: ${{ github.event_name == 'pull_request' }}", "cancel-in-progress: true"},
+		{"another concurrency group", "group: ci-${{ github.ref }}", "group: ci"},
 		{"a moving tag for an action", "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6\n      - uses: actions/setup-go", "actions/checkout@v6\n      - uses: actions/setup-go"},
 		{"the job switched off", "  test:\n    name: Format, vet, test, coverage\n", "  test:\n    if: false\n    name: Format, vet, test, coverage\n"},
 		{"the job made to tolerate failure", "  test:\n    name: Format, vet, test, coverage\n", "  test:\n    continue-on-error: true\n    name: Format, vet, test, coverage\n"},
@@ -282,6 +309,9 @@ func TestWorkflowChecksCatchEveryLoosening(t *testing.T) {
 		{"the gate calling something else", "    uses: ./.github/workflows/ci.yml\n", "    uses: ./.github/workflows/other.yml\n"},
 		{"the release job without its condition", "    if: github.ref == 'refs/heads/main'\n", ""},
 		{"the release job made to tolerate failure", "    needs: gate\n", "    needs: gate\n    continue-on-error: true\n"},
+		{"the release cancelled by a second push", "cancel-in-progress: false", "cancel-in-progress: true"},
+		{"another group for the release", "group: release-${{ github.ref }}", "group: release"},
+		{"another commit for the shared workflow", "@5d96b1f3fbb3f12bb1e2762ff5ba54ccb9506504 # v1.21.0", "@0000000000000000000000000000000000000000 # v1.21.0"},
 		{"the shared workflow at a tag", "@5d96b1f3fbb3f12bb1e2762ff5ba54ccb9506504 # v1.21.0", "@v1.21.0"},
 		{"the shared guard added", "      allow_major_version_bump: false\n", "      allow_major_version_bump: false\n      require_workflow_success: 'CI'\n"},
 		{"write permission for the whole workflow", "permissions:\n  contents: read\n\nconcurrency", "permissions:\n  contents: write\n\nconcurrency"},
@@ -305,5 +335,48 @@ func TestWorkflowChecksCatchEveryLoosening(t *testing.T) {
 	}
 	if err := checkRelease([]byte("name: [")); err == nil {
 		t.Error("a file that is not YAML passes")
+	}
+}
+
+// checkWorkflowDir fails unless the workflows directory holds exactly the
+// known files: nothing else may start a run in this repository.
+func checkWorkflowDir(fsys fs.FS) error {
+	entries, err := fs.ReadDir(fsys, ".github/workflows")
+	if err != nil {
+		return err
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	slices.Sort(names)
+	if !slices.Equal(names, workflowFiles) {
+		return fmt.Errorf(".github/workflows holds %v, want exactly %v", names, workflowFiles)
+	}
+	return nil
+}
+
+func TestOnlyTheKnownWorkflowFilesExist(t *testing.T) {
+	t.Parallel()
+	if err := checkWorkflowDir(os.DirFS("../..")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWorkflowDirectoryCheckCatchesAnExtraFile(t *testing.T) {
+	t.Parallel()
+	file := &fstest.MapFile{Data: []byte("on: push\n")}
+	for name, files := range map[string]fstest.MapFS{
+		"the known files":     {".github/workflows/ci.yml": file, ".github/workflows/release.yml": file},
+		"a second release":    {".github/workflows/ci.yml": file, ".github/workflows/release.yml": file, ".github/workflows/tag-release.yml": file},
+		"the other extension": {".github/workflows/ci.yml": file, ".github/workflows/release.yml": file, ".github/workflows/x.yaml": file},
+		"a subdirectory":      {".github/workflows/ci.yml": file, ".github/workflows/release.yml": file, ".github/workflows/sub/x.yml": file},
+		"a missing release":   {".github/workflows/ci.yml": file},
+		"no directory at all": {},
+	} {
+		err := checkWorkflowDir(files)
+		if (name == "the known files") != (err == nil) {
+			t.Errorf("%s: error = %v", name, err)
+		}
 	}
 }

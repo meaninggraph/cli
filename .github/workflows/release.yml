@@ -54,6 +54,8 @@ jobs:
     with:
       # Matches go.mod's go directive.
       go_version: '1.27.0'
-      # Pre-1.0: a breaking commit is capped to a minor bump. Cut v1.0.0 by
-      # pushing that tag deliberately.
+      # Pre-1.0: a breaking commit is capped to a minor bump. To cut v1.0.0, set
+      # this to true in the commit that is meant to release it (a feat!: or a
+      # BREAKING CHANGE: commit), let the run after the gate tag v1.0.0, and set
+      # it back to false. A tag pushed by hand does not publish anything.
       allow_major_version_bump: false
