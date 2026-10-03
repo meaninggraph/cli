@@ -8,26 +8,33 @@ import (
 // hiddenFiles reports meaning files below the root of the graph's directory:
 // they are never read, so they would be silently dead. A file is an error
 // under the universal profile, which the reference checker fails on, and
-// otherwise a warning.
+// otherwise a warning. So is a directory that cannot be read, since a file in
+// it would be missed, and a meaning file that is a symbolic link.
 func (r *run) hiddenFiles() {
 	severity := Warning
 	if r.c.Profile == ProfileUniversal {
 		severity = Error
 	}
-	for _, path := range subdirectoryFiles(r.c.FS, r.local.Dir, "") {
-		r.add(path, 0, RuleSubdirectoryFile, severity, "not read: a graph is the meaning files directly in its directory, so move this file there, or check its directory")
+	found, unreadable := subdirectoryFiles(r.local.fs, r.local.Dir, "")
+	for _, path := range found {
+		r.add(path, 0, RuleSubdirectoryFile, severity, "meaning files are not read below the directory of a graph: a graph is the meaning files directly in its directory, so move this file there, or check its directory")
+	}
+	for _, path := range unreadable {
+		r.add(path, 0, RuleUnreadableDir, severity, "this directory cannot be read, so meaning files in it, if any, are not checked")
+	}
+	for _, path := range r.local.symlinks {
+		r.add(path, 0, RuleSymlink, Warning, "this meaning file is a symbolic link, so it is not part of the graph; meaning files must be regular files")
 	}
 }
 
 // subdirectoryFiles lists the *.meaning.yaml files below dir (those in dir itself
 // are not listed), skipping directories whose name starts with "." and
-// node_modules. A directory that cannot be read is skipped.
-func subdirectoryFiles(fsys FS, dir, prefix string) []string {
+// node_modules, and the directories that cannot be read.
+func subdirectoryFiles(fsys FS, dir, prefix string) (found, unreadable []string) {
 	entries, err := fsys.ReadDir(filepath.Join(dir, prefix))
 	if err != nil {
-		return nil
+		return nil, []string{filepath.Join(dir, prefix)}
 	}
-	var found []string
 	for _, entry := range entries {
 		name := entry.Name()
 		if strings.HasPrefix(name, ".") || name == "node_modules" {
@@ -36,12 +43,13 @@ func subdirectoryFiles(fsys FS, dir, prefix string) []string {
 		path := filepath.Join(prefix, name)
 		switch {
 		case entry.IsDir():
-			found = append(found, subdirectoryFiles(fsys, dir, path)...)
+			f, u := subdirectoryFiles(fsys, dir, path)
+			found, unreadable = append(found, f...), append(unreadable, u...)
 		case prefix != "" && strings.HasSuffix(name, FileSuffix):
 			found = append(found, filepath.Join(dir, path))
 		}
 	}
-	return found
+	return found, unreadable
 }
 
 // universal applies the rules of a repository of universal concepts.

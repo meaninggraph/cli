@@ -1,0 +1,4 @@
+{
+  "description": "Flow collections wrapped over several lines, with a trailing comma.",
+  "expect": "accept"
+}

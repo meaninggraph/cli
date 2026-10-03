@@ -5,6 +5,7 @@ import (
 	_ "embed" // the schema is embedded in the binary
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -13,18 +14,21 @@ import (
 	"golang.org/x/text/message"
 )
 
-// SchemaJSON is meaning.schema.json of github.com/meaninggraph/core, the schema
-// of format meaning/draft-1. SchemaSource says which commit it was taken from;
-// scripts/check-schema-drift.sh compares both with a checkout of core.
-//
 //go:embed meaning.schema.json
-var SchemaJSON []byte
+var schemaJSON []byte
+
+//go:embed meaning.schema.source
+var schemaSource string
+
+// SchemaJSON returns meaning.schema.json of github.com/meaninggraph/core, the
+// schema of format meaning/draft-1, as it is embedded. SchemaSource says which
+// commit it was taken from; scripts/check-schema-drift.sh compares both with a
+// checkout of core.
+func SchemaJSON() []byte { return slices.Clone(schemaJSON) }
 
 // SchemaSource records where SchemaJSON comes from: repository, commit, path
 // and sha256 of the file, one "key: value" per line.
-//
-//go:embed meaning.schema.source
-var SchemaSource string
+func SchemaSource() string { return schemaSource }
 
 // Validator checks a value against the meaning-file schema. *jsonschema.Schema
 // is one; tests supply others.
@@ -34,8 +38,10 @@ type Validator interface {
 
 // SchemaCommit is the commit of github.com/meaninggraph/core the embedded
 // schema was taken from.
-func SchemaCommit() string {
-	for _, line := range strings.Split(SchemaSource, "\n") {
+func SchemaCommit() string { return commitOf(schemaSource) }
+
+func commitOf(source string) string {
+	for _, line := range strings.Split(source, "\n") {
 		if value, ok := strings.CutPrefix(line, "commit: "); ok {
 			return value
 		}
@@ -47,7 +53,7 @@ func SchemaCommit() string {
 func DefaultSchema() Validator { return embeddedSchema() }
 
 var embeddedSchema = sync.OnceValue(func() *jsonschema.Schema {
-	return must(compileSchema(SchemaJSON))
+	return must(compileSchema(schemaJSON))
 })
 
 func must[T any](v T, err error) T {

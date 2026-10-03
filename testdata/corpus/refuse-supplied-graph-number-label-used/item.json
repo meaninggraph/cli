@@ -1,0 +1,9 @@
+{
+  "description": "A supplied graph with a number as a value label, read by a unit of the checked graph: the reference checker throws.",
+  "expect": "refuse",
+  "rule": "unresolved-graph",
+  "check": "main",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/refuse-supplied-graph-number-label-used/dep"
+  }
+}

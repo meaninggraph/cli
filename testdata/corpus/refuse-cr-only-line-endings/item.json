@@ -1,0 +1,5 @@
+{
+  "description": "A file whose lines end in a lone CR.",
+  "expect": "refuse",
+  "rule": "yaml-line-ending"
+}

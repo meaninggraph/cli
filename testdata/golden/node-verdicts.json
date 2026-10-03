@@ -17,6 +17,26 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-flow-model-reference-with-pin": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-extends": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-in-text": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-question-mark-input": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-flow-url-with-query": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-hcl-comments-and-escapes": {
       "verdict": "accept",
       "problems": []
@@ -73,11 +93,11 @@
       "verdict": "accept",
       "problems": []
     },
-    "accept-yaml-anchors": {
+    "accept-yaml-comments-and-flow": {
       "verdict": "accept",
       "problems": []
     },
-    "accept-yaml-comments-and-flow": {
+    "accept-yaml-crlf": {
       "verdict": "accept",
       "problems": []
     },
@@ -85,11 +105,39 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-document-start": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-exponent-scale": {
       "verdict": "accept",
       "problems": []
     },
-    "accept-yaml-hex-and-octal-year": {
+    "accept-yaml-flow-over-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-json-escapes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-literal-block-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-nul-and-bell-escapes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-plain-scalar-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-plain-scalar-over-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-quoted-keys": {
       "verdict": "accept",
       "problems": []
     },
@@ -97,7 +145,15 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-sequence-at-key-indent": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-underscore-number-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-utf8-bom": {
       "verdict": "accept",
       "problems": []
     },
@@ -112,6 +168,13 @@
     "core": {
       "verdict": "accept",
       "problems": []
+    },
+    "refuse-anchor-used-120-times": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Excessive alias count indicates a resource exhaustion attack"
+      ]
     },
     "refuse-binding-display-name-not-a-string": {
       "verdict": "refuse",
@@ -203,6 +266,44 @@
         "demo.meaning.yaml: concept a: Album.ArtistId has role value but is a reference to Artist; bind it with role foreign-key"
       ]
     },
+    "refuse-casefold-10d50-10d70": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"𐵰\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7cb-0264": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ɤ\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7cc-a7cd": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ꟍ\" names both v1 and v2"
+      ]
+    },
+    "refuse-casefold-a7da-a7db": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept c: \"ꟛ\" names both v1 and v2"
+      ]
+    },
+    "refuse-comment-glued-to-a-flow-mapping": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Comments must be separated from other tokens by white space characters at line 8, column 20:"
+      ]
+    },
+    "refuse-cr-only-line-endings": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Nested mappings are not allowed in compact mappings at line 1, column 9:"
+      ]
+    },
     "refuse-duplicate-concept": {
       "verdict": "refuse",
       "problems": [
@@ -243,6 +344,12 @@
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: concept c: \"οδος\" names both a and b"
+      ]
+    },
+    "refuse-entity-true-reference": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept ref: true.T references true, but the instances of t are true rows"
       ]
     },
     "refuse-extends-attribute-to-entity": {
@@ -323,6 +430,34 @@
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: concept customer extends: no source configured for meaning://github.com/org/other"
+      ]
+    },
+    "refuse-key-null-as-code": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes must match pattern \"^[a-z][a-z0-9-]*$\"",
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes property name must be valid"
+      ]
+    },
+    "refuse-key-null-as-module": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /models must match pattern \"^[A-Za-z][A-Za-z0-9_]*$\"",
+        "demo.meaning.yaml: schema: /models property name must be valid",
+        "demo.meaning.yaml: concept artist: modelspec:///Null.Artist: module Null is not listed in models"
+      ]
+    },
+    "refuse-key-number": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes must match pattern \"^[a-z][a-z0-9-]*$\"",
+        "demo.meaning.yaml: schema: /concepts/0/values/0/codes property name must be valid"
+      ]
+    },
+    "refuse-key-true-as-module": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept artist: modelspec:///True.Artist: module True is not listed in models"
       ]
     },
     "refuse-kind-of-a-ratio-sums": {
@@ -406,6 +541,142 @@
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
       ]
     },
+    "refuse-model-prototype-name-component": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate component \"valueOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-constructor": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"constructor\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-defineGetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineGetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-defineSetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineSetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-enum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate enum \"hasOwnProperty\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-field": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 14: duplicate field \"constructor\" in component \"C\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-hasOwnProperty": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"hasOwnProperty\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-isPrototypeOf": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"isPrototypeOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-lookupGetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupGetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-lookupSetter": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupSetter__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 16: duplicate property \"toString\" in entity \"Song\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-propertyIsEnumerable": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"propertyIsEnumerable\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-proto": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"__proto__\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-toLocaleString": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"toLocaleString\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-toString": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"toString\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-name-valueOf": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate entity \"valueOf\"",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-models-path-with-trailing-slash": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: ENOTDIR: not a directory, open 'model.hcl/'",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
     "refuse-narrowing-changes-units-of": {
       "verdict": "refuse",
       "problems": [
@@ -416,6 +687,12 @@
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: concept wrong: values-of city is neither country nor a kind of it, which base requires"
+      ]
+    },
+    "refuse-number-beyond-a-double": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure/scale must be number"
       ]
     },
     "refuse-of-names-a-measure": {
@@ -434,6 +711,12 @@
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: concept b extends: no source configured for meaning://github.com/org/me"
+      ]
+    },
+    "refuse-question-mark-flow-key": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/measure must NOT have additional properties (?aggregation)"
       ]
     },
     "refuse-ratio-averages": {
@@ -724,6 +1007,26 @@
         "demo.meaning.yaml: schema: /format must be equal to constant"
       ]
     },
+    "refuse-supplied-graph-null-concept": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept customer extends: meaning://github.com/meaninggraph/core?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7 cannot be read: Cannot read properties of null (reading 'id')"
+      ]
+    },
+    "refuse-supplied-graph-number-label-used": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "word.toLowerCase is not a function"
+      ]
+    },
+    "refuse-tag-on-a-collection": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Set items must all have null values at line 8, column 13:"
+      ]
+    },
     "refuse-undeclared-source": {
       "verdict": "refuse",
       "problems": [
@@ -821,10 +1124,22 @@
         "demo.meaning.yaml: concept a of: concept gone is not declared in this repository"
       ]
     },
+    "refuse-utf16-file": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: / must be object"
+      ]
+    },
     "refuse-values-of-names-a-measure": {
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: concept a: values-of names m, which is a measure, not an entity"
+      ]
+    },
+    "refuse-yaml-1-1-directive": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels/en must be string"
       ]
     },
     "refuse-yaml-duplicate-key": {
@@ -861,6 +1176,14 @@
         "Source contains multiple documents; please use YAML.parseAllDocuments() at line 10, column 1:"
       ]
     },
+    "stricter-binding-to-a-prototype-name-entity": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-binding-to-a-prototype-name-property": {
+      "verdict": "accept",
+      "problems": []
+    },
     "stricter-empty-directory": {
       "verdict": "accept",
       "problems": []
@@ -869,7 +1192,92 @@
       "verdict": "accept",
       "problems": []
     },
+    "stricter-supplied-graph-number-label": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-supplied-graph-unknown-key": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-anchor": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-del-character": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-directive": {
+      "verdict": "accept",
+      "problems": []
+    },
     "stricter-yaml-explicit-int-tag": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-explicit-key": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-flow-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-flow-pair": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/synonyms/en/0 must be string"
+      ]
+    },
+    "stricter-yaml-indentation-indicator": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-integer-beyond-double": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-key-over-1024": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 5, column 1:"
+      ]
+    },
+    "stricter-yaml-key-true": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-latin1": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-line-separator": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-multiline-quoted": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-number-hex": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-number-octal": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-str-tag": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-comment-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-only-line": {
       "verdict": "accept",
       "problems": []
     }

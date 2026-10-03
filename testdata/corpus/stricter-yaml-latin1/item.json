@@ -1,0 +1,6 @@
+{
+  "description": "A file in Latin-1 with an accented letter.",
+  "expect": "refuse",
+  "rule": "yaml-encoding",
+  "stricter": "A file must be UTF-8; the reference reads the byte as a replacement character and accepts the file."
+}

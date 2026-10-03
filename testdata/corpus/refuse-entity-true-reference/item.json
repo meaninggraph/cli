@@ -1,0 +1,5 @@
+{
+  "description": "entity = true in a model must not match an entity named \"true\".",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

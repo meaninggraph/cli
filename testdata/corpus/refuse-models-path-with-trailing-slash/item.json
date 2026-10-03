@@ -1,0 +1,5 @@
+{
+  "description": "models: {chinook: model.hcl/}.",
+  "expect": "refuse",
+  "rule": "models"
+}

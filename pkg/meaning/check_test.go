@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/meaninggraph/cli/internal/memfs"
 )
@@ -64,9 +65,7 @@ func runCases(t *testing.T, cases []testCase) {
 			for name, content := range tc.files {
 				files["/g/"+name] = content
 			}
-			checker := tc.checker
-			checker.FS = memfs.New(files)
-			findings := checker.Check(graphOf(t, files, ""))
+			findings := tc.checker.Check(graphOf(t, files, ""))
 			if got := ruleList(findings); !slices.Equal(got, tc.rules) {
 				t.Fatalf("rules = %v, want %v\n%v", got, tc.rules, findings)
 			}
@@ -136,7 +135,7 @@ func TestFileLevelFindings(t *testing.T) {
 			".hidden/skipped.meaning.yaml":   "x",
 			"node_modules/p/x.meaning.yaml":  "x",
 			"more/notes.txt":                 "x",
-		}, rules: []string{RuleSubdirectoryFile}, messages: []string{"not read: a graph is the meaning files directly in its directory"}},
+		}, rules: []string{RuleSubdirectoryFile}, messages: []string{"are not read below the directory of a graph"}},
 	})
 }
 
@@ -264,7 +263,7 @@ func TestGraphResolver(t *testing.T) {
 	for _, tc := range []struct{ repo, pin, want string }{
 		{"github.com/org/nope", "abc", "no local copy"},
 		{"github.com/org/dep", "", "needs a ?ref= pin"},
-		{"github.com/org/bad", "abc", "cannot be read: /g/a.meaning.yaml: mapping values"},
+		{"github.com/org/bad", "abc", "cannot be read: /g/a.meaning.yaml: a colon followed by a space"},
 	} {
 		if _, err := resolve(tc.repo, tc.pin); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("resolve(%s, %s) error = %v, want %q", tc.repo, tc.pin, err, tc.want)
@@ -372,10 +371,11 @@ type brokenDirs struct{ FS }
 
 func (brokenDirs) ReadDir(string) ([]fs.DirEntry, error) { return nil, errors.New("denied") }
 
-func TestUnreadableSubdirectoriesAreSkipped(t *testing.T) {
+func TestUnreadableSubdirectoriesAreReported(t *testing.T) {
 	t.Parallel()
-	if got := subdirectoryFiles(brokenDirs{}, "/g", ""); got != nil {
-		t.Fatalf("got %v", got)
+	found, unreadable := subdirectoryFiles(brokenDirs{}, "/g", "")
+	if found != nil || len(unreadable) != 1 || unreadable[0] != "/g" {
+		t.Fatalf("got %v, %v", found, unreadable)
 	}
 }
 
@@ -388,5 +388,155 @@ func TestLoadDirReportsAFileThatCannotBeRead(t *testing.T) {
 	fsys := brokenFiles{memfs.New(map[string]string{"/g/a.meaning.yaml": "x"})}
 	if _, err := LoadDir(fsys, "/g"); err == nil {
 		t.Fatal("an unreadable file is an error")
+	}
+}
+
+func TestGraphResolverRefusesASuppliedGraphThatIsNotValid(t *testing.T) {
+	t.Parallel()
+	bad := map[string]string{
+		"unknown kind":      doc(cn("a", "thing", "")),
+		"a null concept":    head + "concepts:\n  - ~\n",
+		"a number label":    head + "concepts:\n  - {id: a, kind: entity, labels: {en: 5}, description: d}\n",
+		"missing format":    strings.Replace(doc(cn("a", "entity", "")), "format: meaning/draft-1\n", "", 1),
+		"an unknown key":    doc(cn("a", "entity", ", colour: red")),
+		"an unreadable one": "a: b\n  c: d\n",
+	}
+	for name, text := range bad {
+		g := graphOf(t, map[string]string{"/g/a.meaning.yaml": text}, "github.com/org/dep")
+		resolve := GraphResolver(map[string]*Graph{"github.com/org/dep": g})
+		for range 2 { // the second call is answered from what the first found
+			if _, err := resolve("github.com/org/dep", "abc"); err == nil || !strings.Contains(err.Error(), "cannot be read: /g/a.meaning.yaml: ") {
+				t.Errorf("%s: error = %v", name, err)
+			}
+		}
+	}
+	good := graphOf(t, map[string]string{"/g/a.meaning.yaml": doc(cn("a", "entity", ""))}, "github.com/org/dep")
+	if _, err := GraphResolver(map[string]*Graph{"github.com/org/dep": good})("github.com/org/dep", "abc"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func chainOf(n int, extra string) string {
+	var sb strings.Builder
+	sb.WriteString(head + "concepts:\n")
+	sb.WriteString("  - {id: c0, kind: entity, labels: {en: c0}, description: d}\n")
+	for i := 1; i < n; i++ {
+		fmt.Fprintf(&sb, "  - {id: c%d, kind: entity, labels: {en: c%d}, description: d, extends: c%d}\n", i, i, i-1)
+	}
+	sb.WriteString(extra)
+	return sb.String()
+}
+
+func TestLongExtendsChainsAreCheckedInLinearTime(t *testing.T) {
+	t.Parallel()
+	start := time.Now()
+	files := map[string]string{"/g/a.meaning.yaml": chainOf(5000, "")}
+	if got := (Checker{}).Check(graphOf(t, files, "")); len(got) != 0 {
+		t.Fatalf("findings = %v", got[:min(3, len(got))])
+	}
+	// The same chain closed into a cycle: every concept reports it, in a short message.
+	files["/g/a.meaning.yaml"] = strings.Replace(chainOf(5000, ""), "  - {id: c0, kind: entity, labels: {en: c0}, description: d}", "  - {id: c0, kind: entity, labels: {en: c0}, description: d, extends: c4999}", 1)
+	got := (Checker{}).Check(graphOf(t, files, ""))
+	if len(got) != 5000 || got[0].Rule != RuleExtendsCycle || len(got[0].Message) > 300 || !strings.Contains(got[0].Message, " -> ... -> ") {
+		t.Fatalf("%d findings, first %+v", len(got), got[0])
+	}
+	if took := time.Since(start); took > 20*time.Second {
+		t.Fatalf("5,000-concept chains took %v; checking them must not be quadratic or worse", took)
+	}
+}
+
+func TestCyclesAreReportedFromEveryConceptThatLeadsIn(t *testing.T) {
+	t.Parallel()
+	runCases(t, []testCase{
+		{name: "a chain that runs into a cycle", files: map[string]string{"a.meaning.yaml": doc(
+			cn("tail", "entity", ", extends: b"), cn("b", "entity", ", extends: c"), cn("c", "entity", ", extends: b"))},
+			rules: []string{RuleExtendsCycle, RuleExtendsCycle, RuleExtendsCycle}, messages: []string{"(tail -> b -> c -> b)", "(b -> c -> b)", "(c -> b -> c)"}},
+		{name: "a child declared before its parent", files: map[string]string{"a.meaning.yaml": doc(
+			cn("child", "entity", ", extends: parent"), cn("parent", "entity", ", extends: root"), cn("root", "entity", ""))}},
+		{name: "a parent declared before its child", files: map[string]string{"a.meaning.yaml": doc(
+			cn("root", "entity", ""), cn("parent", "entity", ", extends: root"), cn("child", "entity", ", extends: parent"))}},
+		{name: "a concept that extends itself", files: map[string]string{"a.meaning.yaml": doc(cn("a", "entity", ", extends: a"))}, rules: []string{RuleExtendsCycle}, messages: []string{"(a -> a)"}},
+	})
+}
+
+func TestCaseFoldingFollowsTheReferenceChecker(t *testing.T) {
+	t.Parallel()
+	// Unicode 16 case pairs, which the reference checker's Node folds: a value
+	// that has one of the pair as a label and another that has the other.
+	for _, pair := range [][2]string{{`Ɤ`, `ɤ`}, {`Ꟍ`, `ꟍ`}, {`Ꟛ`, `ꟛ`}, {`\U00010D50`, `\U00010D70`}} {
+		runCases(t, []testCase{{
+			name:  pair[0] + " and " + pair[1],
+			files: map[string]string{"a.meaning.yaml": doc(cn("c", "entity", `, values: [{id: v1, labels: {en: "`+pair[0]+`"}}, {id: v2, labels: {en: "`+pair[1]+`"}}]`))},
+			rules: []string{RuleDuplicateValue}, messages: []string{"names both v1 and v2"},
+		}})
+	}
+}
+
+func TestSymbolicLinksAndUnreadableDirectoriesAreReported(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"/g/a.meaning.yaml":     doc(cn("a", "entity", "")),
+		"/g/link.meaning.yaml":  "x",
+		"/g/sub/b.meaning.yaml": doc(cn("b", "entity", "")),
+	}
+	fsys := dirFails{FS: memfs.New(files, "/g/link.meaning.yaml"), fail: "/g/sub"}
+	g, err := LoadDir(fsys, "/g")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := Checker{}.Check(g)
+	if rules := ruleList(got); !slices.Equal(rules, []string{RuleSymlink, RuleUnreadableDir}) {
+		t.Fatalf("findings = %v", got)
+	}
+	for _, f := range got {
+		if f.Severity != Warning {
+			t.Errorf("%+v must be a warning", f)
+		}
+	}
+	// Under the universal profile an unreadable directory is an error, as in the reference checker.
+	g.hasLicense = true
+	g.Files[0].Root.Fields["license"] = &Node{Kind: String, Text: "CC0-1.0"}
+	g.Files[0].License = "CC0-1.0"
+	var severity Severity
+	for _, f := range (Checker{Profile: ProfileUniversal}).Check(g) {
+		if f.Rule == RuleUnreadableDir {
+			severity = f.Severity
+		}
+	}
+	if severity != Error {
+		t.Fatalf("severity = %q", severity)
+	}
+	// Only links: nothing to check, and the finding says there is nothing.
+	only := dirFails{FS: memfs.New(map[string]string{"/g/link.meaning.yaml": "x"}, "/g/link.meaning.yaml")}
+	g, err = LoadDir(only, "/g")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rules := ruleList(Checker{}.Check(g)); !slices.Equal(rules, []string{RuleNoFiles, RuleSymlink}) {
+		t.Fatalf("rules = %v", rules)
+	}
+}
+
+// dirFails makes the listing of one directory fail.
+type dirFails struct {
+	FS
+	fail string
+}
+
+func (d dirFails) ReadDir(name string) ([]fs.DirEntry, error) {
+	if name == d.fail {
+		return nil, errors.New("denied")
+	}
+	return d.FS.ReadDir(name)
+}
+
+func TestAGraphWithoutAFileSystemCannotReadModels(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{"/g/a.meaning.yaml": head + "models: {m: m.hcl}\nconcepts:\n" + cn("a", "entity", "")}
+	g := graphOf(t, files, "")
+	g.fs, g.Dir = nil, ""
+	got := Checker{}.Check(g)
+	if rules := ruleList(got); !slices.Equal(rules, []string{RuleModels}) || !strings.Contains(got[0].Message, "was not loaded from a file system") {
+		t.Fatalf("findings = %v", got)
 	}
 }

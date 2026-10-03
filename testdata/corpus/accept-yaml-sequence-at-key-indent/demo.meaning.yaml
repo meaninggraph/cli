@@ -1,0 +1,18 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+- id: a
+  kind: measure
+  labels: {en: a}
+  description: A.
+  measure:
+    formula: x
+    inputs:
+    - b
+- id: b
+  kind: attribute
+  labels:
+    en: b
+  description: B.

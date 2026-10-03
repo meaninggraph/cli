@@ -3,6 +3,7 @@ package meaning
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,9 @@ func (HCLReader) ReadModel(fsys FS, path string) (*Model, error) {
 	data, err := fsys.ReadFile(path)
 	if err != nil {
 		return nil, err
+	}
+	if len(data) > MaxFileBytes {
+		return nil, fmt.Errorf("the model is %d bytes; at most %d are read", len(data), MaxFileBytes)
 	}
 	blocks, err := parseHCL(string(data))
 	if err != nil {
@@ -216,8 +220,14 @@ func (h *hclParser) list(line int) ([]any, error) {
 	return list, err
 }
 
-// body parses attributes and blocks until the closing token (empty: end of file).
-func (h *hclParser) body(closing string) (*hclBlock, error) {
+// maxHCLDepth is how deep blocks may nest: an entity holds properties and a
+// property holds none, so ModelSpec v0 needs two levels. The reference checker
+// refuses deeper blocks too, as blocks that cannot contain blocks.
+const maxHCLDepth = 2
+
+// body parses attributes and blocks until the closing token (empty: end of
+// file); depth is the number of blocks around it.
+func (h *hclParser) body(closing string, depth int) (*hclBlock, error) {
 	out := &hclBlock{attributes: map[string]any{}}
 	for h.peek() != nil && h.peek().kind != closing {
 		name, err := h.expect("ident")
@@ -243,7 +253,10 @@ func (h *hclParser) body(closing string) (*hclBlock, error) {
 		if _, err := h.expect("{"); err != nil {
 			return nil, err
 		}
-		inner, err := h.body("}")
+		if depth >= maxHCLDepth {
+			return nil, hclErrorf(name.line, "blocks nested more than %d deep are not ModelSpec v0 (%s %q is inside a block of a block)", maxHCLDepth, name.value, label.value)
+		}
+		inner, err := h.body("}", depth+1)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +275,7 @@ func parseHCL(text string) ([]*hclBlock, error) {
 		return nil, err
 	}
 	h := &hclParser{tokens: tokens}
-	doc, err := h.body("")
+	doc, err := h.body("", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -284,6 +297,9 @@ func buildModel(blocks []*hclBlock) (*Model, error) {
 		case "entity", "component", "enum":
 		default:
 			return nil, hclErrorf(block.line, "top-level %s blocks are not supported by this converter (entity, component, enum)", block.typ)
+		}
+		if isPrototypeName(block.name) {
+			return nil, prototypeNameError(block.line, kind, block.name)
 		}
 		if declared[kind+" "+block.name] {
 			return nil, hclErrorf(block.line, "duplicate %s %q", kind, block.name)
@@ -332,26 +348,25 @@ func buildEntity(block *hclBlock) (*Entity, error) {
 		}
 	}
 	for name, attrs := range properties {
-		p := Property{}
+		p := Property{Reference: truthy(attrs["entity"])}
 		p.Type, _ = attrs["type"].(string)
-		if truthy(attrs["entity"]) {
-			p.Entity = fmt.Sprint(attrs["entity"])
-		}
+		p.Entity, _ = attrs["entity"].(string)
 		entity.Properties[name] = p
 	}
 	return entity, nil
 }
 
 // members collects the child blocks of the given type of an entity or
-// component: no other block type, no nested blocks, no repeated name.
+// component: no other block type and no repeated name (the parser has refused
+// blocks inside them already).
 func members(block *hclBlock, memberType string) (map[string]map[string]any, error) {
 	out := map[string]map[string]any{}
 	for _, child := range block.blocks {
 		if child.typ != memberType {
 			return nil, hclErrorf(child.line, "%s %q cannot contain a %s block (this converter supports %s)", block.typ, block.name, child.typ, memberType)
 		}
-		if len(child.blocks) > 0 {
-			return nil, hclErrorf(child.line, "%s %q cannot contain blocks", child.typ, child.name)
+		if isPrototypeName(child.name) {
+			return nil, prototypeNameError(child.line, child.typ, child.name)
 		}
 		if _, dup := out[child.name]; dup {
 			return nil, hclErrorf(child.line, "duplicate %s %q in %s %q", child.typ, child.name, block.typ, block.name)
@@ -374,4 +389,24 @@ func truthy(v any) bool {
 		return x
 	}
 	return true
+}
+
+// prototypeNames are the names of the properties of JavaScript's
+// Object.prototype. The reference checker keeps the entities, properties,
+// components, fields and enums of a model in plain JavaScript objects and asks
+// `name in object`, so it takes any of these names for one that was declared
+// twice, and refuses the model.
+var prototypeNames = []string{
+	"__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "__proto__",
+	"constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "toLocaleString", "toString", "valueOf",
+}
+
+// PrototypeNames lists the names that the reference checker refuses in a model
+// (see the findings of HCLReader), sorted.
+func PrototypeNames() []string { return slices.Clone(prototypeNames) }
+
+func isPrototypeName(name string) bool { return slices.Contains(prototypeNames, name) }
+
+func prototypeNameError(line int, kind, name string) error {
+	return hclErrorf(line, "%s %q has the name of a property of JavaScript's Object.prototype; the reference checker (github.com/meaninggraph/core) refuses a model that declares such a name, so rename it (the names are %s)", kind, name, strings.Join(prototypeNames, ", "))
 }

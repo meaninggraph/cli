@@ -1,0 +1,4 @@
+{
+  "description": "Quoted keys and single-quoted values.",
+  "expect": "accept"
+}

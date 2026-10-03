@@ -1,0 +1,4 @@
+{
+  "description": "A NUL escape and a bell escape in a string: written as escapes they are fine.",
+  "expect": "accept"
+}

@@ -1,0 +1,489 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: a0
+    kind: entity
+    labels: {en: a0}
+    description: &d The description.
+  - id: b0
+    kind: entity
+    labels: {en: b0}
+    description: *d
+  - id: b1
+    kind: entity
+    labels: {en: b1}
+    description: *d
+  - id: b2
+    kind: entity
+    labels: {en: b2}
+    description: *d
+  - id: b3
+    kind: entity
+    labels: {en: b3}
+    description: *d
+  - id: b4
+    kind: entity
+    labels: {en: b4}
+    description: *d
+  - id: b5
+    kind: entity
+    labels: {en: b5}
+    description: *d
+  - id: b6
+    kind: entity
+    labels: {en: b6}
+    description: *d
+  - id: b7
+    kind: entity
+    labels: {en: b7}
+    description: *d
+  - id: b8
+    kind: entity
+    labels: {en: b8}
+    description: *d
+  - id: b9
+    kind: entity
+    labels: {en: b9}
+    description: *d
+  - id: b10
+    kind: entity
+    labels: {en: b10}
+    description: *d
+  - id: b11
+    kind: entity
+    labels: {en: b11}
+    description: *d
+  - id: b12
+    kind: entity
+    labels: {en: b12}
+    description: *d
+  - id: b13
+    kind: entity
+    labels: {en: b13}
+    description: *d
+  - id: b14
+    kind: entity
+    labels: {en: b14}
+    description: *d
+  - id: b15
+    kind: entity
+    labels: {en: b15}
+    description: *d
+  - id: b16
+    kind: entity
+    labels: {en: b16}
+    description: *d
+  - id: b17
+    kind: entity
+    labels: {en: b17}
+    description: *d
+  - id: b18
+    kind: entity
+    labels: {en: b18}
+    description: *d
+  - id: b19
+    kind: entity
+    labels: {en: b19}
+    description: *d
+  - id: b20
+    kind: entity
+    labels: {en: b20}
+    description: *d
+  - id: b21
+    kind: entity
+    labels: {en: b21}
+    description: *d
+  - id: b22
+    kind: entity
+    labels: {en: b22}
+    description: *d
+  - id: b23
+    kind: entity
+    labels: {en: b23}
+    description: *d
+  - id: b24
+    kind: entity
+    labels: {en: b24}
+    description: *d
+  - id: b25
+    kind: entity
+    labels: {en: b25}
+    description: *d
+  - id: b26
+    kind: entity
+    labels: {en: b26}
+    description: *d
+  - id: b27
+    kind: entity
+    labels: {en: b27}
+    description: *d
+  - id: b28
+    kind: entity
+    labels: {en: b28}
+    description: *d
+  - id: b29
+    kind: entity
+    labels: {en: b29}
+    description: *d
+  - id: b30
+    kind: entity
+    labels: {en: b30}
+    description: *d
+  - id: b31
+    kind: entity
+    labels: {en: b31}
+    description: *d
+  - id: b32
+    kind: entity
+    labels: {en: b32}
+    description: *d
+  - id: b33
+    kind: entity
+    labels: {en: b33}
+    description: *d
+  - id: b34
+    kind: entity
+    labels: {en: b34}
+    description: *d
+  - id: b35
+    kind: entity
+    labels: {en: b35}
+    description: *d
+  - id: b36
+    kind: entity
+    labels: {en: b36}
+    description: *d
+  - id: b37
+    kind: entity
+    labels: {en: b37}
+    description: *d
+  - id: b38
+    kind: entity
+    labels: {en: b38}
+    description: *d
+  - id: b39
+    kind: entity
+    labels: {en: b39}
+    description: *d
+  - id: b40
+    kind: entity
+    labels: {en: b40}
+    description: *d
+  - id: b41
+    kind: entity
+    labels: {en: b41}
+    description: *d
+  - id: b42
+    kind: entity
+    labels: {en: b42}
+    description: *d
+  - id: b43
+    kind: entity
+    labels: {en: b43}
+    description: *d
+  - id: b44
+    kind: entity
+    labels: {en: b44}
+    description: *d
+  - id: b45
+    kind: entity
+    labels: {en: b45}
+    description: *d
+  - id: b46
+    kind: entity
+    labels: {en: b46}
+    description: *d
+  - id: b47
+    kind: entity
+    labels: {en: b47}
+    description: *d
+  - id: b48
+    kind: entity
+    labels: {en: b48}
+    description: *d
+  - id: b49
+    kind: entity
+    labels: {en: b49}
+    description: *d
+  - id: b50
+    kind: entity
+    labels: {en: b50}
+    description: *d
+  - id: b51
+    kind: entity
+    labels: {en: b51}
+    description: *d
+  - id: b52
+    kind: entity
+    labels: {en: b52}
+    description: *d
+  - id: b53
+    kind: entity
+    labels: {en: b53}
+    description: *d
+  - id: b54
+    kind: entity
+    labels: {en: b54}
+    description: *d
+  - id: b55
+    kind: entity
+    labels: {en: b55}
+    description: *d
+  - id: b56
+    kind: entity
+    labels: {en: b56}
+    description: *d
+  - id: b57
+    kind: entity
+    labels: {en: b57}
+    description: *d
+  - id: b58
+    kind: entity
+    labels: {en: b58}
+    description: *d
+  - id: b59
+    kind: entity
+    labels: {en: b59}
+    description: *d
+  - id: b60
+    kind: entity
+    labels: {en: b60}
+    description: *d
+  - id: b61
+    kind: entity
+    labels: {en: b61}
+    description: *d
+  - id: b62
+    kind: entity
+    labels: {en: b62}
+    description: *d
+  - id: b63
+    kind: entity
+    labels: {en: b63}
+    description: *d
+  - id: b64
+    kind: entity
+    labels: {en: b64}
+    description: *d
+  - id: b65
+    kind: entity
+    labels: {en: b65}
+    description: *d
+  - id: b66
+    kind: entity
+    labels: {en: b66}
+    description: *d
+  - id: b67
+    kind: entity
+    labels: {en: b67}
+    description: *d
+  - id: b68
+    kind: entity
+    labels: {en: b68}
+    description: *d
+  - id: b69
+    kind: entity
+    labels: {en: b69}
+    description: *d
+  - id: b70
+    kind: entity
+    labels: {en: b70}
+    description: *d
+  - id: b71
+    kind: entity
+    labels: {en: b71}
+    description: *d
+  - id: b72
+    kind: entity
+    labels: {en: b72}
+    description: *d
+  - id: b73
+    kind: entity
+    labels: {en: b73}
+    description: *d
+  - id: b74
+    kind: entity
+    labels: {en: b74}
+    description: *d
+  - id: b75
+    kind: entity
+    labels: {en: b75}
+    description: *d
+  - id: b76
+    kind: entity
+    labels: {en: b76}
+    description: *d
+  - id: b77
+    kind: entity
+    labels: {en: b77}
+    description: *d
+  - id: b78
+    kind: entity
+    labels: {en: b78}
+    description: *d
+  - id: b79
+    kind: entity
+    labels: {en: b79}
+    description: *d
+  - id: b80
+    kind: entity
+    labels: {en: b80}
+    description: *d
+  - id: b81
+    kind: entity
+    labels: {en: b81}
+    description: *d
+  - id: b82
+    kind: entity
+    labels: {en: b82}
+    description: *d
+  - id: b83
+    kind: entity
+    labels: {en: b83}
+    description: *d
+  - id: b84
+    kind: entity
+    labels: {en: b84}
+    description: *d
+  - id: b85
+    kind: entity
+    labels: {en: b85}
+    description: *d
+  - id: b86
+    kind: entity
+    labels: {en: b86}
+    description: *d
+  - id: b87
+    kind: entity
+    labels: {en: b87}
+    description: *d
+  - id: b88
+    kind: entity
+    labels: {en: b88}
+    description: *d
+  - id: b89
+    kind: entity
+    labels: {en: b89}
+    description: *d
+  - id: b90
+    kind: entity
+    labels: {en: b90}
+    description: *d
+  - id: b91
+    kind: entity
+    labels: {en: b91}
+    description: *d
+  - id: b92
+    kind: entity
+    labels: {en: b92}
+    description: *d
+  - id: b93
+    kind: entity
+    labels: {en: b93}
+    description: *d
+  - id: b94
+    kind: entity
+    labels: {en: b94}
+    description: *d
+  - id: b95
+    kind: entity
+    labels: {en: b95}
+    description: *d
+  - id: b96
+    kind: entity
+    labels: {en: b96}
+    description: *d
+  - id: b97
+    kind: entity
+    labels: {en: b97}
+    description: *d
+  - id: b98
+    kind: entity
+    labels: {en: b98}
+    description: *d
+  - id: b99
+    kind: entity
+    labels: {en: b99}
+    description: *d
+  - id: b100
+    kind: entity
+    labels: {en: b100}
+    description: *d
+  - id: b101
+    kind: entity
+    labels: {en: b101}
+    description: *d
+  - id: b102
+    kind: entity
+    labels: {en: b102}
+    description: *d
+  - id: b103
+    kind: entity
+    labels: {en: b103}
+    description: *d
+  - id: b104
+    kind: entity
+    labels: {en: b104}
+    description: *d
+  - id: b105
+    kind: entity
+    labels: {en: b105}
+    description: *d
+  - id: b106
+    kind: entity
+    labels: {en: b106}
+    description: *d
+  - id: b107
+    kind: entity
+    labels: {en: b107}
+    description: *d
+  - id: b108
+    kind: entity
+    labels: {en: b108}
+    description: *d
+  - id: b109
+    kind: entity
+    labels: {en: b109}
+    description: *d
+  - id: b110
+    kind: entity
+    labels: {en: b110}
+    description: *d
+  - id: b111
+    kind: entity
+    labels: {en: b111}
+    description: *d
+  - id: b112
+    kind: entity
+    labels: {en: b112}
+    description: *d
+  - id: b113
+    kind: entity
+    labels: {en: b113}
+    description: *d
+  - id: b114
+    kind: entity
+    labels: {en: b114}
+    description: *d
+  - id: b115
+    kind: entity
+    labels: {en: b115}
+    description: *d
+  - id: b116
+    kind: entity
+    labels: {en: b116}
+    description: *d
+  - id: b117
+    kind: entity
+    labels: {en: b117}
+    description: *d
+  - id: b118
+    kind: entity
+    labels: {en: b118}
+    description: *d
+  - id: b119
+    kind: entity
+    labels: {en: b119}
+    description: *d

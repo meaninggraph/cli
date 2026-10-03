@@ -1,0 +1,9 @@
+format: meaning/draft-1
+id: demo
+name: "a\/b \uD83D\uDE00 \u00e9 \U0001F600 \x41"
+description: A demo graph.
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: A a.

@@ -62,16 +62,72 @@ func TestHCLReaderReadsAModel(t *testing.T) {
 	}
 	want := map[string]*Entity{
 		"Album": {Key: []string{"AlbumId"}, Properties: map[string]Property{
-			"AlbumId": {Type: "int"}, "Title": {Type: "string"}, "ArtistId": {Entity: "Artist"},
+			"AlbumId": {Type: "int"}, "Title": {Type: "string"}, "ArtistId": {Reference: true, Entity: "Artist"},
 		}},
 		"Artist": {Key: []string{"ArtistId"}, Properties: map[string]Property{"ArtistId": {Type: "int"}}},
-		"Loose":  {Properties: map[string]Property{"Flag": {}, "Other": {}, "Third": {Entity: "[1]"}}},
+		"Loose":  {Properties: map[string]Property{"Flag": {}, "Other": {}, "Third": {Reference: true}}},
 	}
 	if !reflect.DeepEqual(model.Entities, want) {
 		t.Fatalf("entities = %+v\nwant %+v", model.Entities, want)
 	}
 	if _, err := (HCLReader{}).ReadModel(fsys, "/m/missing.hcl"); err == nil {
 		t.Fatal("a missing file is an error")
+	}
+}
+
+func TestHCLReaderDoesNotTurnAnAttributeIntoAnEntityName(t *testing.T) {
+	t.Parallel()
+	fsys := memfs.New(map[string]string{"/m.hcl": "entity \"true\" {\n  property \"T\" { entity = true }\n  property \"N\" { entity = 5 }\n  property \"S\" { entity = \"true\" }\n}\n"})
+	model, err := HCLReader{}.ReadModel(fsys, "/m.hcl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	props := model.Entities["true"].Properties
+	if !props["T"].Reference || props["T"].Entity != "" || !props["N"].Reference || props["N"].Entity != "" {
+		t.Fatalf("a reference whose entity is not a string names no entity: %+v %+v", props["T"], props["N"])
+	}
+	if !props["S"].Reference || props["S"].Entity != "true" {
+		t.Fatalf("a string names the entity: %+v", props["S"])
+	}
+}
+
+func TestHCLReaderRefusesNamesOfObjectPrototype(t *testing.T) {
+	t.Parallel()
+	names := PrototypeNames()
+	if len(names) != 12 || !isPrototypeName("constructor") || !isPrototypeName("__proto__") || isPrototypeName("Constructor") {
+		t.Fatalf("names = %v", names)
+	}
+	names[0] = "changed"
+	if PrototypeNames()[0] == "changed" {
+		t.Fatal("PrototypeNames returns a copy")
+	}
+	for _, name := range PrototypeNames() {
+		for what, text := range map[string]string{
+			"entity":    "entity \"" + name + "\" {\n}\n",
+			"component": "component \"" + name + "\" {\n}\n",
+			"enum":      "enum \"" + name + "\" {\n}\n",
+			"property":  "entity \"E\" {\n  property \"" + name + "\" { type = \"int\" }\n}\n",
+			"field":     "component \"C\" {\n  field \"" + name + "\" { type = \"int\" }\n}\n",
+		} {
+			fsys := memfs.New(map[string]string{"/m.hcl": text})
+			_, err := HCLReader{}.ReadModel(fsys, "/m.hcl")
+			if err == nil || !strings.Contains(err.Error(), what+" \""+name+"\" has the name of a property of JavaScript's Object.prototype") || !strings.Contains(err.Error(), "the reference checker") {
+				t.Errorf("%s %s: error = %v", what, name, err)
+			}
+		}
+	}
+}
+
+func TestHCLReaderLimits(t *testing.T) {
+	t.Parallel()
+	big := memfs.New(map[string]string{"/m.hcl": strings.Repeat(" ", MaxFileBytes+1)})
+	if _, err := (HCLReader{}).ReadModel(big, "/m.hcl"); err == nil || !strings.Contains(err.Error(), "at most") {
+		t.Fatalf("error = %v", err)
+	}
+	// Blocks inside the blocks of an entity are refused at once, however many follow.
+	deep := memfs.New(map[string]string{"/m.hcl": "entity \"E\" {\n  property \"p\" {\n" + strings.Repeat("x \"y\" {\n", 500_000)})
+	if _, err := (HCLReader{}).ReadModel(deep, "/m.hcl"); err == nil || !strings.Contains(err.Error(), "nested more than 2 deep") {
+		t.Fatalf("error = %v", err)
 	}
 }
 
@@ -107,14 +163,14 @@ func TestHCLReaderRefusesWhatTheReferenceParserRefuses(t *testing.T) {
 		{"unsupported entity attribute", "entity \"A\" { color = \"red\" }", "unsupported entity attribute color"},
 		{"entity with another block", "entity \"A\" {\n field \"f\" { }\n}", `entity "A" cannot contain a field block`},
 		{"component with another block", "component \"A\" {\n property \"f\" { }\n}", `component "A" cannot contain a property block`},
-		{"property with blocks", "entity \"A\" {\n property \"p\" {\n  property \"q\" { }\n }\n}", `property "p" cannot contain blocks`},
+		{"property with blocks", "entity \"A\" {\n property \"p\" {\n  property \"q\" { }\n }\n}", "nested more than 2 deep"},
 		{"duplicate property", "entity \"A\" {\n property \"p\" { }\n property \"p\" { }\n}", `duplicate property "p" in entity "A"`},
 		{"duplicate entity", "entity \"A\" { }\nentity \"A\" { }", `duplicate entity "A"`},
 		{"duplicate component", "component \"A\" { }\ncomponent \"A\" { }", `duplicate component "A"`},
 		{"duplicate enum", "enum \"A\" { }\nenum \"A\" { }", `duplicate enum "A"`},
 		{"enum with blocks", "enum \"A\" {\n x \"y\" { }\n}", `enum "A" cannot contain blocks`},
 		{"key is not a list", "entity \"A\" { key = \"Id\" }", `entity "A" key must be a list of property names`},
-		{"bad component field", "component \"A\" {\n field \"f\" {\n  x \"y\" { }\n }\n}", `field "f" cannot contain blocks`},
+		{"bad component field", "component \"A\" {\n field \"f\" {\n  x \"y\" { }\n }\n}", "nested more than 2 deep"},
 		{"bad entity inside", "entity \"A\" { property \"p\" { @ } }", "unexpected character"},
 		{"bad value inside a block", "entity \"A\" { key = foo }", "foo is not a literal"},
 	}

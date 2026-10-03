@@ -1,0 +1,5 @@
+{
+  "description": "labels: {en: c}#x: a # that is not preceded by a space.",
+  "expect": "refuse",
+  "rule": "yaml"
+}

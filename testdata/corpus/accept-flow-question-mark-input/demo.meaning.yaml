@@ -1,0 +1,14 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: sales
+    kind: attribute
+    labels: {en: sales}
+    description: A sales.
+  - id: sales-per-person
+    kind: measure
+    labels: {en: sales-per-person}
+    description: A sales-per-person.
+    measure: {formula: sales / population, aggregation: none, inputs: [meaning://github.com/meaninggraph/core/population?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7, sales], dimensions: [meaning://github.com/meaninggraph/core/country-code?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7]}

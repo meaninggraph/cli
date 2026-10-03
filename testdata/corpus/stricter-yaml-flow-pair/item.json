@@ -1,0 +1,5 @@
+{
+  "description": "A single \"key: value\" pair inside a flow sequence.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported"
+}

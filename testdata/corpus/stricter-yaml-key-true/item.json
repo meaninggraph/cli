@@ -1,0 +1,6 @@
+{
+  "description": "A key that YAML reads as a boolean, in codes.",
+  "expect": "refuse",
+  "rule": "yaml-key",
+  "stricter": "A key must be a string: the reference parser turns True into \"true\" and accepts it as a code name; the CLI wants it quoted."
+}

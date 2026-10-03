@@ -1,6 +1,7 @@
 package meaning
 
 import (
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,14 +15,24 @@ const FileSuffix = ".meaning.yaml"
 // across all of them.
 type Graph struct {
 	// Address is the graph's own address, {host}/{org}/{repo} (for example
-	// github.com/meaninggraph/core), or empty when it is not known. A
-	// meaning:// reference to it from inside it is a reference to itself.
+	// github.com/meaninggraph/core), or empty when it is not known. Set it,
+	// before the graph is checked or handed to GraphResolver, for every graph
+	// whose files refer to the graph by its address: a meaning:// reference to
+	// the address from inside the graph is a reference to itself, and without
+	// the address it is a reference to another graph. Neither LoadDir nor
+	// LoadFiles sets it.
 	Address string
 	// Dir is the directory the files were read from by LoadDir, else empty.
 	Dir   string
 	Files []*File
 	// hasLicense says whether Dir holds a LICENSE.
 	hasLicense bool
+	// fs is the file system the graph was read from; models and the directory
+	// tree around the graph are read through it.
+	fs FS
+	// symlinks are the meaning files of Dir that are symbolic links: they are
+	// not part of the graph.
+	symlinks []string
 	// Concepts maps a concept id to its first declaration.
 	Concepts map[string]*Entry
 	// duplicates are declarations of an id that an earlier one already took.
@@ -107,25 +118,29 @@ func LoadDir(fsys FS, dir string) (*Graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	var paths []string
+	var paths, symlinks []string
 	license := false
 	for _, entry := range entries {
 		license = license || entry.Name() == "LICENSE"
-		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), FileSuffix) {
+		switch {
+		case !strings.HasSuffix(entry.Name(), FileSuffix):
+		case entry.Type().IsRegular():
 			paths = append(paths, filepath.Join(dir, entry.Name()))
+		case entry.Type()&fs.ModeSymlink != 0:
+			symlinks = append(symlinks, filepath.Join(dir, entry.Name()))
 		}
 	}
 	g, err := LoadFiles(fsys, paths)
 	if err != nil {
 		return nil, err
 	}
-	g.Dir, g.hasLicense = dir, license
+	g.Dir, g.hasLicense, g.symlinks = dir, license, symlinks
 	return g, nil
 }
 
 // LoadFiles reads the given files as one graph, in path order.
 func LoadFiles(fsys FS, paths []string) (*Graph, error) {
-	g := &Graph{Concepts: map[string]*Entry{}}
+	g := &Graph{Concepts: map[string]*Entry{}, fs: fsys}
 	for _, path := range slices.Sorted(slices.Values(paths)) {
 		data, err := fsys.ReadFile(path)
 		if err != nil {

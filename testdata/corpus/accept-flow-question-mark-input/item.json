@@ -1,0 +1,7 @@
+{
+  "description": "A measure input written as a flow list with a pinned reference to another graph: the ? of ?ref= inside [ ].",
+  "expect": "accept",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

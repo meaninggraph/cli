@@ -1,6 +1,9 @@
 package memfs
 
-import "testing"
+import (
+	"io/fs"
+	"testing"
+)
 
 func TestFS(t *testing.T) {
 	t.Parallel()
@@ -17,6 +20,10 @@ func TestFS(t *testing.T) {
 	}
 	if _, err := m.Stat("/nope"); err == nil {
 		t.Fatal("Stat of a missing path must fail")
+	}
+	linked := New(map[string]string{"/work/a.yaml": "a", "/work/link.yaml": "a"}, "/work/link.yaml")
+	if list, err := linked.ReadDir("/work"); err != nil || !list[0].Type().IsRegular() || list[1].Type()&fs.ModeSymlink == 0 {
+		t.Fatalf("symlinks = %v, %v", list, err)
 	}
 	entries, err := m.ReadDir("/work")
 	if err != nil || len(entries) != 2 || entries[0].Name() != "a.yaml" || !entries[1].IsDir() {

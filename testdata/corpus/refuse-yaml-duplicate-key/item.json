@@ -1,5 +1,5 @@
 {
   "description": "The same key twice in one mapping.",
   "expect": "refuse",
-  "rule": "yaml"
+  "rule": "yaml-duplicate-key"
 }

@@ -22,7 +22,7 @@ func (m fakeModels) ReadModel(_ FS, path string) (*Model, error) {
 var chinook = &Model{Entities: map[string]*Entity{
 	"Artist": {Key: []string{"ArtistId"}, Properties: map[string]Property{"ArtistId": {Type: "int"}, "Name": {Type: "string"}}},
 	"Album": {Key: []string{"AlbumId"}, Properties: map[string]Property{
-		"AlbumId": {Type: "int"}, "Title": {Type: "string"}, "ArtistId": {Entity: "Artist"}, "Sales": {Type: "decimal"},
+		"AlbumId": {Type: "int"}, "Title": {Type: "string"}, "ArtistId": {Reference: true, Entity: "Artist"}, "Sales": {Type: "decimal"},
 	}},
 }}
 
@@ -90,7 +90,7 @@ func TestModelsThatCannotBeRead(t *testing.T) {
 	t.Parallel()
 	files := map[string]string{"a.meaning.yaml": head + "models: {chinook: m.hcl, other: o.hcl}\nconcepts:\n" + cn("a", "entity", bindings(bind("chinook.Artist", "entity", "")))}
 	runCases(t, []testCase{
-		{name: "the first unreadable model loses all of them", files: files, checker: Checker{Models: fakeModels{"/g/m.hcl": chinook}}, rules: []string{RuleBindingModel, RuleModels}, messages: []string{"models: no model at /g/o.hcl", "module chinook is not listed in models"}},
+		{name: "the first unreadable model loses all of them", files: files, checker: Checker{Models: fakeModels{"/g/m.hcl": chinook}}, rules: []string{RuleModels}, messages: []string{"models: module other: no model at /g/o.hcl"}},
 		{name: "a model is read relative to its file", files: files, checker: Checker{Models: fakeModels{"/g/m.hcl": chinook, "/g/o.hcl": chinook}}},
 		{name: "a model with no bindings still has to be readable", files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" + cn("a", "entity", "")}, checker: Checker{Models: fakeModels{}}, rules: []string{RuleModels}},
 	})
@@ -106,7 +106,7 @@ func TestBindingsAgainstARealHCLModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := (Checker{FS: memfs.New(files)}).Check(g); len(got) != 0 {
+	if got := (Checker{}).Check(g); len(got) != 0 {
 		t.Fatalf("findings = %v", got)
 	}
 }
@@ -126,4 +126,53 @@ func TestParseModelRef(t *testing.T) {
 			t.Errorf("ParseModelRef(%q) must fail", ref)
 		}
 	}
+}
+
+func TestModelsThatAreDirectoriesOrHaveFailedAreNotCascaded(t *testing.T) {
+	t.Parallel()
+	artist := cn("artist", "entity", bindings(bind("chinook.Artist", "entity", ""), bind("chinook.Artist", "identifier", "ArtistId")))
+	two := cn("two", "entity", bindings(bind("chinook.Artist", "entity", ""), bind("chinook.Album", "entity", "")))
+	models := fakeModels{"/g/m.hcl": chinook}
+	runCases(t, []testCase{
+		{name: "a path with a trailing slash", checker: Checker{Models: models, Schema: permissive{}},
+			files: map[string]string{"a.meaning.yaml": head + "models: {chinook: m.hcl/}\nconcepts:\n" + artist},
+			rules: []string{RuleModels}, messages: []string{"module chinook: m.hcl/ ends in a slash"}},
+		{name: "a model that cannot be read does not make every binding unlisted, but a count is still a count", checker: Checker{Models: fakeModels{}, Schema: permissive{}},
+			files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" + artist + two},
+			rules: []string{RuleEntityBindings, RuleModels}},
+		{name: "a binding to another repository is still reported", checker: Checker{Models: fakeModels{}, Schema: permissive{}},
+			files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" + cn("a", "entity", ", bindings: [{model: nope, role: entity}]")},
+			rules: []string{RuleBindingModel, RuleModels}},
+	})
+	if (Property{Entity: "Artist"}).IsReference() != true || (Property{Reference: true}).IsReference() != true || (Property{Type: "int"}).IsReference() {
+		t.Fatal("IsReference")
+	}
+}
+
+func TestAForeignKeyToAnEntityThatIsNotNamedByAString(t *testing.T) {
+	t.Parallel()
+	// The reference checker compares the entity a property references with the
+	// entity's name; `entity = true` names no entity, so it cannot match one called "true".
+	odd := &Model{Entities: map[string]*Entity{
+		"true": {Key: []string{"Id"}, Properties: map[string]Property{"Id": {Type: "int"}, "T": {Reference: true}}},
+	}}
+	checker := Checker{Models: fakeModels{"/g/m.hcl": odd}, Schema: permissive{}}
+	runCases(t, []testCase{{
+		name: "a reference that names no entity", checker: checker,
+		files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" +
+			cn("t", "entity", bindings(bind("chinook.true", "entity", ""))) +
+			cn("ref", "attribute", ", values-of: t"+bindings(bind("chinook.true", "foreign-key", "T")))},
+		rules: []string{RuleBindingRole}, messages: []string{"references an entity that is not named by a string, but the instances of t are [true] rows"},
+	}, {
+		name: "a reference that names no entity, to an entity with no binding", checker: checker,
+		files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" +
+			cn("t", "entity", "") +
+			cn("ref", "attribute", ", values-of: t"+bindings(bind("chinook.true", "foreign-key", "T")))},
+		rules: []string{RuleBindingRole}, messages: []string{"cannot be checked that an entity that is not named by a string holds its instances"},
+	}, {
+		name: "a value on a reference that names no entity", checker: checker,
+		files: map[string]string{"a.meaning.yaml": head + modelsLine + "concepts:\n" +
+			cn("v", "attribute", bindings(bind("chinook.true", "value", "T")))},
+		rules: []string{RuleBindingRole}, messages: []string{"has role value but is a reference"},
+	}})
 }

@@ -1,0 +1,5 @@
+{
+  "description": "models: {Null: ...}.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

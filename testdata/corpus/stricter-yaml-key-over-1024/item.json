@@ -1,0 +1,5 @@
+{
+  "description": "A key of 1,025 characters.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

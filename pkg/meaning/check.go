@@ -9,7 +9,6 @@ import (
 
 // Rule identifiers of findings. They are stable: scripts may match on them.
 const (
-	RuleYAML             = "yaml"
 	RuleSchema           = "schema"
 	RuleNoFiles          = "no-meaning-files"
 	RuleSubdirectoryFile = "subdirectory-meaning-file"
@@ -36,6 +35,9 @@ const (
 	RuleBindingModel     = "binding-model"
 	RuleBindingRole      = "binding-role"
 	RuleUniversal        = "universal"
+	RuleSymlink          = "symlink-meaning-file"
+	RuleUnreadableDir    = "unreadable-directory"
+	RuleFileTooLarge     = "file-too-large"
 )
 
 // Resolver gives the graph a meaning:// reference names: repo is
@@ -47,9 +49,16 @@ type Resolver func(repo, pin string) (*Graph, error)
 // GraphResolver resolves references from graphs the caller already has, keyed
 // by address. It follows the reference checker's rules for a repository it
 // reads from git: a reference to another repository must carry a ?ref= pin,
-// and a repository that cannot be read (a file that is not YAML) is reported
-// as such. The pin itself cannot be verified against a directory.
+// and a repository that cannot be read is reported as such. A supplied graph
+// must itself be valid: a file that is not YAML in the subset, or that breaks
+// the schema, makes the graph unreadable. The pin cannot be verified against
+// a directory here; see VerifyPin.
+//
+// A graph's own address (Graph.Address) must be set for references to
+// meaning://<its address>/... made from inside that graph to resolve to itself;
+// GraphResolver does not set it. The resolver is not safe for concurrent use.
 func GraphResolver(graphs map[string]*Graph) Resolver {
+	validated := map[string]error{}
 	return func(repo, pin string) (*Graph, error) {
 		g, ok := graphs[repo]
 		switch {
@@ -58,13 +67,30 @@ func GraphResolver(graphs map[string]*Graph) Resolver {
 		case pin == "":
 			return nil, fmt.Errorf("meaning://%s needs a ?ref= pin", repo)
 		}
-		for _, f := range g.Files {
-			if f.ParseErr != nil {
-				return nil, fmt.Errorf("meaning://%s?ref=%s cannot be read: %s: %s", repo, pin, f.Path, f.ParseErr.Message)
-			}
+		problem, done := validated[repo]
+		if !done {
+			problem = unreadable(g)
+			validated[repo] = problem
+		}
+		if problem != nil {
+			return nil, fmt.Errorf("meaning://%s?ref=%s cannot be read: %v", repo, pin, problem)
 		}
 		return g, nil
 	}
+}
+
+// unreadable says why a supplied graph cannot be used: its first file that is
+// not valid.
+func unreadable(g *Graph) error {
+	for _, f := range g.Files {
+		if f.ParseErr != nil {
+			return fmt.Errorf("%s: %s", f.Path, f.ParseErr.Message)
+		}
+		if problems := schemaProblems(DefaultSchema(), f.Root); len(problems) > 0 {
+			return fmt.Errorf("%s: schema: %s", f.Path, problems[0])
+		}
+	}
+	return nil
 }
 
 // Profile selects extra rules on top of the format's.
@@ -89,9 +115,6 @@ type Checker struct {
 	Resolve Resolver
 	// Models reads the models bindings name; HCLReader when nil.
 	Models ModelReader
-	// FS reads the directory tree around the graph and the models it names;
-	// the host's file system when nil.
-	FS FS
 	// Profile selects extra rules.
 	Profile Profile
 }
@@ -107,6 +130,8 @@ type run struct {
 	other    Resolver
 	findings []Finding
 	pins     map[string]string
+	parents  map[*Concept]parentEntry
+	chains   map[*Concept]chainInfo
 }
 
 // Check validates every file of g against the schema and checks what the
@@ -117,13 +142,10 @@ func (c Checker) Check(g *Graph) []Finding {
 	if c.Schema == nil {
 		c.Schema = DefaultSchema()
 	}
-	if c.FS == nil {
-		c.FS = OSFS{}
-	}
 	if c.Models == nil {
 		c.Models = HCLReader{}
 	}
-	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}}
+	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
 	if r.other == nil {
 		r.other = func(repo, _ string) (*Graph, error) {
 			return nil, fmt.Errorf("meaning://%s is not available: no graph was supplied", repo)
@@ -168,7 +190,7 @@ func (r *run) resolve(repo, pin string) (*Graph, error) {
 
 func (r *run) checkFile(f *File) {
 	if f.ParseErr != nil {
-		r.err(f, f.ParseErr.Line, RuleYAML, "%s", f.ParseErr.Message)
+		r.err(f, f.ParseErr.Line, f.ParseErr.Rule, "%s", f.ParseErr.Message)
 		return
 	}
 	problems := schemaProblems(r.c.Schema, f.Root)
@@ -185,10 +207,10 @@ func (r *run) checkFile(f *File) {
 		}
 		seen[s.ID] = true
 	}
-	models := r.loadModels(f)
+	models, failed := r.loadModels(f)
 	for _, c := range f.Concepts {
 		r.checkConcept(f, c, seen)
-		r.checkBindings(f, c, "concept "+c.ID, models)
+		r.checkBindings(f, c, "concept "+c.ID, models, failed)
 	}
 }
 
@@ -242,18 +264,8 @@ func (r *run) checkExtends(f *File, c *Concept, label string) {
 		}
 	}
 	// The chain of extends, through any graph, comes back to a concept it has passed.
-	seen := []*Concept{c}
-	for n, ok := r.resolveConcept(c.Extends, r.local); ok; n, ok = r.resolveConcept(n.concept.Extends, n.graph) {
-		if contains(seen, n.concept) {
-			var names []string
-			for _, s := range seen {
-				names = append(names, s.ID)
-			}
-			names = append(names, n.concept.ID)
-			r.err(f, line, RuleExtendsCycle, "%s: extends forms a cycle (%s)", label, strings.Join(names, " -> "))
-			break
-		}
-		seen = append(seen, n.concept)
+	if path, cyclic := r.extendsCycle(node{concept: c, graph: r.local}); cyclic {
+		r.err(f, line, RuleExtendsCycle, "%s: extends forms a cycle (%s)", label, path)
 	}
 }
 

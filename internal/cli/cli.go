@@ -6,10 +6,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/strongo/buildinfo"
@@ -40,6 +42,9 @@ type Env struct {
 	Stdout, Stderr io.Writer
 	// FS reads the files that are checked.
 	FS meaning.FS
+	// Abs makes a path absolute, so that one directory written two ways is
+	// read once.
+	Abs func(string) (string, error)
 	// Interactive says whether the process has a terminal to ask a question
 	// on; nil means the update library's own terminal check.
 	Interactive func() bool
@@ -50,7 +55,7 @@ type Env struct {
 
 // OSEnv is the environment of the real process.
 func OSEnv() Env {
-	return Env{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, FS: meaning.OSFS{}, SelfUpdate: selfUpdateConfig}
+	return Env{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, FS: meaning.OSFS{}, Abs: filepath.Abs, SelfUpdate: selfUpdateConfig}
 }
 
 // errFindings is returned by a check that found errors; Run turns it into
@@ -68,7 +73,29 @@ func Run(args []string, env Env) int {
 		return ExitFindings
 	}
 	_, _ = fmt.Fprintf(env.Stderr, "meaninggraph: %v\n", err)
+	if wantsJSON(args) {
+		// A script that asked for JSON gets JSON on every path, not an empty
+		// stdout: ok is false and error says why nothing was checked.
+		enc := json.NewEncoder(env.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(struct {
+			Tool    string `json:"tool"`
+			Version string `json:"version"`
+			OK      bool   `json:"ok"`
+			Error   string `json:"error"`
+		}{"meaninggraph", info.Version, false, err.Error()})
+	}
 	return ExitUsage
+}
+
+// wantsJSON reports whether the arguments ask for --format json.
+func wantsJSON(args []string) bool {
+	for i, arg := range args {
+		if arg == "--format=json" || (arg == "--format" && i+1 < len(args) && args[i+1] == "json") {
+			return true
+		}
+	}
+	return false
 }
 
 type root struct{ cmd *cobra.Command }

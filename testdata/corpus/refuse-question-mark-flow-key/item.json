@@ -1,0 +1,5 @@
+{
+  "description": "measure: {formula: x, ?aggregation: sum}: a key that starts with ?.",
+  "expect": "refuse",
+  "rule": "schema"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "scale: 1 followed by 400 zeros: the reference reads Infinity.",
+  "expect": "refuse",
+  "rule": "yaml-number"
+}

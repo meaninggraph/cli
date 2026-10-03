@@ -1,0 +1,5 @@
+{
+  "description": "A UTF-16 file with a byte order mark.",
+  "expect": "refuse",
+  "rule": "yaml-encoding"
+}

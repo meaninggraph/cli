@@ -1,0 +1,11 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+sources: [{id: s, provider: p, dataset: d, url: "https://example.com/data?x=1"}, {id: t, provider: p, dataset: e, url: https://example.com/t?x=1&y=2}]
+concepts:
+  - id: m
+    kind: measure
+    labels: {en: m}
+    description: A m.
+    measure: {formula: x, query: https://example.com/q?id=5}

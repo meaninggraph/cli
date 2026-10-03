@@ -1,0 +1,6 @@
+{
+  "description": "An explicit !!str tag on a value.",
+  "expect": "refuse",
+  "rule": "yaml-tag",
+  "stricter": "The subset has no tags at all, !!str included; the reference parser reads !!str as a string."
+}

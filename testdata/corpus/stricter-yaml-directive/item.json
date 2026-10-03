@@ -1,0 +1,6 @@
+{
+  "description": "A %YAML 1.2 directive and a --- line.",
+  "expect": "refuse",
+  "rule": "yaml-directive",
+  "stricter": "The subset has no directives; the reference parser accepts %YAML 1.2."
+}

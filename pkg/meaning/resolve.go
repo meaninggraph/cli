@@ -1,5 +1,10 @@
 package meaning
 
+import (
+	"math"
+	"strings"
+)
+
 // lookup finds the concept a reference written in file f names, reporting a
 // finding when it cannot: a reference that is no concept reference, a concept
 // that is not declared, another graph that is not available, or a pin that
@@ -65,7 +70,7 @@ func (r *run) resolveConcept(ref string, g *Graph) (node, bool) {
 // stops at a repeat, so a cycle (reported by the check) cannot loop.
 func (r *run) lineage(c *Concept, g *Graph) []node {
 	var chain []node
-	for n, ok := (node{concept: c, graph: g}), true; ok && len(chain) < 50; n, ok = r.resolveConcept(n.concept.Extends, n.graph) {
+	for n, ok := (node{concept: c, graph: g}), true; ok && len(chain) < 50; n, ok = r.parent(n) {
 		if seenConcept(chain, n.concept) {
 			break
 		}
@@ -119,4 +124,100 @@ func (r *run) ratioInput(c *Concept) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// parentEntry is the memoised result of resolving the extends of a concept.
+type parentEntry struct {
+	parent node
+	ok     bool
+}
+
+// parent resolves what a concept extends, once per concept.
+func (r *run) parent(n node) (node, bool) {
+	if e, done := r.parents[n.concept]; done {
+		return e.parent, e.ok
+	}
+	p, ok := r.resolveConcept(n.concept.Extends, n.graph)
+	r.parents[n.concept] = parentEntry{parent: p, ok: ok}
+	return p, ok
+}
+
+// chainInfo is what is known of the extends chain that starts at a concept:
+// whether it runs into a cycle, and the concept where the cycle starts.
+type chainInfo struct {
+	cyclic bool
+	entry  *Concept
+}
+
+// extendsCycle follows the extends chain of a concept and reports whether it
+// comes back to a concept it has passed, with the chain written out for the
+// message. Every concept's chain is followed once, however long the chains
+// are, so the work is linear in the number of concepts.
+func (r *run) extendsCycle(start node) (string, bool) {
+	if known, done := r.chains[start.concept]; done {
+		// Walked as part of the chain of another concept; it starts its own cycle,
+		// or leads into one, where that walk found out.
+		return r.cyclePathIf(known, start), known.cyclic
+	}
+	walked := []node{start}
+	index := map[*Concept]int{start.concept: 0}
+	info := chainInfo{}
+	member := math.MaxInt // the walked concepts from this one on are in the cycle itself
+	for cur := start; ; {
+		next, ok := r.parent(cur)
+		if !ok {
+			break
+		}
+		if known, done := r.chains[next.concept]; done {
+			info = known
+			break
+		}
+		if at, seen := index[next.concept]; seen {
+			info, member = chainInfo{cyclic: true, entry: next.concept}, at
+			break
+		}
+		walked = append(walked, next)
+		index[next.concept] = len(walked) - 1
+		cur = next
+	}
+	// A concept in a cycle starts it itself; one that leads into it starts it
+	// where it is entered.
+	for i, w := range walked {
+		if i >= member {
+			r.chains[w.concept] = chainInfo{cyclic: true, entry: w.concept}
+		} else {
+			r.chains[w.concept] = info
+		}
+	}
+	return r.cyclePathIf(info, start), info.cyclic
+}
+
+// cyclePathIf writes the cycle of a chain, or nothing when it has none.
+func (r *run) cyclePathIf(info chainInfo, start node) string {
+	if !info.cyclic {
+		return ""
+	}
+	return r.cyclePath(start, info.entry)
+}
+
+// maxCycleNames bounds the names written into a message about a cycle.
+const maxCycleNames = 12
+
+// cyclePath writes the chain from a concept to the concept where the cycle
+// starts and once around it: "a -> b -> a".
+func (r *run) cyclePath(start node, entry *Concept) string {
+	var names []string
+	for cur, passed := start, false; ; {
+		if len(names) == maxCycleNames {
+			return strings.Join(names, " -> ") + " -> ... -> " + entry.ID + " (a longer chain)"
+		}
+		names = append(names, cur.concept.ID)
+		if cur.concept == entry {
+			if passed {
+				return strings.Join(names, " -> ")
+			}
+			passed = true
+		}
+		cur, _ = r.parent(cur)
+	}
 }

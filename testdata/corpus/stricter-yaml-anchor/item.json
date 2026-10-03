@@ -1,0 +1,6 @@
+{
+  "description": "An anchor and its alias.",
+  "expect": "refuse",
+  "rule": "yaml-anchor",
+  "stricter": "The subset has no anchors or aliases; the reference parser expands them."
+}

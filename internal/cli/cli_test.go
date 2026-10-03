@@ -7,9 +7,12 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/strongo/buildinfo"
 	"github.com/strongo/cli-helpers/selfupdate"
 
 	"github.com/meaninggraph/cli/internal/memfs"
@@ -33,13 +36,21 @@ type result struct {
 
 func offline() selfupdate.Config { return selfUpdateConfig() }
 
+// fakeAbs makes a path absolute against /work without asking the host.
+func fakeAbs(path string) (string, error) {
+	if strings.HasPrefix(path, "/") {
+		return path, nil
+	}
+	return "/work/" + path, nil
+}
+
 func execute(files map[string]string, args ...string) result {
 	return executeIn(memfs.New(files), args...)
 }
 
 func executeIn(fsys meaning.FS, args ...string) result {
 	var stdout, stderr bytes.Buffer
-	code := Run(args, Env{Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr, FS: fsys, SelfUpdate: offline, Interactive: func() bool { return false }})
+	code := Run(args, Env{Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr, FS: fsys, Abs: fakeAbs, SelfUpdate: offline, Interactive: func() bool { return false }})
 	return result{code, stdout.String(), stderr.String()}
 }
 
@@ -68,8 +79,8 @@ func TestCheckReportsFindingsInOrder(t *testing.T) {
 	}, "check", "/g")
 	want := "/g/a.meaning.yaml:6: error: concept a of: concept nowhere is not declared in this repository [unknown-concept]\n" +
 		"/g/a.meaning.yaml:7: error: concept b extends: concept gone is not declared in this repository [unknown-concept]\n" +
-		"/g/b.meaning.yaml:2: error: mapping values are not allowed in this context [yaml]\n" +
-		"/g/sub/c.meaning.yaml: warning: not read: a graph is the meaning files directly in its directory, so move this file there, or check its directory [subdirectory-meaning-file]\n" +
+		"/g/b.meaning.yaml:2: error: a colon followed by a space inside a plain value would start a mapping; put the value in quotes [yaml]\n" +
+		"/g/sub/c.meaning.yaml: warning: meaning files are not read below the directory of a graph: a graph is the meaning files directly in its directory, so move this file there, or check its directory [subdirectory-meaning-file]\n" +
 		"failed: /g: 3 errors, 1 warning, 2 concepts, 2 files\n"
 	if got.code != ExitFindings || got.stdout != want || got.stderr != "" {
 		t.Fatalf("got code %d\n%s\nwant\n%s", got.code, got.stdout, want)
@@ -82,7 +93,7 @@ func TestCheckWarningsDoNotFail(t *testing.T) {
 		"/g/a.meaning.yaml":     file(concept("a", "entity", "")),
 		"/g/sub/c.meaning.yaml": file(concept("c", "entity", "")),
 	}, "check", "/g")
-	if got.code != ExitClean || !strings.Contains(got.stdout, "warning") || !strings.HasSuffix(got.stdout, "ok: /g: 1 concept, 1 file\n") {
+	if got.code != ExitClean || !strings.Contains(got.stdout, "warning") || !strings.HasSuffix(got.stdout, "ok: /g: 1 concept, 1 file, 1 warning\n") {
 		t.Fatalf("got %+v", got)
 	}
 }
@@ -158,7 +169,7 @@ func TestCheckResolvesOtherGraphsFromSuppliedDirectories(t *testing.T) {
 		"/sick/core.meaning.yaml": "a: b\n  c: d\n",
 	}
 	got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
-	want := "/mine: info: meaning://github.com/org/core?ref=" + pin + " was read from the directory given with --graph; the pin is not verified offline [pin-not-verified]\nok: /mine: 1 concept, 1 file\n"
+	want := "/mine: warning: meaning://github.com/org/core?ref=" + pin + " was read from /core, which cannot be verified as that commit (it is not a git checkout (it has no .git)); the pin is trusted, not checked [pin-not-verified]\nok: /mine: 1 concept, 1 file, 1 warning\n"
 	if got.code != ExitClean || got.stdout != want {
 		t.Fatalf("got %+v\nwant %q", got, want)
 	}
@@ -280,7 +291,7 @@ func TestCheckReportsAnOutputThatCannotBeWritten(t *testing.T) {
 	mem := memfs.New(map[string]string{"/g/a.meaning.yaml": file(concept("a", "entity", ""))})
 	for _, format := range []string{"text", "json"} {
 		var stderr bytes.Buffer
-		code := Run([]string{"check", "--format", format, "/g"}, Env{Stdout: failingWriter{}, Stderr: &stderr, FS: mem, SelfUpdate: offline})
+		code := Run([]string{"check", "--format", format, "/g"}, Env{Stdout: failingWriter{}, Stderr: &stderr, FS: mem, Abs: fakeAbs, SelfUpdate: offline})
 		if code != ExitUsage || stderr.String() != "meaninggraph: closed pipe\n" {
 			t.Errorf("%s: code %d stderr %q", format, code, stderr.String())
 		}
@@ -293,23 +304,37 @@ func TestRootCommandHelpAndVersion(t *testing.T) {
 	if help.code != ExitClean || !strings.Contains(help.stdout, "check") || !strings.Contains(help.stdout, "self-update") {
 		t.Fatalf("help = %+v", help)
 	}
-	for _, args := range [][]string{{"--version"}, {"version"}} {
-		got := execute(nil, args...)
-		if got.code != ExitClean || got.stdout == "" {
-			t.Fatalf("%v = %+v", args, got)
-		}
+	if got := execute(nil, "--version"); got.code != ExitClean || got.stdout != info.Short()+"\n" || got.stderr != "" {
+		t.Fatalf("--version = %+v, want %q", got, info.Short())
 	}
-	var out bytes.Buffer
-	if code := Run([]string{"version", "--json"}, Env{Stdout: &out, Stderr: io.Discard, SelfUpdate: offline}); code != ExitClean || !strings.Contains(out.String(), `"`) {
-		t.Fatalf("version --json = %d %q", code, out.String())
+	if got := execute(nil, "version"); got.code != ExitClean || got.stdout != info.Long()+"\n" || !strings.HasPrefix(got.stdout, "meaninggraph ") {
+		t.Fatalf("version = %+v, want %q", got, info.Long())
+	}
+	var parsed buildinfo.VersionJSON
+	got := execute(nil, "version", "--json")
+	if err := json.Unmarshal([]byte(got.stdout), &parsed); err != nil || got.code != ExitClean || parsed != info.JSON() || parsed.Version == "" {
+		t.Fatalf("version --json = %+v (%v), want %+v", got, err, info.JSON())
 	}
 }
 
 func TestOSEnv(t *testing.T) {
 	t.Parallel()
 	env := OSEnv()
-	if env.Stdin == nil || env.Stdout == nil || env.Stderr == nil || env.FS == nil || env.SelfUpdate == nil {
-		t.Fatalf("env = %+v", env)
+	if env.Stdin != os.Stdin || env.Stdout != os.Stdout || env.Stderr != os.Stderr {
+		t.Fatalf("the streams are the process's own: %+v", env)
+	}
+	if _, ok := env.FS.(meaning.OSFS); !ok {
+		t.Fatalf("FS = %T, want the host file system", env.FS)
+	}
+	abs, err := env.Abs("sub/dir")
+	if err != nil || !filepath.IsAbs(abs) || !strings.HasSuffix(abs, filepath.Join("sub", "dir")) {
+		t.Fatalf("Abs = %q, %v", abs, err)
+	}
+	if cfg := env.SelfUpdate(); cfg.Repository != "meaninggraph/cli" || cfg.BinaryName != "meaninggraph" || cfg.CurrentVersion != info.Version {
+		t.Fatalf("SelfUpdate() = %+v", cfg)
+	}
+	if env.Interactive != nil {
+		t.Fatal("the terminal check is the library's own")
 	}
 }
 
@@ -336,17 +361,44 @@ func TestSelfUpdateCheck(t *testing.T) {
 		code := Run(args, Env{Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr, SelfUpdate: update, Interactive: func() bool { return false }})
 		return result{code, stdout.String(), stderr.String()}
 	}
-	newer := run(releases(200, `[{"tag_name":"v0.2.0"}]`), "self-update", "--check")
-	if newer.code != ExitClean || !strings.Contains(newer.stdout, "0.2.0") {
-		t.Fatalf("newer = %+v", newer)
+	type check struct {
+		Current, Latest, Verdict string
 	}
+	read := func(r result) check {
+		var c check
+		if err := json.Unmarshal([]byte(r.stdout), &c); err != nil {
+			t.Fatalf("not JSON: %v\n%s", err, r.stdout)
+		}
+		return c
+	}
+	newer := run(releases(200, `[{"tag_name":"v0.2.0"}]`), "self-update", "--check", "--format", "json")
 	same := run(releases(200, `[{"tag_name":"v0.1.0"}]`), "update", "--check", "--format", "json")
-	if same.code != ExitClean || !strings.Contains(same.stdout, "0.1.0") {
-		t.Fatalf("same = %+v", same)
+	older := run(releases(200, `[{"tag_name":"v0.0.9"}]`), "update", "--check", "--format", "json")
+	if newer.code != ExitClean || same.code != ExitClean || older.code != ExitClean {
+		t.Fatalf("--check never fails the command, whatever it finds: %+v %+v %+v", newer, same, older)
+	}
+	n, s, o := read(newer), read(same), read(older)
+	if n.Current != "0.1.0" || n.Latest != "0.2.0" || s.Latest != "0.1.0" || o.Latest != "0.0.9" {
+		t.Fatalf("versions: %+v %+v %+v", n, s, o)
+	}
+	if n.Verdict == s.Verdict || s.Verdict == o.Verdict || n.Verdict == o.Verdict || n.Verdict == "" {
+		t.Fatalf("verdicts must tell the three apart: %+v %+v %+v", n, s, o)
+	}
+	text := run(releases(200, `[{"tag_name":"v0.2.0"}]`), "self-update", "--check")
+	if text.code != ExitClean || !strings.Contains(text.stdout, "0.2.0") || !strings.Contains(text.stdout, "update available: 0.1.0") {
+		t.Fatalf("text = %+v", text)
 	}
 	failed := run(releases(500, "boom"), "self-update", "--check")
-	if failed.code != ExitUsage || !strings.Contains(failed.stderr, "meaninggraph: ") {
+	if failed.code != ExitUsage || failed.stdout != "" || !strings.HasPrefix(failed.stderr, "meaninggraph: ") {
 		t.Fatalf("failed = %+v", failed)
+	}
+	failedJSON := run(releases(500, "boom"), "self-update", "--check", "--format=json")
+	var parsed struct {
+		OK    bool
+		Error string
+	}
+	if err := json.Unmarshal([]byte(failedJSON.stdout), &parsed); err != nil || failedJSON.code != ExitUsage || parsed.OK || !strings.Contains(parsed.Error, "500") {
+		t.Fatalf("failed with --format json = %+v (%v)", failedJSON, err)
 	}
 }
 
@@ -355,5 +407,139 @@ func TestSelfUpdateConfigNamesTheReleases(t *testing.T) {
 	cfg := selfUpdateConfig()
 	if cfg.Repository != "meaninggraph/cli" || cfg.BinaryName != "meaninggraph" || cfg.CurrentVersion != info.Version || len(cfg.Managers) != 0 {
 		t.Fatalf("cfg = %+v", cfg)
+	}
+}
+
+func TestCheckVerifiesPinsAgainstGitCheckouts(t *testing.T) {
+	t.Parallel()
+	other := strings.Repeat("0", 40)
+	files := map[string]string{
+		"/core/core.meaning.yaml":    file(concept("customer", "entity", "")),
+		"/mine/a.meaning.yaml":       file(concept("customer", "entity", ", extends: 'meaning://github.com/org/core/customer?ref="+pin+"'")),
+		"/core/.git/HEAD":            "ref: refs/heads/main\n",
+		"/core/.git/refs/heads/main": pin + "\n",
+	}
+	got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
+	if got.code != ExitClean || got.stdout != "ok: /mine: 1 concept, 1 file\n" {
+		t.Fatalf("a checkout at the pinned commit is silent: %+v", got)
+	}
+	files["/core/.git/refs/heads/main"] = other + "\n"
+	got = execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
+	want := "/mine: error: meaning://github.com/org/core is pinned at " + pin + ", but /core, given with --graph, is a checkout of " + other + "; check out the pinned commit there [pin-checkout-mismatch]\n" +
+		"failed: /mine: 1 error, 0 warnings, 1 concept, 1 file\n"
+	if got.code != ExitFindings || got.stdout != want {
+		t.Fatalf("a checkout at another commit is an error: %+v\nwant %q", got, want)
+	}
+	// A branch name as the pin is not the checkout's commit id either.
+	files["/mine/a.meaning.yaml"] = file(concept("customer", "entity", ", extends: 'meaning://github.com/org/core/customer?ref=main'"))
+	if got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core"); got.code != ExitFindings || !strings.Contains(got.stdout, "pin-checkout-mismatch") {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestCheckWarnsAboutAGraphThatNothingRefersTo(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"/core/core.meaning.yaml": file(concept("customer", "entity", "")),
+		"/mine/a.meaning.yaml":    file(concept("a", "entity", "")),
+		"/cased/a.meaning.yaml":   file(concept("customer", "entity", ", extends: 'meaning://github.com/org/Core/customer?ref="+pin+"'")),
+	}
+	got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
+	want := "/mine: warning: the graph github.com/org/core was given with --graph, but no file refers to it [unused-graph]\nok: /mine: 1 concept, 1 file, 1 warning\n"
+	if got.code != ExitClean || got.stdout != want {
+		t.Fatalf("got %+v\nwant %q", got, want)
+	}
+	got = execute(files, "check", "/cased", "--graph", "github.com/org/core=/core")
+	if got.code != ExitFindings || !strings.Contains(got.stdout, "meaning://github.com/org/Core is not available") ||
+		!strings.Contains(got.stdout, "the files refer to github.com/org/Core, which differs only by case (addresses are compared exactly)") {
+		t.Fatalf("got %+v", got)
+	}
+	// A graph that one of the checked graphs uses is used.
+	got = execute(files, "check", "/mine", "/cased", "--graph", "github.com/org/Core=/core")
+	if got.code != ExitClean || strings.Contains(got.stdout, "unused-graph") {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestCheckReadsOneDirectoryOnceWhicheverWayItIsWritten(t *testing.T) {
+	t.Parallel()
+	// The in-memory file system has no working directory: the same files are there twice.
+	files := map[string]string{"/work/model/a.meaning.yaml": file(concept("a", "entity", "")), "model/a.meaning.yaml": file(concept("a", "entity", ""))}
+	got := execute(files, "check", "model", "/work/model", "./model", "model/", "/work/model/../model")
+	if got.code != ExitClean || got.stdout != "ok: model: 1 concept, 1 file\n" {
+		t.Fatalf("got %+v", got)
+	}
+	got = execute(files, "check", "/work/model/a.meaning.yaml", "model/a.meaning.yaml")
+	if got.code != ExitClean || got.stdout != "ok: /work/model/a.meaning.yaml: 1 concept, 1 file\n" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestCheckRefusesAnEmptyPath(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{"/work/a.meaning.yaml": file(concept("a", "entity", "")), "model/a.meaning.yaml": file(concept("a", "entity", ""))}
+	for _, args := range [][]string{{"check", ""}, {"check", "model", ""}} {
+		got := execute(files, args...)
+		if got.code != ExitUsage || got.stdout != "" || !strings.Contains(got.stderr, "an empty path was given") {
+			t.Errorf("%v: %+v", args, got)
+		}
+	}
+}
+
+func TestCheckGivesJSONOnEveryExitTwoPath(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{"/g/a.meaning.yaml": file(concept("a", "entity", ""))}
+	paths := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"a path that is not there", []string{"check", "--format", "json", "/nowhere"}, "nowhere"},
+		{"an empty path", []string{"check", "--format", "json", ""}, "an empty path"},
+		{"a bad profile", []string{"check", "--format=json", "--profile", "strict", "/g"}, "invalid --profile"},
+		{"a bad address", []string{"check", "--format=json", "--address", "nope", "/g"}, "invalid --address"},
+		{"a bad graph", []string{"check", "--format", "json", "--graph", "nope", "/g"}, "invalid --graph"},
+		{"an unknown flag", []string{"check", "--format=json", "--nope"}, "unknown flag"},
+		{"an unknown command", []string{"nope", "--format", "json"}, "unknown command"},
+		{"files with the universal profile", []string{"check", "--format=json", "--profile", "universal", "/g/a.meaning.yaml"}, "name its directory"},
+	}
+	for _, tc := range paths {
+		got := execute(files, tc.args...)
+		var parsed struct {
+			Tool, Version string
+			OK            bool
+			Error         string
+		}
+		if err := json.Unmarshal([]byte(got.stdout), &parsed); err != nil {
+			t.Errorf("%s: stdout is not JSON: %v\n%q", tc.name, err, got.stdout)
+			continue
+		}
+		if got.code != ExitUsage || parsed.Tool != "meaninggraph" || parsed.Version != info.Version || parsed.OK || !strings.Contains(parsed.Error, tc.want) {
+			t.Errorf("%s: %+v / %+v", tc.name, got, parsed)
+		}
+		if !strings.HasPrefix(got.stderr, "meaninggraph: ") || !strings.Contains(got.stderr, tc.want) {
+			t.Errorf("%s: the message goes to stderr as well: %q", tc.name, got.stderr)
+		}
+	}
+	// Without --format json stdout stays empty, as before.
+	if got := execute(files, "check", "/nowhere"); got.stdout != "" || got.code != ExitUsage {
+		t.Fatalf("got %+v", got)
+	}
+	// A --format that is not json is not a request for JSON.
+	if got := execute(files, "check", "--format", "text", "/nowhere"); got.stdout != "" {
+		t.Fatalf("got %+v", got)
+	}
+	if wantsJSON([]string{"--format"}) || !wantsJSON([]string{"x", "--format=json"}) {
+		t.Fatal("wantsJSON")
+	}
+}
+
+func TestCheckReportsAPathThatCannotBeMadeAbsolute(t *testing.T) {
+	t.Parallel()
+	var stdout, stderr bytes.Buffer
+	env := Env{Stdout: &stdout, Stderr: &stderr, FS: memfs.New(map[string]string{"a/a.meaning.yaml": file(concept("a", "entity", ""))}),
+		Abs: func(string) (string, error) { return "", errors.New("no working directory") }, SelfUpdate: offline}
+	if code := Run([]string{"check", "a"}, env); code != ExitUsage || stderr.String() != "meaninggraph: no working directory\n" {
+		t.Fatalf("code %d stderr %q", code, stderr.String())
 	}
 }

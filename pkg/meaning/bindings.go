@@ -1,8 +1,10 @@
 package meaning
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // ModelRef is a parsed modelspec:// reference to an entity.
@@ -23,20 +25,35 @@ func ParseModelRef(ref string) (ModelRef, bool) {
 }
 
 // loadModels reads the modules a file's `models` names, relative to the file.
-// The first module that cannot be read loses them all, as in the reference
-// checker: the bindings then name modules that are not listed.
-func (r *run) loadModels(f *File) map[string]*Model {
-	models := map[string]*Model{}
+// The first module that cannot be read is reported, and the bindings of the
+// file are then not checked against models: the reference checker loses all
+// the modules at that point, which would make every binding "not listed".
+func (r *run) loadModels(f *File) (models map[string]*Model, failed bool) {
+	models = map[string]*Model{}
 	for _, module := range sortedKeys(f.Models) {
-		path := filepath.Join(filepath.Dir(f.Path), f.Models[module])
-		model, err := r.c.Models.ReadModel(r.c.FS, path)
+		relative := f.Models[module]
+		var model *Model
+		var err error
+		if strings.HasSuffix(relative, "/") {
+			err = fmt.Errorf("%s ends in a slash, so it names a directory, not a model file", relative)
+		} else {
+			model, err = r.local.fsModels(r.c.Models, filepath.Join(filepath.Dir(f.Path), relative))
+		}
 		if err != nil {
-			r.err(f, f.Root.Field("models").Line, RuleModels, "models: %v", err)
-			return map[string]*Model{}
+			r.err(f, f.Root.Field("models").Line, RuleModels, "models: module %s: %v", module, err)
+			return nil, true
 		}
 		models[module] = model
 	}
-	return models
+	return models, false
+}
+
+// fsModels reads a model through the file system the graph was loaded from.
+func (g *Graph) fsModels(reader ModelReader, path string) (*Model, error) {
+	if g.fs == nil {
+		return nil, errors.New("the graph was not loaded from a file system, so models cannot be read")
+	}
+	return reader.ReadModel(g.fs, path)
 }
 
 // entityBindings are the entities whose rows are instances of a concept (role entity).
@@ -59,7 +76,7 @@ func names(refs []ModelRef) []string {
 }
 
 // checkBindings checks every binding of a concept against the models of its file.
-func (r *run) checkBindings(f *File, c *Concept, label string, models map[string]*Model) {
+func (r *run) checkBindings(f *File, c *Concept, label string, models map[string]*Model, modelsFailed bool) {
 	entities := entityBindings(c)
 	if len(entities) > 1 {
 		r.err(f, c.lineOf("bindings"), RuleEntityBindings, "%s: has %d entity bindings (%v); a concept binds one entity", label, len(entities), names(entities))
@@ -73,6 +90,9 @@ func (r *run) checkBindings(f *File, c *Concept, label string, models map[string
 		if ref.Repo != "" {
 			r.err(f, b.Line, RuleBindingModel, "%s: %s points at another repository; this check resolves same-repository models only", label, b.Model)
 			continue
+		}
+		if modelsFailed {
+			continue // the models error says why
 		}
 		model, ok := models[ref.Module]
 		if !ok {
@@ -119,8 +139,8 @@ func (r *run) checkRole(f *File, c *Concept, b Binding, ref ModelRef, entity *En
 			fail("has role display-name but is %s, not a string", describe(member))
 		}
 	case "value":
-		if member.Entity != "" {
-			fail("has role value but is a reference to %s; bind it with role foreign-key", member.Entity)
+		if member.IsReference() {
+			fail("has role value but is %s; bind it with role foreign-key", describe(member))
 		}
 	case "foreign-key":
 		r.checkForeignKey(f, c, b, ref, member, at)
@@ -137,8 +157,11 @@ func sameEntity(a, b ModelRef) bool {
 }
 
 func describe(p Property) string {
-	if p.Entity != "" {
+	switch {
+	case p.Entity != "":
 		return "a reference to " + p.Entity
+	case p.IsReference():
+		return "a reference"
 	}
 	return an(p.Type)
 }
@@ -147,7 +170,7 @@ func describe(p Property) string {
 // instances of this concept (an entity) or of its values-of entity.
 func (r *run) checkForeignKey(f *File, c *Concept, b Binding, ref ModelRef, member Property, at string) {
 	fail := func(format string, args ...any) { r.roleFailure(f, b, at, format, args...) }
-	if member.Entity == "" {
+	if !member.IsReference() {
 		fail("has role foreign-key but is not a reference (it is %s)", an(member.Type))
 		return
 	}
@@ -168,7 +191,7 @@ func (r *run) checkForeignKey(f *File, c *Concept, b Binding, ref ModelRef, memb
 		expected = entityBindings(target.concept)
 	}
 	if len(expected) == 0 {
-		fail("has role foreign-key, but %s has no entity binding in this repository, so it cannot be checked that %s holds its instances; bind %s (or a concept of this repository that extends it) to its entity", target.concept.ID, member.Entity, target.concept.ID)
+		fail("has role foreign-key, but %s has no entity binding in this repository, so it cannot be checked that %s holds its instances; bind %s (or a concept of this repository that extends it) to its entity", target.concept.ID, describeTarget(member), target.concept.ID)
 		return
 	}
 	for _, e := range expected {
@@ -176,5 +199,13 @@ func (r *run) checkForeignKey(f *File, c *Concept, b Binding, ref ModelRef, memb
 			return
 		}
 	}
-	fail("references %s, but the instances of %s are %v rows", member.Entity, target.concept.ID, names(expected))
+	fail("references %s, but the instances of %s are %v rows", describeTarget(member), target.concept.ID, names(expected))
+}
+
+// describeTarget names the entity a reference property points at.
+func describeTarget(p Property) string {
+	if p.Entity != "" {
+		return p.Entity
+	}
+	return "an entity that is not named by a string"
 }

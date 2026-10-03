@@ -96,7 +96,7 @@ func TestCorpusAgreesWithTheReferenceChecker(t *testing.T) {
 				args = append(args, "--profile", item.Profile)
 			}
 			var stdout, stderr bytes.Buffer
-			code := Run(args, Env{Stdout: &stdout, Stderr: &stderr, FS: meaning.OSFS{}, SelfUpdate: offline})
+			code := Run(args, Env{Stdout: &stdout, Stderr: &stderr, FS: meaning.OSFS{}, Abs: filepath.Abs, SelfUpdate: offline})
 			if code != ExitClean && code != ExitFindings {
 				t.Fatalf("exit code %d: %s", code, stderr.String())
 			}

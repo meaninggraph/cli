@@ -32,7 +32,7 @@ func problemsOf(t *testing.T, v Validator, text string) []string {
 func TestEmbeddedSchemaMatchesItsRecordedSource(t *testing.T) {
 	t.Parallel()
 	fields := map[string]string{}
-	for _, line := range strings.Split(strings.TrimSpace(SchemaSource), "\n") {
+	for _, line := range strings.Split(strings.TrimSpace(SchemaSource()), "\n") {
 		key, value, _ := strings.Cut(line, ": ")
 		fields[key] = value
 	}
@@ -45,7 +45,7 @@ func TestEmbeddedSchemaMatchesItsRecordedSource(t *testing.T) {
 	if SchemaCommit() != fields["commit"] {
 		t.Errorf("SchemaCommit() = %q", SchemaCommit())
 	}
-	sum := sha256.Sum256(SchemaJSON)
+	sum := sha256.Sum256(SchemaJSON())
 	if got := hex.EncodeToString(sum[:]); got != fields["sha256"] {
 		t.Errorf("embedded schema sha256 = %s, but meaning.schema.source records %s", got, fields["sha256"])
 	}
@@ -142,11 +142,21 @@ func TestMustPanicsOnError(t *testing.T) {
 	must(0, errors.New("boom"))
 }
 
-func TestSchemaCommitIsEmptyWithoutARecord(t *testing.T) {
-	old := SchemaSource
-	defer func() { SchemaSource = old }()
-	SchemaSource = "repository: x\n"
-	if SchemaCommit() != "" {
-		t.Fatal("no commit line, no commit")
+func TestCommitOfASource(t *testing.T) {
+	t.Parallel()
+	if got := commitOf("repository: x\ncommit: abc\npath: y\n"); got != "abc" {
+		t.Fatalf("commit = %q", got)
+	}
+	if got := commitOf("repository: x\n"); got != "" {
+		t.Fatalf("no commit line, no commit; got %q", got)
+	}
+}
+
+func TestSchemaAccessorsReturnCopies(t *testing.T) {
+	t.Parallel()
+	first := SchemaJSON()
+	first[0] = '!'
+	if SchemaJSON()[0] == '!' {
+		t.Fatal("SchemaJSON must not hand out the embedded bytes")
 	}
 }

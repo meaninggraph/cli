@@ -1,0 +1,4 @@
+{
+  "description": "Block sequences written at the indent of their key.",
+  "expect": "accept"
+}

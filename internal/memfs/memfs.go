@@ -13,11 +13,15 @@ import (
 // FS holds files in memory.
 type FS struct{ files fstest.MapFS }
 
-// New returns a file system holding the given files (path to content).
-func New(files map[string]string) FS {
+// New returns a file system holding the given files (path to content). The
+// paths named in symlinks are symbolic links instead of regular files.
+func New(files map[string]string, symlinks ...string) FS {
 	m := fstest.MapFS{}
 	for name, content := range files {
 		m[clean(name)] = &fstest.MapFile{Data: []byte(content)}
+	}
+	for _, name := range symlinks {
+		m[clean(name)].Mode = fs.ModeSymlink
 	}
 	return FS{files: m}
 }

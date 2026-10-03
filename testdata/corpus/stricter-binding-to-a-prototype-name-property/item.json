@@ -1,0 +1,6 @@
+{
+  "description": "A property binding to toString, which the entity does not have.",
+  "expect": "refuse",
+  "rule": "binding-model",
+  "stricter": "The reference checker looks properties up in a plain object, so toString is found and the binding passes; the CLI is right to refuse it."
+}

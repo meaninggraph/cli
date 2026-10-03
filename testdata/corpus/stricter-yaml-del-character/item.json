@@ -1,0 +1,6 @@
+{
+  "description": "A DEL character in a description.",
+  "expect": "refuse",
+  "rule": "yaml-character",
+  "stricter": "Control characters (and DEL) are refused in the text; the reference parser accepts DEL."
+}

@@ -1,5 +1,5 @@
 {
   "description": "scale: .inf is not a number the schema accepts.",
   "expect": "refuse",
-  "rule": "yaml"
+  "rule": "yaml-number"
 }

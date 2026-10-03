@@ -1,0 +1,4 @@
+{
+  "description": "A binding written as a flow mapping whose model reference carries ?ref=.",
+  "expect": "accept"
+}
