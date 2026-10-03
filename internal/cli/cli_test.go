@@ -169,7 +169,7 @@ func TestCheckResolvesOtherGraphsFromSuppliedDirectories(t *testing.T) {
 		"/sick/core.meaning.yaml": "a: b\n  c: d\n",
 	}
 	got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
-	want := "/mine: warning: meaning://github.com/org/core?ref=" + pin + " was read from /core, which cannot be verified as that commit (it is not a git checkout (it has no .git)); the pin is trusted, not checked [pin-not-verified]\nok: /mine: 1 concept, 1 file, 1 warning\n"
+	want := "/mine: warning: meaning://github.com/org/core?ref=" + pin + " was read from /core, which cannot be verified as that version (it is not a git checkout (it has no .git)); the pin is trusted, not checked [pin-not-verified]\nok: /mine: 1 concept, 1 file, 1 warning\n"
 	if got.code != ExitClean || got.stdout != want {
 		t.Fatalf("got %+v\nwant %q", got, want)
 	}
@@ -425,15 +425,57 @@ func TestCheckVerifiesPinsAgainstGitCheckouts(t *testing.T) {
 	}
 	files["/core/.git/refs/heads/main"] = other + "\n"
 	got = execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
-	want := "/mine: error: meaning://github.com/org/core is pinned at " + pin + ", but /core, given with --graph, is a checkout of " + other + "; check out the pinned commit there [pin-checkout-mismatch]\n" +
+	want := "/mine: error: meaning://github.com/org/core is pinned at " + pin + ", but /core, given with --graph, is a checkout of " + other + "; check out the pinned version there [pin-checkout-mismatch]\n" +
 		"failed: /mine: 1 error, 0 warnings, 1 concept, 1 file\n"
 	if got.code != ExitFindings || got.stdout != want {
 		t.Fatalf("a checkout at another commit is an error: %+v\nwant %q", got, want)
 	}
-	// A branch name as the pin is not the checkout's commit id either.
-	files["/mine/a.meaning.yaml"] = file(concept("customer", "entity", ", extends: 'meaning://github.com/org/core/customer?ref=main'"))
-	if got := execute(files, "check", "/mine", "--graph", "github.com/org/core=/core"); got.code != ExitFindings || !strings.Contains(got.stdout, "pin-checkout-mismatch") {
-		t.Fatalf("got %+v", got)
+}
+
+// A pin that is a branch or a tag name (FORMAT.md allows them) is looked up in
+// the checkout's refs, so that a checkout of that branch or tag is not a
+// mismatch.
+func TestCheckVerifiesPinsThatAreBranchesAndTags(t *testing.T) {
+	t.Parallel()
+	other := strings.Repeat("0", 40)
+	check := func(ref string, git map[string]string) result {
+		files := map[string]string{
+			"/core/core.meaning.yaml": file(concept("customer", "entity", "")),
+			"/mine/a.meaning.yaml":    file(concept("customer", "entity", ", extends: 'meaning://github.com/org/core/customer?ref="+ref+"'")),
+		}
+		for name, content := range git {
+			files["/core/.git/"+name] = content
+		}
+		return execute(files, "check", "/mine", "--graph", "github.com/org/core=/core")
+	}
+	for _, tc := range []struct {
+		name, ref string
+		git       map[string]string
+		code      int
+		contains  []string
+	}{
+		{"a checkout of the branch", "main", map[string]string{"HEAD": "ref: refs/heads/main\n", "refs/heads/main": other}, ExitClean, []string{"ok: /mine: 1 concept, 1 file\n"}},
+		{"a checkout at the commit of the branch", "main", map[string]string{"HEAD": pin, "refs/heads/main": pin}, ExitClean, []string{"ok: /mine: 1 concept, 1 file\n"}},
+		{"a checkout at the commit of the branch of the remote", "main", map[string]string{"HEAD": pin, "refs/remotes/origin/main": pin}, ExitClean, []string{"ok: /mine: 1 concept, 1 file\n"}},
+		{"a checkout at the commit of a tag", "v1.2.0", map[string]string{"HEAD": pin, "refs/tags/v1.2.0": pin}, ExitClean, []string{"ok: /mine: 1 concept, 1 file\n"}},
+		{"a checkout at the commit an annotated packed tag peels to", "v1", map[string]string{"HEAD": pin, "packed-refs": other + " refs/tags/v1\n^" + pin + "\n"}, ExitClean, []string{"ok: /mine"}},
+		{"a checkout at another commit than an annotated packed tag", "v1", map[string]string{"HEAD": other, "packed-refs": other + " refs/tags/v1\n^" + pin + "\n"}, ExitFindings, []string{"pin-checkout-mismatch", "refs/tags/v1 is at " + pin}},
+		{"a checkout at another commit than the branch", "main", map[string]string{"HEAD": other, "refs/heads/main": pin}, ExitFindings, []string{"pin-checkout-mismatch", "is a checkout of " + other + ", and refs/heads/main is at " + pin}},
+		{"a checkout at another commit than the branches", "main", map[string]string{"HEAD": other, "refs/heads/main": pin, "refs/remotes/origin/main": strings.Repeat("1", 40)}, ExitFindings, []string{"refs/heads/main is at " + pin + ", refs/remotes/origin/main is at " + strings.Repeat("1", 40)}},
+		{"a loose tag that may be annotated", "v1", map[string]string{"HEAD": other, "refs/tags/v1": pin}, ExitClean, []string{"pin-not-verified", "may be annotated"}},
+		{"a name the checkout does not have", "nope", map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified", `"nope" is a branch or tag name, which can move, and the checkout has no such ref`}},
+		{"a pin in upper case hexadecimal is a name", strings.ToUpper(pin), map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified"}},
+		{"a pin that climbs out of the refs", "a/../b", map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified"}},
+	} {
+		got := check(tc.ref, tc.git)
+		if got.code != tc.code {
+			t.Errorf("%s: code = %d, want %d:\n%s", tc.name, got.code, tc.code, got.stdout)
+		}
+		for _, want := range tc.contains {
+			if !strings.Contains(got.stdout, want) {
+				t.Errorf("%s: output lacks %q:\n%s", tc.name, want, got.stdout)
+			}
+		}
 	}
 }
 

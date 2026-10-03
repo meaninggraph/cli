@@ -1,6 +1,7 @@
 package meaning
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -115,19 +116,55 @@ func TestHCLReaderRefusesNamesOfObjectPrototype(t *testing.T) {
 				t.Errorf("%s %s: error = %v", what, name, err)
 			}
 		}
+		// The reference parser asks `name in attributes` for the attribute names of
+		// every block, so a prototype name is refused there too, wherever the block is.
+		for where, text := range map[string]string{
+			"a property":  "entity \"E\" {\n  property \"p\" {\n    type = \"int\"\n    " + name + " = \"x\"\n  }\n}\n",
+			"a field":     "component \"C\" {\n  field \"f\" { " + name + " = 1 }\n}\n",
+			"a component": "component \"C\" { " + name + " = 1 }\n",
+			"an enum":     "enum \"E\" { " + name + " = true }\n",
+			"an entity":   "entity \"E\" { " + name + " = true }\n",
+			"the file":    name + " = 1\n",
+		} {
+			fsys := memfs.New(map[string]string{"/m.hcl": text})
+			_, err := HCLReader{}.ReadModel(fsys, "/m.hcl")
+			if err == nil || !strings.Contains(err.Error(), "attribute \""+name+"\" has the name of a property of JavaScript's Object.prototype") {
+				t.Errorf("%s as an attribute of %s: error = %v", name, where, err)
+			}
+		}
+	}
+	// A name that only looks like one is an ordinary attribute.
+	ok := memfs.New(map[string]string{"/m.hcl": "entity \"E\" {\n  property \"p\" {\n    type = \"int\"\n    Constructor = 1\n    to_string = 2\n  }\n}\n"})
+	if _, err := (HCLReader{}).ReadModel(ok, "/m.hcl"); err != nil {
+		t.Fatalf("error = %v", err)
 	}
 }
 
 func TestHCLReaderLimits(t *testing.T) {
 	t.Parallel()
-	big := memfs.New(map[string]string{"/m.hcl": strings.Repeat(" ", MaxFileBytes+1)})
-	if _, err := (HCLReader{}).ReadModel(big, "/m.hcl"); err == nil || !strings.Contains(err.Error(), "at most") {
-		t.Fatalf("error = %v", err)
+	read := func(text string) error {
+		_, err := (HCLReader{}).ReadModel(memfs.New(map[string]string{"/m.hcl": text}), "/m.hcl")
+		return err
 	}
-	// Blocks inside the blocks of an entity are refused at once, however many follow.
-	deep := memfs.New(map[string]string{"/m.hcl": "entity \"E\" {\n  property \"p\" {\n" + strings.Repeat("x \"y\" {\n", 500_000)})
-	if _, err := (HCLReader{}).ReadModel(deep, "/m.hcl"); err == nil || !strings.Contains(err.Error(), "nested more than 2 deep") {
-		t.Fatalf("error = %v", err)
+	// The size limit: exactly the limit is read, one byte more is refused, and
+	// the message says what the limit is.
+	if err := read("entity \"E\" {}" + strings.Repeat(" ", MaxFileBytes-len("entity \"E\" {}"))); err != nil {
+		t.Fatalf("a file of exactly %d bytes: %v", MaxFileBytes, err)
+	}
+	if err := read(strings.Repeat(" ", MaxFileBytes+1)); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("at most %d", MaxFileBytes)) {
+		t.Fatalf("a file one byte over the limit: %v", err)
+	}
+	// Two levels of blocks (an entity and its properties) are what ModelSpec v0
+	// has: they are read. A block inside the block of a property is the third
+	// level, refused on its own line, however many blocks follow it.
+	if err := read("entity \"E\" {\n  property \"p\" {\n    type = \"int\"\n  }\n}\n"); err != nil {
+		t.Fatalf("two levels: %v", err)
+	}
+	for _, blocks := range []int{1, 2_000} {
+		err := read("entity \"E\" {\n  property \"p\" {\n" + strings.Repeat("x \"y\" {\n", blocks))
+		if err == nil || !strings.Contains(err.Error(), `line 3: blocks nested more than 2 deep are not ModelSpec v0 (x "y" is inside a block of a block)`) {
+			t.Fatalf("%d blocks inside a property: %v", blocks, err)
+		}
 	}
 }
 

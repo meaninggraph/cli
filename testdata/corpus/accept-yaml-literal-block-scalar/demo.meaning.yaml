@@ -12,7 +12,7 @@ concepts:
   - id: b
     kind: entity
     labels: {en: b}
-    description: >+
+    description: >
       Folded
       text.
 

@@ -93,6 +93,42 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-block-scalar-comment-after": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-fewer-spaces-line-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-folded-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-folded-strip-blank-lines": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-literal-blank-lines-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-literal-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-block-scalar-strip-no-final-newline": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-bom-then-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-bom-then-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-comments-and-flow": {
       "verdict": "accept",
       "problems": []
@@ -146,6 +182,38 @@
       "problems": []
     },
     "accept-yaml-sequence-at-key-indent": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-signed-hex-is-a-string": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-at-end-of-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-comment-line-between-entries": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-block-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-comment": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-double-quotes": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-plain-scalar": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-tab-in-single-quotes": {
       "verdict": "accept",
       "problems": []
     },
@@ -537,6 +605,46 @@
       "problems": [
         "demo.meaning.yaml: models: ENOENT: no such file or directory, open 'missing.hcl'",
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-component": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute valueOf",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute __proto__",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-enum": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 13: duplicate attribute hasOwnProperty",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-field": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 14: duplicate attribute constructor",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
+        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
+      ]
+    },
+    "refuse-model-prototype-attribute-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: models: line 17: duplicate attribute toString",
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
       ]
@@ -1142,6 +1250,13 @@
         "demo.meaning.yaml: schema: /concepts/0/labels/en must be string"
       ]
     },
+    "refuse-yaml-bom-indented-first-line": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "All mapping items must start at the same column at line 2, column 1:"
+      ]
+    },
     "refuse-yaml-duplicate-key": {
       "verdict": "refuse",
       "crashed": true,
@@ -1155,6 +1270,26 @@
         "demo.meaning.yaml: schema: / must be object"
       ]
     },
+    "refuse-yaml-escape-unknown": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Invalid escape sequence \\q at line 9, column 21:"
+      ]
+    },
+    "refuse-yaml-flow-mapping-entry-without-value": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/labels/fr must be string"
+      ]
+    },
+    "refuse-yaml-lone-carriage-return": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Nested mappings are not allowed in compact mappings at line 1, column 9:"
+      ]
+    },
     "refuse-yaml-merge-key": {
       "verdict": "refuse",
       "problems": [
@@ -1162,11 +1297,52 @@
         "demo.meaning.yaml: schema: /concepts/0 must NOT have additional properties (<<)"
       ]
     },
+    "refuse-yaml-nesting-over-the-limit": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: schema: /concepts/0/description must be string"
+      ]
+    },
     "refuse-yaml-syntax": {
       "verdict": "refuse",
       "crashed": true,
       "problems": [
         "Nested mappings are not allowed in compact mappings at line 2, column 5:"
+      ]
+    },
+    "refuse-yaml-tab-after-dash": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 6, column 4:"
+      ]
+    },
+    "refuse-yaml-tab-blank-line-after-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar lines must not be less indented than their first line at line 12, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-comment-line-after-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar lines must not be less indented than their first line at line 11, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-in-plain-continuation-blank-line": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "All mapping items must start at the same column at line 10, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-indentation": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 10, column 1:"
       ]
     },
     "refuse-yaml-two-documents": {
@@ -1204,11 +1380,27 @@
       "verdict": "accept",
       "problems": []
     },
+    "stricter-yaml-block-scalar-on-the-next-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-block-scalar-spaces-line-at-end": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-bom-inside-text": {
+      "verdict": "accept",
+      "problems": []
+    },
     "stricter-yaml-del-character": {
       "verdict": "accept",
       "problems": []
     },
     "stricter-yaml-directive": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-document-end-marker": {
       "verdict": "accept",
       "problems": []
     },
@@ -1235,6 +1427,14 @@
       "problems": []
     },
     "stricter-yaml-integer-beyond-double": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-keep-chomping": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-keep-chomping-spaces-at-end": {
       "verdict": "accept",
       "problems": []
     },
@@ -1269,15 +1469,35 @@
       "verdict": "accept",
       "problems": []
     },
+    "stricter-yaml-plain-continues-with-bracket": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-plain-continues-with-quote": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-plain-wrapped-inside-flow": {
+      "verdict": "accept",
+      "problems": []
+    },
     "stricter-yaml-str-tag": {
       "verdict": "accept",
       "problems": []
     },
-    "stricter-yaml-tab-comment-line": {
+    "stricter-yaml-tab-after-colon": {
       "verdict": "accept",
       "problems": []
     },
-    "stricter-yaml-tab-only-line": {
+    "stricter-yaml-tab-before-comment-key-colon": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-in-block-scalar-blank-line": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-in-flow-collection": {
       "verdict": "accept",
       "problems": []
     }

@@ -2,6 +2,7 @@ package meaning
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -83,5 +84,43 @@ func TestCheckoutCommitReportsAGitFileThatCannotBeRead(t *testing.T) {
 	_, err := CheckoutCommit(unreadableFile{FS: files, path: "/d/.git"}, "/d")
 	if err == nil || !strings.Contains(err.Error(), "/d/.git cannot be read") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRefTargets(t *testing.T) {
+	t.Parallel()
+	a, b, c := strings.Repeat("a", 40), strings.Repeat("b", 40), strings.Repeat("c", 40)
+	tests := []struct {
+		name  string
+		files map[string]string
+		pin   string
+		want  []RefTarget
+		fail  bool
+	}{
+		{"a branch", map[string]string{"/d/.git/refs/heads/main": a + "\n"}, "main", []RefTarget{{Ref: "refs/heads/main", ID: a}}, false},
+		{"a loose tag may be annotated", map[string]string{"/d/.git/refs/tags/v1": a}, "v1", []RefTarget{{Ref: "refs/tags/v1", ID: a, MaybeTagObject: true}}, false},
+		{"the branch of the remote", map[string]string{"/d/.git/refs/remotes/origin/dev": b}, "dev", []RefTarget{{Ref: "refs/remotes/origin/dev", ID: b}}, false},
+		{"a branch with a slash", map[string]string{"/d/.git/refs/heads/feat/x": a}, "feat/x", []RefTarget{{Ref: "refs/heads/feat/x", ID: a}}, false},
+		{"a branch and a tag of one name", map[string]string{"/d/.git/refs/heads/x": a, "/d/.git/refs/tags/x": b}, "x", []RefTarget{{Ref: "refs/heads/x", ID: a}, {Ref: "refs/tags/x", ID: b, MaybeTagObject: true}}, false},
+		{"packed refs, lightweight and annotated", map[string]string{"/d/.git/packed-refs": "# pack-refs with: peeled fully-peeled sorted\n" + a + " refs/tags/light\n" + b + " refs/tags/note\n^" + c + "\n" + a + " refs/heads/main\n"}, "note", []RefTarget{{Ref: "refs/tags/note", ID: c}}, false},
+		{"a packed lightweight tag", map[string]string{"/d/.git/packed-refs": a + " refs/tags/light\n" + b + " refs/tags/other\n"}, "light", []RefTarget{{Ref: "refs/tags/light", ID: a}}, false},
+		{"a packed ref followed by a peel line that is no commit", map[string]string{"/d/.git/packed-refs": a + " refs/tags/odd\n^nonsense\n"}, "odd", []RefTarget{{Ref: "refs/tags/odd", ID: a}}, false},
+		{"a loose ref beats a packed one", map[string]string{"/d/.git/refs/heads/main": b, "/d/.git/packed-refs": a + " refs/heads/main\n"}, "main", []RefTarget{{Ref: "refs/heads/main", ID: b}}, false},
+		{"a ref of the common directory of a linked worktree", map[string]string{"/d/.git": "gitdir: /m/.git/worktrees/d\n", "/m/.git/worktrees/d/HEAD": a, "/m/.git/worktrees/d/commondir": "../..\n", "/m/.git/refs/heads/main": b, "/m/.git/packed-refs": c + " refs/tags/t\n"}, "main", []RefTarget{{Ref: "refs/heads/main", ID: b}}, false},
+		{"a ref file that holds no commit", map[string]string{"/d/.git/refs/heads/main": "ref: refs/heads/other\n", "/d/.git/packed-refs": a + " refs/heads/main\n"}, "main", nil, false},
+		{"a name that is not there", map[string]string{"/d/.git/HEAD": a}, "nope", nil, false},
+		{"an empty name", map[string]string{"/d/.git/HEAD": a}, "", nil, false},
+		{"a name that climbs", map[string]string{"/d/.git/HEAD": a}, "../x", nil, false},
+		{"an absolute name", map[string]string{"/d/.git/HEAD": a}, "/etc", nil, false},
+		{"no .git", map[string]string{"/d/x": "x"}, "main", nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := RefTargets(memfs.New(tc.files), "/d", tc.pin)
+			if (err != nil) != tc.fail || !slices.Equal(got, tc.want) {
+				t.Fatalf("got %+v, %v; want %+v (fail %v)", got, err, tc.want, tc.fail)
+			}
+		})
 	}
 }

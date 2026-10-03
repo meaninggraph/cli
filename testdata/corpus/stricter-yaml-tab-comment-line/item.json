@@ -1,6 +1,0 @@
-{
-  "description": "A comment line indented with a tab.",
-  "expect": "refuse",
-  "rule": "yaml-tab",
-  "stricter": "The subset has no tab character anywhere; the reference parser accepts a tab before a comment."
-}

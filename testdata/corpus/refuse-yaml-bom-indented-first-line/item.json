@@ -1,0 +1,5 @@
+{
+  "description": "A byte order mark, then a document with every line indented by two spaces.",
+  "expect": "refuse",
+  "rule": "yaml-encoding"
+}

@@ -1,6 +1,8 @@
 package meaning
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"strings"
 )
@@ -29,6 +31,16 @@ func (r *run) lookup(f *File, line int, where, ref string) (node, bool) {
 	r.pins[p.Repo] = p.Pin
 	remote, err := r.resolve(p.Repo, p.Pin)
 	if err != nil {
+		var bad *unreadableGraphError
+		if errors.As(err, &bad) {
+			// Every reference to a graph that is not valid fails the same way: say
+			// it once.
+			if r.unreadable[p.Repo+"?ref="+p.Pin] {
+				return node{}, false
+			}
+			r.unreadable[p.Repo+"?ref="+p.Pin] = true
+			err = fmt.Errorf("%w (the other references to this graph are not reported again)", err)
+		}
 		r.err(f, line, RuleUnresolved, "%s: %v", where, err)
 		return node{}, false
 	}
@@ -134,6 +146,7 @@ type parentEntry struct {
 
 // parent resolves what a concept extends, once per concept.
 func (r *run) parent(n node) (node, bool) {
+	r.steps++
 	if e, done := r.parents[n.concept]; done {
 		return e.parent, e.ok
 	}

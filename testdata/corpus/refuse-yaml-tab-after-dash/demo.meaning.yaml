@@ -3,8 +3,7 @@ id: demo
 name: Demo
 description: A demo graph.
 concepts:
-	
-  - id: a
+  -	id: a
     kind: entity
     labels: {en: a}
-    description: A a.
+    description: A demo.

@@ -239,20 +239,55 @@ func (r *graphReport) add(findings ...meaning.Finding) {
 }
 
 // verifyPin compares a pin that was read from a directory given with --graph
-// with the commit that directory is a checkout of: equal is fine, different is
-// an error, and a directory that is no checkout cannot be verified, which is a
-// warning.
+// with the checkout that directory is. A commit (40 hexadecimal digits, what
+// FORMAT.md advises) must be the commit the checkout is at: equal is fine,
+// different is an error, and a directory that is no checkout cannot be verified,
+// which is a warning. A branch or a tag (the grammar accepts them, and they can
+// move) is looked up in the checkout's refs: the checkout at a commit that the
+// name has there is fine; at another it is an error; a name that is not among
+// the refs, or may be an annotated tag, cannot be verified, a warning. Only
+// files are read: this proves which commit the checkout was made at, not what
+// the files in it are.
 func verifyPin(env Env, file string, g *meaning.Graph, pin string) (meaning.Finding, bool) {
 	commit, err := meaning.CheckoutCommit(env.FS, g.Dir)
+	unverified := func(why string) (meaning.Finding, bool) {
+		return meaning.Finding{File: file, Rule: "pin-not-verified", Severity: meaning.Warning,
+			Message: fmt.Sprintf("meaning://%s?ref=%s was read from %s, which cannot be verified as that version (%s); the pin is trusted, not checked", g.Address, pin, g.Dir, why)}, true
+	}
+	mismatch := func(format string, args ...any) (meaning.Finding, bool) {
+		return meaning.Finding{File: file, Rule: "pin-checkout-mismatch", Severity: meaning.Error,
+			Message: fmt.Sprintf("meaning://%s is pinned at %s, but %s, given with --graph, %s; check out the pinned version there", g.Address, pin, g.Dir, fmt.Sprintf(format, args...))}, true
+	}
 	switch {
 	case err != nil:
-		return meaning.Finding{File: file, Rule: "pin-not-verified", Severity: meaning.Warning,
-			Message: fmt.Sprintf("meaning://%s?ref=%s was read from %s, which cannot be verified as that commit (%v); the pin is trusted, not checked", g.Address, pin, g.Dir, err)}, true
-	case commit != pin:
-		return meaning.Finding{File: file, Rule: "pin-checkout-mismatch", Severity: meaning.Error,
-			Message: fmt.Sprintf("meaning://%s is pinned at %s, but %s, given with --graph, is a checkout of %s; check out the pinned commit there", g.Address, pin, g.Dir, commit)}, true
+		return unverified(err.Error())
+	case len(pin) == 40 && isHex(pin):
+		if commit != pin {
+			return mismatch("is a checkout of %s", commit)
+		}
+		return meaning.Finding{}, false
 	}
-	return meaning.Finding{}, false
+	targets, err := meaning.RefTargets(env.FS, g.Dir, pin)
+	if err != nil || len(targets) == 0 {
+		return unverified(fmt.Sprintf("%q is a branch or tag name, which can move, and the checkout has no such ref; pin a commit", pin))
+	}
+	var seen []string
+	maybe := false
+	for _, target := range targets {
+		if target.ID == commit {
+			return meaning.Finding{}, false
+		}
+		seen = append(seen, fmt.Sprintf("%s is at %s", target.Ref, target.ID))
+		maybe = maybe || target.MaybeTagObject
+	}
+	if maybe {
+		return unverified(fmt.Sprintf("%q is a tag that may be annotated, and an annotated tag cannot be compared with the checkout's commit without reading git objects; pin a commit", pin))
+	}
+	return mismatch("is a checkout of %s, and %s", commit, strings.Join(seen, ", "))
+}
+
+func isHex(s string) bool {
+	return strings.Trim(s, "0123456789abcdef") == ""
 }
 
 // unusedGraphs warns about a graph given with --graph that no reference named,

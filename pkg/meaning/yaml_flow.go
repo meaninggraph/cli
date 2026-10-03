@@ -6,21 +6,23 @@ import (
 
 // blockScalar reads a literal (|) or folded (>) scalar. The header is the text
 // from the indicator on; the lines that follow are its content, indented more
-// than p.
+// than p. Keep chomping (+) and indentation indicators are outside the subset.
 func (r *reader) blockScalar(header string, no, p int) (*Node, *SyntaxError) {
 	i, chomp := 1, byte(0)
 	if i < len(header) && (header[i] == '-' || header[i] == '+') {
+		if header[i] == '+' {
+			return nil, syntax(no, RuleYAMLUnsupported, "keep chomping (%c+) is not supported, because readers disagree about the last line break of the file; use |, >, |- or >-", header[0])
+		}
 		chomp = header[i]
 		i++
 	}
 	if i < len(header) && header[i] >= '0' && header[i] <= '9' {
 		return nil, syntax(no, RuleYAMLUnsupported, "an indentation indicator (a digit after %c) is not supported; indent the text by two spaces", header[0])
 	}
-	if err := endOfLine(header[i:], no); err != nil {
+	if err := r.endOfLine(header[i:], no); err != nil {
 		return nil, err
 	}
-	var raws []string
-	indent := -1
+	first, indent := r.pos, -1
 	for ; !r.eof(); r.pos++ {
 		l := r.cur()
 		if !l.blank() {
@@ -31,43 +33,41 @@ func (r *reader) blockScalar(header string, no, p int) (*Node, *SyntaxError) {
 				break
 			}
 		}
-		raws = append(raws, l.raw)
+		r.inBlock[r.pos] = true
 	}
-	lines := make([]string, len(raws))
-	for k, raw := range raws {
-		if len(raw) > indent && strings.TrimLeft(raw, " ") == "" && indent >= 0 {
-			return nil, syntax(no, RuleYAMLUnsupported, "a blank line inside a block scalar holds more spaces than the text is indented by; remove the spaces")
-		}
-		if len(raw) > indent && indent >= 0 {
-			lines[k] = raw[indent:]
+	// The tabs of a line of text are text. A blank line that holds a tab is
+	// refused (its tabs are never marked): the reference parser reads it as text
+	// when it follows the indentation and refuses it when it does not. A blank
+	// line of more spaces than the text is indented by is text at the end of the
+	// file, and read differently from the lines around it elsewhere.
+	lines := make([]string, r.pos-first)
+	for k := range lines {
+		l := r.lines[first+k]
+		switch {
+		case !l.blank():
+			lines[k] = l.raw[indent:]
+			r.markTabs(first+k, indent, len(l.raw))
+		case indent >= 0 && len(l.raw) > indent && strings.TrimLeft(l.raw, " ") == "":
+			return nil, syntax(l.no, RuleYAMLUnsupported, "a blank line inside a block scalar holds more spaces than the text is indented by; remove the spaces")
 		}
 	}
 	return &Node{Kind: String, Line: no, Text: blockText(lines, header[0] == '>', chomp)}, nil
 }
 
 // blockText joins the content lines of a block scalar: a literal keeps its
-// line breaks, a folded one turns single breaks into spaces; the chomping
-// indicator says what happens to the breaks at the end.
+// line breaks, a folded one turns single breaks into spaces; a stripping scalar
+// (chomp is '-') has no break at its end, a clipped one has one.
 func blockText(lines []string, folded bool, chomp byte) string {
-	trailing := 0
-	for trailing < len(lines) && lines[len(lines)-1-trailing] == "" {
-		trailing++
+	// Blank lines at the end are not part of a clipped or stripped scalar.
+	for len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
 	}
-	body := lines[:len(lines)-trailing]
-	text := strings.Join(body, "\n")
+	text := strings.Join(lines, "\n")
 	if folded {
-		text = fold(body)
+		text = fold(lines)
 	}
-	switch {
-	case chomp == '-':
+	if chomp == '-' || len(lines) == 0 {
 		return text
-	case chomp == '+':
-		if len(body) == 0 {
-			return strings.Repeat("\n", trailing)
-		}
-		return text + "\n" + strings.Repeat("\n", trailing)
-	case len(body) == 0:
-		return ""
 	}
 	return text + "\n"
 }
@@ -83,7 +83,7 @@ func fold(lines []string) string {
 			empties++
 			continue
 		}
-		normal := line[0] != ' '
+		normal := line[0] != ' ' && line[0] != '\t' // a line that starts with a blank keeps its breaks
 		switch {
 		case first:
 			sb.WriteString(strings.Repeat("\n", empties))
@@ -105,7 +105,7 @@ func fold(lines []string) string {
 // that continue it must be indented more than p.
 func (r *reader) flowValue(t string, no, p int) (node *Node, err *SyntaxError) {
 	li := r.pos - 1
-	f := &flow{r: r, li: li, ci: len(strings.TrimRight(r.lines[li].raw, " ")) - len(t), p: p, start: no}
+	f := &flow{r: r, li: li, ci: len(strings.TrimRight(r.lines[li].raw, " \t")) - len(t), p: p, start: no}
 	// The collection is read by recursive descent, and a problem is raised with
 	// a panic that is caught here, which keeps the error handling out of every
 	// step of the descent.
@@ -116,7 +116,7 @@ func (r *reader) flowValue(t string, no, p int) (node *Node, err *SyntaxError) {
 	}()
 	node = f.value()
 	r.pos = f.li + 1
-	return node, endOfLine(f.r.lines[f.li].raw[f.ci:], f.r.lines[f.li].no)
+	return node, r.endOfLine(f.r.lines[f.li].raw[f.ci:], f.r.lines[f.li].no)
 }
 
 // flowFailure is the panic that carries a problem out of a flow collection.
@@ -146,6 +146,7 @@ func (f *flow) quoted() string {
 	if err != nil {
 		panic(flowFailure{err})
 	}
+	f.r.markTabs(f.li, f.ci+1, next-1)
 	f.ci = next
 	return value
 }
@@ -157,6 +158,9 @@ func (f *flow) skipSpace() {
 		raw := f.raw()
 		for f.ci < len(raw) && raw[f.ci] == ' ' {
 			f.ci++
+		}
+		if strings.TrimLeft(raw[f.ci:], " \t") == "" {
+			f.ci = len(raw) // blanks, tabs included, at the end of the line
 		}
 		if f.ci < len(raw) {
 			break
@@ -229,11 +233,24 @@ func (f *flow) plain() string {
 	if text == "" {
 		return ""
 	}
+	if strings.Contains(text, "\t") {
+		f.fail(RuleYAMLTab, "a tab inside [ ] or { } is accepted in quotes only; use spaces")
+	}
 	if first := text[0]; (first == '-' || first == '?' || first == ':') && (len(text) == 1 || text[1] == ' ') {
 		return ""
 	}
 	f.ci = j
 	return text
+}
+
+// afterValueFailure reports what follows a value of a flow collection where a
+// comma or the closing bracket belongs: text on a line below the value is a
+// plain scalar that continues there.
+func (f *flow) afterValueFailure(ended int, closing byte, found byte) {
+	if f.li != ended {
+		f.fail(RuleYAMLUnsupported, "a plain scalar inside [ ] or { } cannot continue on the next line (it continues with %q); write it on one line or put it in quotes", found)
+	}
+	f.fail(RuleYAML, "expected a comma or %c after the value, found %q", closing, found)
 }
 
 func (f *flow) enter() {
@@ -254,6 +271,7 @@ func (f *flow) seq() *Node {
 			return node
 		}
 		node.Items = append(node.Items, f.value())
+		ended := f.li
 		f.skipSpace()
 		switch c := f.raw()[f.ci]; c {
 		case ',':
@@ -264,7 +282,7 @@ func (f *flow) seq() *Node {
 		case ':':
 			f.fail(RuleYAMLUnsupported, "\"key: value\" inside [ ] is not supported; use { } for a mapping")
 		default:
-			f.fail(RuleYAML, "expected a comma or ] after the value, found %q", c)
+			f.afterValueFailure(ended, ']', c)
 		}
 	}
 }
@@ -286,7 +304,7 @@ func (f *flow) mapping() *Node {
 		}
 		f.skipSpace()
 		if f.raw()[f.ci] != ':' {
-			f.fail(RuleYAML, "the key %q needs a colon and a value in { }", key)
+			f.fail(RuleYAMLUnsupported, "the entry %q in { } is not followed by \": value\"; put a space after a colon that starts a value (an entry without a value is not supported)", key)
 		}
 		f.ci++
 		f.skipSpace()
@@ -296,6 +314,7 @@ func (f *flow) mapping() *Node {
 		}
 		node.Keys = append(node.Keys, key)
 		node.Fields[key] = value
+		ended := f.li
 		f.skipSpace()
 		switch c := f.raw()[f.ci]; c {
 		case ',':
@@ -304,7 +323,7 @@ func (f *flow) mapping() *Node {
 			f.ci++
 			return node
 		default:
-			f.fail(RuleYAML, "expected a comma or } after the value, found %q", c)
+			f.afterValueFailure(ended, '}', c)
 		}
 	}
 }

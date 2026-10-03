@@ -73,10 +73,21 @@ func GraphResolver(graphs map[string]*Graph) Resolver {
 			validated[repo] = problem
 		}
 		if problem != nil {
-			return nil, fmt.Errorf("meaning://%s?ref=%s cannot be read: %v", repo, pin, problem)
+			return nil, &unreadableGraphError{repo: repo, pin: pin, problem: problem}
 		}
 		return g, nil
 	}
+}
+
+// unreadableGraphError says that a supplied graph is not valid. Every
+// reference to it fails the same way, so the check reports it once.
+type unreadableGraphError struct {
+	repo, pin string
+	problem   error
+}
+
+func (e *unreadableGraphError) Error() string {
+	return fmt.Sprintf("meaning://%s?ref=%s cannot be read: %v", e.repo, e.pin, e.problem)
 }
 
 // unreadable says why a supplied graph cannot be used: its first file that is
@@ -130,8 +141,17 @@ type run struct {
 	other    Resolver
 	findings []Finding
 	pins     map[string]string
-	parents  map[*Concept]parentEntry
-	chains   map[*Concept]chainInfo
+	// valueIndex holds the indexes of valuesNamed.
+	valueIndex map[*Concept]map[string][]string
+	// steps counts the lookups of what a concept extends: a test reads it to show
+	// that the work grows in step with the number of concepts.
+	steps int
+	// ambiguous counts the words reported as naming two concepts; see MaxAmbiguousWords.
+	ambiguous int
+	// unreadable holds the supplied graphs that were reported as not valid.
+	unreadable map[string]bool
+	parents    map[*Concept]parentEntry
+	chains     map[*Concept]chainInfo
 }
 
 // Check validates every file of g against the schema and checks what the
@@ -139,13 +159,21 @@ type run struct {
 // cycle, values-of and units-of name entities, measures and ratios are
 // consistent, and ids and words are unique. The findings are sorted.
 func (c Checker) Check(g *Graph) []Finding {
+	r := c.check(g)
+	SortFindings(r.findings)
+	return r.findings
+}
+
+// check runs the checks and returns the run that holds the findings (unsorted)
+// and the counts the tests read.
+func (c Checker) check(g *Graph) *run {
 	if c.Schema == nil {
 		c.Schema = DefaultSchema()
 	}
 	if c.Models == nil {
 		c.Models = HCLReader{}
 	}
-	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
+	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, unreadable: map[string]bool{}, valueIndex: map[*Concept]map[string][]string{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
 	if r.other == nil {
 		r.other = func(repo, _ string) (*Graph, error) {
 			return nil, fmt.Errorf("meaning://%s is not available: no graph was supplied", repo)
@@ -167,8 +195,7 @@ func (c Checker) Check(g *Graph) []Finding {
 	if c.Profile == ProfileUniversal {
 		r.universal()
 	}
-	SortFindings(r.findings)
-	return r.findings
+	return r
 }
 
 func (r *run) add(file string, line int, rule string, severity Severity, format string, args ...any) {
@@ -330,13 +357,7 @@ func (r *run) checkUnit(f *File, c *Concept, label string) {
 	if !ok {
 		return
 	}
-	unit := lower(c.Unit)
-	var named []string
-	for _, v := range entity.concept.Values {
-		if v.hasWord(unit, true) {
-			named = append(named, v.ID)
-		}
-	}
+	named := r.valuesNamed(entity.concept)[lower(c.Unit)]
 	if len(named) != 1 {
 		found := "none"
 		if len(named) > 0 {
@@ -347,15 +368,26 @@ func (r *run) checkUnit(f *File, c *Concept, label string) {
 	}
 }
 
-// hasWord reports whether a label or alias, and with codes also a code, equals
-// the lower-cased word ignoring case.
-func (v Value) hasWord(lowerWord string, codes bool) bool {
-	for _, w := range v.words(codes) {
-		if lower(w) == lowerWord {
-			return true
+// valuesNamed indexes the values of an entity concept by the lower-cased words
+// (labels, aliases and codes) that name them, in the order of the values. It
+// is built once per concept: every unit that names a value of it reads the
+// index, so the work stays linear however many units there are.
+func (r *run) valuesNamed(entity *Concept) map[string][]string {
+	if index, done := r.valueIndex[entity]; done {
+		return index
+	}
+	index := map[string][]string{}
+	for _, v := range entity.Values {
+		named := map[string]bool{}
+		for _, w := range v.words(true) {
+			if word := lower(w); !named[word] {
+				named[word] = true
+				index[word] = append(index[word], v.ID)
+			}
 		}
 	}
-	return false
+	r.valueIndex[entity] = index
+	return index
 }
 
 // words are the labels and aliases of a value, in any language, and with codes also its codes.

@@ -1,0 +1,4 @@
+{
+  "description": "Tabs after the last thing of a line, with and without spaces.",
+  "expect": "accept"
+}

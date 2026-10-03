@@ -1,0 +1,6 @@
+{
+  "description": "A block scalar indicator on the line after its key.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "A block scalar (| or >) must start on the line of its key or dash."
+}

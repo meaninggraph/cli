@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/meaninggraph/cli/internal/memfs"
 )
@@ -427,21 +427,35 @@ func chainOf(n int, extra string) string {
 	return sb.String()
 }
 
+// The work of checking a long chain is counted, not timed: a count does not
+// depend on the machine, the race detector or the other tests that are running.
 func TestLongExtendsChainsAreCheckedInLinearTime(t *testing.T) {
 	t.Parallel()
-	start := time.Now()
-	files := map[string]string{"/g/a.meaning.yaml": chainOf(5000, "")}
-	if got := (Checker{}).Check(graphOf(t, files, "")); len(got) != 0 {
-		t.Fatalf("findings = %v", got[:min(3, len(got))])
+	steps := func(n int, close bool) (int, []Finding) {
+		text := chainOf(n, "")
+		if close {
+			text = strings.Replace(text, "  - {id: c0, kind: entity, labels: {en: c0}, description: d}", fmt.Sprintf("  - {id: c0, kind: entity, labels: {en: c0}, description: d, extends: c%d}", n-1), 1)
+		}
+		r := Checker{}.check(graphOf(t, map[string]string{"/g/a.meaning.yaml": text}, ""))
+		SortFindings(r.findings)
+		return r.steps, r.findings
 	}
-	// The same chain closed into a cycle: every concept reports it, in a short message.
-	files["/g/a.meaning.yaml"] = strings.Replace(chainOf(5000, ""), "  - {id: c0, kind: entity, labels: {en: c0}, description: d}", "  - {id: c0, kind: entity, labels: {en: c0}, description: d, extends: c4999}", 1)
-	got := (Checker{}).Check(graphOf(t, files, ""))
-	if len(got) != 5000 || got[0].Rule != RuleExtendsCycle || len(got[0].Message) > 300 || !strings.Contains(got[0].Message, " -> ... -> ") {
-		t.Fatalf("%d findings, first %+v", len(got), got[0])
-	}
-	if took := time.Since(start); took > 20*time.Second {
-		t.Fatalf("5,000-concept chains took %v; checking them must not be quadratic or worse", took)
+	for _, close := range []bool{false, true} {
+		small, _ := steps(500, close)
+		medium, _ := steps(1000, close)
+		large, findings := steps(2000, close)
+		// Twice the concepts, twice the steps (and a little more for the longest
+		// messages): a quadratic check would take four times as many.
+		if medium > small*5/2 || large > medium*5/2 || large > 2000*200 {
+			t.Fatalf("closed %v: %d steps for 500 concepts, %d for 1,000, %d for 2,000: the work must grow in step with the chain", close, small, medium, large)
+		}
+		if !close && len(findings) != 0 {
+			t.Fatalf("findings = %v", findings[:min(3, len(findings))])
+		}
+		// The same chain closed into a cycle: every concept reports it, in a short message.
+		if close && (len(findings) != 2000 || findings[0].Rule != RuleExtendsCycle || len(findings[0].Message) > 300 || !strings.Contains(findings[0].Message, " -> ... -> ")) {
+			t.Fatalf("%d findings, first %+v", len(findings), findings[0])
+		}
 	}
 }
 
@@ -538,5 +552,117 @@ func TestAGraphWithoutAFileSystemCannotReadModels(t *testing.T) {
 	got := Checker{}.Check(g)
 	if rules := ruleList(got); !slices.Equal(rules, []string{RuleModels}) || !strings.Contains(got[0].Message, "was not loaded from a file system") {
 		t.Fatalf("findings = %v", got)
+	}
+}
+
+func TestAGraphThatIsNotValidIsReportedOnce(t *testing.T) {
+	t.Parallel()
+	bad := graphOf(t, map[string]string{"/g/a.meaning.yaml": "a: b\n  c: d\n"}, "github.com/org/bad")
+	const ref = "meaning://github.com/org/bad/x?ref=abc"
+	local := graphOf(t, map[string]string{"/g/a.meaning.yaml": doc(
+		cn("one", "entity", ", extends: "+ref),
+		cn("two", "entity", ", extends: "+ref),
+		cn("three", "entity", ", extends: meaning://github.com/org/bad/y?ref=abc"),
+		cn("four", "entity", ", extends: meaning://github.com/org/other/y?ref=abc"),
+		cn("five", "entity", ", extends: meaning://github.com/org/other/z?ref=abc"),
+	)}, "")
+	findings := Checker{Resolve: GraphResolver(map[string]*Graph{"github.com/org/bad": bad})}.Check(local)
+	var unreadable, unsupplied int
+	for _, f := range findings {
+		if f.Rule != RuleUnresolved {
+			continue
+		}
+		switch {
+		case strings.Contains(f.Message, "cannot be read"):
+			unreadable++
+			if !strings.Contains(f.Message, "concept one extends") || !strings.Contains(f.Message, "not reported again") {
+				t.Errorf("the first reference is the one reported, and says so: %s", f.Message)
+			}
+		case strings.Contains(f.Message, "no local copy"):
+			unsupplied++
+		}
+	}
+	if unreadable != 1 || unsupplied != 2 {
+		t.Fatalf("a graph that is not valid is reported %d times (want 1), a graph that was not supplied %d times (want 2, once per reference):\n%v", unreadable, unsupplied, findings)
+	}
+}
+
+// allocations counts the memory blocks a function allocates, and the bytes. A
+// test that calls it does not run in parallel with others, so the count is its own.
+func allocations(f func()) (blocks, bytes uint64) {
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.Mallocs - before.Mallocs, after.TotalAlloc - before.TotalAlloc
+}
+
+// Input that is within the size limit and hostile must not make the work
+// grow with the square of its size. Each case is counted in allocations: the
+// quadratic code of the first review rounds made millions of them.
+func TestHostileInputIsHandledInLinearWork(t *testing.T) {
+	// A plain scalar of 10,000 lines: appended to a string, it copies the text
+	// 10,000 times.
+	var plain strings.Builder
+	plain.WriteString("a: x\n")
+	for range 10_000 {
+		plain.WriteString("  more words\n")
+	}
+	var node *Node
+	if _, bytes := allocations(func() { node, _ = ParseYAML([]byte(plain.String())) }); bytes > 30<<20 {
+		t.Errorf("a plain scalar of 10,000 lines allocated %d MB (the text is %d KB)", bytes>>20, plain.Len()>>10)
+	}
+	if len(node.Field("a").Text) != len("x")+10_000*len(" more words") {
+		t.Errorf("the scalar is %d bytes long", len(node.Field("a").Text))
+	}
+
+	// 1,000 concepts that each have a unit, over an entity of 10,000 values: the
+	// words of the values are folded once, not once per unit.
+	var units strings.Builder
+	units.WriteString(head + "concepts:\n  - {id: currency, kind: entity, labels: {en: currency}, description: d, values: [")
+	for i := range 10_000 {
+		fmt.Fprintf(&units, "{id: v%d, labels: {en: Word%d}, codes: {iso: C%d}},", i, i, i)
+	}
+	units.WriteString("]}\n")
+	for i := range 1_000 {
+		fmt.Fprintf(&units, "  - {id: u%d, kind: attribute, labels: {en: u%d}, description: d, units-of: currency, unit: word%d}\n", i, i, i)
+	}
+	g := graphOf(t, map[string]string{"/g/a.meaning.yaml": units.String()}, "")
+	var findings []Finding
+	if n, _ := allocations(func() { findings = Checker{}.Check(g) }); n > 3_000_000 {
+		t.Errorf("1,000 units over 10,000 values took %d allocations", n)
+	}
+	if len(findings) != 0 {
+		t.Errorf("findings = %v", findings[:min(3, len(findings))])
+	}
+
+	// 3,000 concepts that share one label: every pair would be reported, 4.5 million
+	// of them. The first MaxAmbiguousWords are, and one finding says the rest are not.
+	var shared strings.Builder
+	shared.WriteString(head + "license: CC0-1.0\nconcepts:\n")
+	for i := range 3_000 {
+		fmt.Fprintf(&shared, "  - {id: c%d, kind: entity, labels: {en: same}, description: d}\n", i)
+	}
+	g = graphOf(t, map[string]string{"/g/a.meaning.yaml": shared.String()}, "")
+	if n, _ := allocations(func() { findings = Checker{Profile: ProfileUniversal}.Check(g) }); n > 1_000_000 {
+		t.Errorf("3,000 concepts sharing a word took %d allocations", n)
+	}
+	words := 0
+	var last Finding
+	for _, f := range findings {
+		if f.Rule == RuleAmbiguousWord {
+			words++
+			last = f
+		}
+	}
+	limit := 0
+	for _, f := range findings {
+		if f.Rule == RuleAmbiguousWord && strings.Contains(f.Message, "the others are not listed") {
+			limit++
+		}
+	}
+	if words != MaxAmbiguousWords+1 || limit != 1 {
+		t.Errorf("%d findings of ambiguous-word, %d of them about the limit; want %d and 1 (last: %v)", words, limit, MaxAmbiguousWords+1, last)
 	}
 }

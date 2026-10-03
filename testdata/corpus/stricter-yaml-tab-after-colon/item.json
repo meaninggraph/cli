@@ -1,0 +1,6 @@
+{
+  "description": "A tab after a colon.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "Tabs are accepted only where they cannot change what is read; one after a colon is not one of those places."
+}

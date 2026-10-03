@@ -1,0 +1,6 @@
+{
+  "description": "A block scalar whose last line holds only spaces and has no final line break.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "A last line that holds only spaces, more than the text is indented by, is a line of text to the reference parser when the file has no line break after it, and the readers disagree about it elsewhere; the subset refuses a blank line of more spaces than the indentation."
+}

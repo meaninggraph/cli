@@ -1,0 +1,4 @@
+{
+  "description": "Tabs inside the text of a literal and of a folded block scalar.",
+  "expect": "accept"
+}

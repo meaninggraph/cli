@@ -1,0 +1,4 @@
+{
+  "description": "A tab inside a double-quoted description.",
+  "expect": "accept"
+}

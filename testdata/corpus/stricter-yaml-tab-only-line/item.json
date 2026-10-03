@@ -1,6 +1,0 @@
-{
-  "description": "A blank line that holds only a tab.",
-  "expect": "refuse",
-  "rule": "yaml-tab",
-  "stricter": "The subset has no tab character anywhere; the reference parser accepts a tab on an otherwise blank line."
-}

@@ -1,0 +1,5 @@
+{
+  "description": "A line of a tab inside a plain description that continues below it.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

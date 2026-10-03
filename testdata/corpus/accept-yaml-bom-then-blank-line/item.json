@@ -1,0 +1,4 @@
+{
+  "description": "A byte order mark, a blank line, then the document.",
+  "expect": "accept"
+}

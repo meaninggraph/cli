@@ -1,0 +1,6 @@
+{
+  "description": "A plain description that continues on a line that starts with a quote.",
+  "expect": "refuse",
+  "rule": "yaml",
+  "stricter": "A plain value that continues on a new line cannot start that line with a quote, a bracket or another character that starts a token; put the value in quotes."
+}

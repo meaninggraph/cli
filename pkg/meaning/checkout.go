@@ -22,20 +22,9 @@ var commitID = regexp.MustCompile(`^[0-9a-f]{40}$`)
 // repository. An error says why the commit cannot be read, for example that dir
 // is not a git checkout.
 func CheckoutCommit(fsys FS, dir string) (string, error) {
-	dotGit := filepath.Join(dir, ".git")
-	info, err := fsys.Stat(dotGit)
+	gitDir, common, err := gitLayout(fsys, dir)
 	if err != nil {
-		return "", errors.New("it is not a git checkout (it has no .git)")
-	}
-	gitDir, common := dotGit, dotGit
-	if !info.IsDir() {
-		if gitDir, err = pointedTo(fsys, dir, dotGit, "gitdir: "); err != nil {
-			return "", err
-		}
-		common = gitDir
-		if shared, err := pointedTo(fsys, gitDir, filepath.Join(gitDir, "commondir"), ""); err == nil {
-			common = shared
-		}
+		return "", err
 	}
 	data, err := fsys.ReadFile(filepath.Join(gitDir, "HEAD"))
 	if err != nil {
@@ -55,6 +44,82 @@ func CheckoutCommit(fsys FS, dir string) (string, error) {
 		return "", errors.New("its HEAD does not name a commit")
 	}
 	return head, nil
+}
+
+// gitLayout finds the git directory of the checkout in dir (the one that holds
+// HEAD) and the common one that holds the refs (the same, but for a linked
+// worktree).
+func gitLayout(fsys FS, dir string) (gitDir, common string, err error) {
+	dotGit := filepath.Join(dir, ".git")
+	info, err := fsys.Stat(dotGit)
+	if err != nil {
+		return "", "", errors.New("it is not a git checkout (it has no .git)")
+	}
+	gitDir, common = dotGit, dotGit
+	if !info.IsDir() {
+		if gitDir, err = pointedTo(fsys, dir, dotGit, "gitdir: "); err != nil {
+			return "", "", err
+		}
+		common = gitDir
+		if shared, err := pointedTo(fsys, gitDir, filepath.Join(gitDir, "commondir"), ""); err == nil {
+			common = shared
+		}
+	}
+	return gitDir, common, nil
+}
+
+// RefTarget is a ref of a git checkout that a pin names, and what it points at.
+type RefTarget struct {
+	// Ref is the full name of the ref (refs/heads/main, refs/tags/v1, ...).
+	Ref string
+	// ID is what the ref file or packed-refs holds, or the commit an annotated
+	// tag in packed-refs peels to.
+	ID string
+	// MaybeTagObject says that ID is that of a tag that may be annotated: a loose
+	// refs/tags file holds the id of the tag object then, not that of the commit,
+	// and telling them apart means reading the object, which this does not do.
+	MaybeTagObject bool
+}
+
+// RefTargets finds the refs that the branch or tag name names in the checkout
+// in dir: a branch, a tag, or the branch of the remote called origin, each as a
+// ref file or in packed-refs. Like CheckoutCommit it reads plain files.
+func RefTargets(fsys FS, dir, name string) ([]RefTarget, error) {
+	gitDir, common, err := gitLayout(fsys, dir)
+	if err != nil {
+		return nil, err
+	}
+	if name == "" || strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
+		return nil, nil
+	}
+	var packed []string
+	if data, err := fsys.ReadFile(filepath.Join(common, "packed-refs")); err == nil {
+		packed = strings.Split(string(data), "\n")
+	}
+	var targets []RefTarget
+	for _, ref := range []string{"refs/heads/" + name, "refs/tags/" + name, "refs/remotes/origin/" + name} {
+		tag := strings.HasPrefix(ref, "refs/tags/")
+		found := false
+		for _, base := range []string{gitDir, common} {
+			if data, err := fsys.ReadFile(filepath.Join(base, ref)); err == nil {
+				if id := strings.TrimSpace(string(data)); commitID.MatchString(id) {
+					targets = append(targets, RefTarget{Ref: ref, ID: id, MaybeTagObject: tag})
+				}
+				found = true
+				break
+			}
+		}
+		for i := 0; !found && i < len(packed); i++ {
+			if id, packedRef, ok := strings.Cut(packed[i], " "); ok && packedRef == ref && commitID.MatchString(id) {
+				// A line that follows and starts with ^ is the commit an annotated tag points at.
+				if i+1 < len(packed) && strings.HasPrefix(packed[i+1], "^") && commitID.MatchString(packed[i+1][1:]) {
+					id = packed[i+1][1:]
+				}
+				targets = append(targets, RefTarget{Ref: ref, ID: id})
+			}
+		}
+	}
+	return targets, nil
 }
 
 // pointedTo reads a file that holds a path (after prefix), relative to base.

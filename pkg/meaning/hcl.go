@@ -236,6 +236,9 @@ func (h *hclParser) body(closing string, depth int) (*hclBlock, error) {
 		}
 		if h.peekIs("=") {
 			h.p++
+			if isPrototypeName(name.value.(string)) {
+				return nil, prototypeNameError(name.line, "attribute", name.value.(string))
+			}
 			if _, dup := out.attributes[name.value.(string)]; dup {
 				return nil, hclErrorf(name.line, "duplicate attribute %s", name.value)
 			}

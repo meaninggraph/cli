@@ -1,0 +1,6 @@
+{
+  "description": "A tab between the tokens of a flow mapping.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "Tabs are accepted only where they cannot change what is read; one inside [ ] or { } outside quotes is not one of those places."
+}

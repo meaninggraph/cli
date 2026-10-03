@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/strongo/buildinfo"
@@ -64,8 +65,16 @@ func TestMainChecksFilesAndPassesTheExitCodeOn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "a.meaning.yaml"), []byte(bad), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if code, stdout, _ := runMain(t, "check", dir); code != 1 || stdout == "" {
-		t.Fatalf("with an error: code %d stdout %q", code, stdout)
+	// A failing check exits 1 and says which file, which line, which rule and
+	// what is wrong, then the summary, on stdout and nothing on stderr.
+	wantFailing := filepath.Join(dir, "a.meaning.yaml") + ":7: error: concept b extends: concept nowhere is not declared in this repository [unknown-concept]\n" +
+		"failed: " + dir + ": 1 error, 0 warnings, 2 concepts, 1 file\n"
+	if code, stdout, stderr := runMain(t, "check", dir); code != 1 || stdout != wantFailing || stderr != "" {
+		t.Fatalf("with an error: code %d stdout %q (want %q) stderr %q", code, stdout, wantFailing, stderr)
+	}
+	// The same with --format json: exit 1, and the finding is in the report.
+	if code, stdout, _ := runMain(t, "check", "--format", "json", dir); code != 1 || !strings.Contains(stdout, `"rule": "unknown-concept"`) || !strings.Contains(stdout, `"ok": false`) {
+		t.Fatalf("json: code %d stdout %q", code, stdout)
 	}
 	if code, stdout, stderr := runMain(t, "check", "--format", "xml", dir); code != 2 || stdout != "" || stderr != "meaninggraph: invalid --format \"xml\": expected text or json\n" {
 		t.Fatalf("usage: code %d stdout %q stderr %q", code, stdout, stderr)

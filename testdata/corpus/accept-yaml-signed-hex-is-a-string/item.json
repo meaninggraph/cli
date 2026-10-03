@@ -1,0 +1,4 @@
+{
+  "description": "A plain -0x1F and 0o89 are strings, not numbers.",
+  "expect": "accept"
+}

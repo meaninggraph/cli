@@ -1,0 +1,5 @@
+{
+  "description": "A line of a tab, after a block scalar and a comment, at the end of the file.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

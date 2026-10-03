@@ -1,0 +1,6 @@
+{
+  "description": "A line that holds a tab, inside a block scalar.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "The reference parser reads a line that holds a tab after the indentation as text, and refuses one without the indentation; a blank line with a tab is refused."
+}

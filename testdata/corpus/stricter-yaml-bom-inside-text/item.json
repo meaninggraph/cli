@@ -1,0 +1,6 @@
+{
+  "description": "A byte order mark character inside a description.",
+  "expect": "refuse",
+  "rule": "yaml-character",
+  "stricter": "The subset has no U+FEFF inside the text of a file: write it as \\uFEFF in a double-quoted string."
+}

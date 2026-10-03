@@ -1,0 +1,5 @@
+{
+  "description": "A flow mapping entry without a value.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported"
+}

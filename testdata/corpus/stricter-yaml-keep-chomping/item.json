@@ -1,0 +1,6 @@
+{
+  "description": "Keep chomping on a literal and on a folded block scalar.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported",
+  "stricter": "Keep chomping (|+, >+) is outside the subset."
+}

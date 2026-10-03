@@ -1,0 +1,5 @@
+{
+  "description": "A component with an attribute named valueOf.",
+  "expect": "refuse",
+  "rule": "models"
+}

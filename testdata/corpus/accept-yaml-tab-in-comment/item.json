@@ -1,0 +1,4 @@
+{
+  "description": "Tabs inside a full-line comment and in a comment after a value.",
+  "expect": "accept"
+}

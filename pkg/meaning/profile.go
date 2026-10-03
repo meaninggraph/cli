@@ -85,6 +85,12 @@ func (n *Node) lineOr(def int) int {
 	return n.Line
 }
 
+// MaxAmbiguousWords bounds how many words that name two concepts the universal
+// profile lists: when graphs of thousands of concepts share one word, the pairs
+// would number in the millions. The first MaxAmbiguousWords are listed, and a
+// finding of the same rule says that the others are not.
+const MaxAmbiguousWords = 1000
+
 // oneWordOneConcept: a label or synonym that two concepts share in a language
 // is ambiguous, unless one concept is a kind of the other. A language counts
 // when the concept has a label or synonyms in it.
@@ -116,7 +122,14 @@ func (r *run) ownWords(f *File, c *Concept, owners map[string][]*Concept) {
 			}
 			key := lang + ":" + lower(word)
 			for _, other := range owners[key] {
+				if r.ambiguous > MaxAmbiguousWords {
+					return
+				}
 				if !r.related(c, other) {
+					if r.ambiguous++; r.ambiguous > MaxAmbiguousWords {
+						r.err(f, c.Line, RuleAmbiguousWord, "more than %d words name two concepts; the others are not listed (fix these first)", MaxAmbiguousWords)
+						return
+					}
 					r.err(f, c.Line, RuleAmbiguousWord, "concept %s: %q (%s) is also a word of concept %s; one word must name one concept", c.ID, word, lang, other.ID)
 				}
 			}

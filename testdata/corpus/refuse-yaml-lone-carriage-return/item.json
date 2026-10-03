@@ -1,0 +1,5 @@
+{
+  "description": "Lines ended by a lone carriage return.",
+  "expect": "refuse",
+  "rule": "yaml-line-ending"
+}
