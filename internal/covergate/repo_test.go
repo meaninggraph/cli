@@ -105,3 +105,24 @@ type brokenFS struct{}
 func (brokenFS) Open(string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "open", Path: ".", Err: errors.New("denied")}
 }
+
+// The gate demands a statement from every package of the repository. The file
+// tree of this repository is the one it reads in CI, so it must find the
+// packages that matter here and none of the nested module of the mutation run.
+func TestTheGateFindsThePackagesOfThisRepository(t *testing.T) {
+	t.Parallel()
+	packages, err := ModulePackages(os.DirFS("../.."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"github.com/meaninggraph/cli/pkg/meaning", "github.com/meaninggraph/cli/internal/cli", "github.com/meaninggraph/cli/cmd/meaninggraph", "github.com/meaninggraph/cli/internal/covergate"} {
+		if !slices.Contains(packages, want) {
+			t.Errorf("%s is not among %v", want, packages)
+		}
+	}
+	for _, pkg := range packages {
+		if strings.Contains(pkg, "scripts") || strings.Contains(pkg, "testdata") {
+			t.Errorf("%s is not a package of this module", pkg)
+		}
+	}
+}
