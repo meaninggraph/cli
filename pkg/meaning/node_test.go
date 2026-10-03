@@ -132,21 +132,12 @@ func TestParseYAMLAliasesAreCopiedAndBounded(t *testing.T) {
 		t.Fatal("an alias may be a key")
 	}
 	// A "billion laughs" document expands past the bound and is refused.
-	var b strings.Builder
-	b.WriteString("a0: &a0 [x, x, x, x, x, x, x, x, x, x]\n")
-	for i := 1; i < 8; i++ {
-		b.WriteString("a" + string(rune('0'+i)) + ": &a" + string(rune('0'+i)) + " [")
-		for j := 0; j < 10; j++ {
-			if j > 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString("*a" + string(rune('0'+i-1)))
-		}
-		b.WriteString("]\n")
-	}
-	_, err := ParseYAML([]byte(b.String()))
-	if err == nil || !strings.Contains(err.Error(), "too large") {
+	laughs := "a: &a [x, x, x, x]\nb: &b [*a, *a, *a, *a]\nc: [*b, *b, *b, *b]\n"
+	if _, err := parseYAML([]byte(laughs), 50); err == nil || !strings.Contains(err.Error(), "too large") {
 		t.Fatalf("err = %v, want the size bound", err)
+	}
+	if _, err := parseYAML([]byte(laughs), maxNodes); err != nil {
+		t.Fatalf("the same document is fine under the real bound: %v", err)
 	}
 }
 

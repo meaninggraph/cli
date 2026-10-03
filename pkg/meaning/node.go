@@ -126,7 +126,11 @@ var yamlLine = regexp.MustCompile(`^(?:yaml: )?(?:line (\d+): )?`)
 // ParseYAML parses one YAML document. An empty file is a Null node. Several
 // documents, duplicate keys, keys that are not scalars, tags other than
 // !!str, and numbers that are not finite are refused.
-func ParseYAML(data []byte) (*Node, *SyntaxError) {
+func ParseYAML(data []byte) (*Node, *SyntaxError) { return parseYAML(data, maxNodes) }
+
+// parseYAML is ParseYAML with the bound on the expanded document given, so that
+// a test can exercise the bound with a small document.
+func parseYAML(data []byte, budget int) (*Node, *SyntaxError) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	var doc yaml.Node
 	if err := dec.Decode(&doc); errors.Is(err, io.EOF) {
@@ -138,7 +142,6 @@ func ParseYAML(data []byte) (*Node, *SyntaxError) {
 	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
 		return nil, &SyntaxError{Line: extra.Line, Message: "the file holds more than one YAML document"}
 	}
-	budget := maxNodes
 	return convert(doc.Content[0], &budget)
 }
 
