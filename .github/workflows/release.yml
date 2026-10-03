@@ -48,5 +48,3 @@ jobs:
       # Pre-1.0: a breaking commit is capped to a minor bump. Cut v1.0.0 by
       # pushing that tag deliberately.
       allow_major_version_bump: false
-      # No Homebrew cask is published, so there is nothing to install-test.
-      artifact_smoke_test_homebrew_cask: false
