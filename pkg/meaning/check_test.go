@@ -336,8 +336,8 @@ func TestUniversalProfile(t *testing.T) {
 		{name: "a clean universal graph", checker: universal, files: map[string]string{"a.meaning.yaml": cc0(cn("person", "entity", ", synonyms: {en: [human]}"), cn("employee", "entity", ", extends: person, synonyms: {en: [human, staff]}"))}},
 		{name: "licence missing", checker: universal, files: map[string]string{"a.meaning.yaml": doc(cn("a", "entity", ""))}, rules: []string{RuleUniversal}, messages: []string{"license must be CC0-1.0"}},
 		{name: "licence wrong", checker: universal, files: map[string]string{"a.meaning.yaml": head + "license: MIT\nconcepts:\n" + cn("a", "entity", "")}, rules: []string{RuleUniversal}},
-		{name: "models", checker: universal, files: map[string]string{"a.meaning.yaml": head + "license: CC0-1.0\nmodels: {x: x.hcl}\nconcepts:\n" + cn("a", "entity", "")}, rules: []string{RuleUniversal}},
-		{name: "bindings", checker: universal, files: map[string]string{"a.meaning.yaml": cc0(cn("a", "entity", ", bindings: [{model: 'modelspec:///x.A', role: entity}]"))}, rules: []string{RuleUniversal}, messages: []string{"concept a: bindings belong"}},
+		{name: "models", checker: universal, files: map[string]string{"a.meaning.yaml": head + "license: CC0-1.0\nmodels: {x: x.hcl}\nconcepts:\n" + cn("a", "entity", "")}, rules: []string{RuleModels, RuleUniversal}},
+		{name: "bindings", checker: universal, files: map[string]string{"a.meaning.yaml": cc0(cn("a", "entity", ", bindings: [{model: 'modelspec:///x.A', role: entity}]"))}, rules: []string{RuleBindingModel, RuleUniversal}, messages: []string{"concept a: bindings belong"}},
 		{name: "a meaning file below the root is an error", checker: universal, files: map[string]string{
 			"a.meaning.yaml":      cc0(cn("a", "entity", "")),
 			"more/b.meaning.yaml": cc0(cn("b", "entity", "")),

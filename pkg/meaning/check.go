@@ -87,6 +87,8 @@ type Checker struct {
 	Schema Validator
 	// Resolve reads other graphs; when nil none is available.
 	Resolve Resolver
+	// Models reads the models bindings name; HCLReader when nil.
+	Models ModelReader
 	// FS reads the directory tree around the graph and the models it names;
 	// the host's file system when nil.
 	FS FS
@@ -117,6 +119,9 @@ func (c Checker) Check(g *Graph) []Finding {
 	}
 	if c.FS == nil {
 		c.FS = OSFS{}
+	}
+	if c.Models == nil {
+		c.Models = HCLReader{}
 	}
 	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}}
 	if r.other == nil {
@@ -180,8 +185,10 @@ func (r *run) checkFile(f *File) {
 		}
 		seen[s.ID] = true
 	}
+	models := r.loadModels(f)
 	for _, c := range f.Concepts {
 		r.checkConcept(f, c, seen)
+		r.checkBindings(f, c, "concept "+c.ID, models)
 	}
 }
 
