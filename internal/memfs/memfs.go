@@ -3,12 +3,17 @@
 package memfs
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing/fstest"
 )
+
+// ErrTooLarge is the error of ReadFileMax for a file of more than max bytes (it
+// stands for meaning.ErrTooLarge, which this package cannot import).
+var ErrTooLarge = errors.New("the file is larger than what is read of it")
 
 // FS holds files in memory.
 type FS struct{ files fstest.MapFS }
@@ -35,6 +40,15 @@ func (m FS) Stat(name string) (fs.FileInfo, error) { return m.files.Stat(clean(n
 
 // ReadFile returns the content of a file.
 func (m FS) ReadFile(name string) ([]byte, error) { return m.files.ReadFile(clean(name)) }
+
+// ReadFileMax returns the content of a file of at most max bytes.
+func (m FS) ReadFileMax(name string, max int64) ([]byte, error) {
+	data, err := m.files.ReadFile(clean(name))
+	if err == nil && int64(len(data)) > max {
+		return nil, ErrTooLarge
+	}
+	return data, err
+}
 
 // ReadDir lists a directory, sorted by name.
 func (m FS) ReadDir(name string) ([]fs.DirEntry, error) { return m.files.ReadDir(clean(name)) }

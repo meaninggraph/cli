@@ -268,7 +268,10 @@ func verifyPin(env Env, file string, g *meaning.Graph, pin string) (meaning.Find
 		return meaning.Finding{}, false
 	}
 	targets, err := meaning.RefTargets(env.FS, g.Dir, pin)
-	if err != nil || len(targets) == 0 {
+	if err != nil {
+		return unverified(err.Error())
+	}
+	if len(targets) == 0 {
 		return unverified(fmt.Sprintf("%q is a branch or tag name, which can move, and the checkout has no such ref; pin a commit", pin))
 	}
 	var seen []string

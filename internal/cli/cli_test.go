@@ -465,7 +465,13 @@ func TestCheckVerifiesPinsThatAreBranchesAndTags(t *testing.T) {
 		{"a loose tag that may be annotated", "v1", map[string]string{"HEAD": other, "refs/tags/v1": pin}, ExitClean, []string{"pin-not-verified", "may be annotated"}},
 		{"a name the checkout does not have", "nope", map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified", `"nope" is a branch or tag name, which can move, and the checkout has no such ref`}},
 		{"a pin in upper case hexadecimal is a name", strings.ToUpper(pin), map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified"}},
-		{"a pin that climbs out of the refs", "a/../b", map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified"}},
+		{"a pin that climbs out of the refs", "a/../b", map[string]string{"HEAD": pin}, ExitClean, []string{"pin-not-verified", "is not a valid branch or tag name"}},
+		{"a branch name with a trailing slash", "main/", map[string]string{"HEAD": pin, "refs/heads/main": pin}, ExitClean, []string{"pin-not-verified", "is not a valid branch or tag name"}},
+		{"a branch name that starts with a dot segment", "./main", map[string]string{"HEAD": pin, "refs/heads/main": pin}, ExitClean, []string{"pin-not-verified", "is not a valid branch or tag name"}},
+		{"a packed tag that may be annotated, in a file that is not fully peeled", "v1", map[string]string{"HEAD": other, "packed-refs": "# pack-refs with: peeled\n" + pin + " refs/tags/v1\n"}, ExitClean, []string{"pin-not-verified", "may be annotated"}},
+		{"a packed tag of a fully peeled file is a commit", "v1", map[string]string{"HEAD": pin, "packed-refs": "# pack-refs with: peeled fully-peeled sorted\n" + pin + " refs/tags/v1\n"}, ExitClean, []string{"ok: /mine"}},
+		{"a packed tag of a fully peeled file at another commit is a mismatch", "v1", map[string]string{"HEAD": other, "packed-refs": "# pack-refs with: peeled fully-peeled sorted\n" + pin + " refs/tags/v1\n"}, ExitFindings, []string{"pin-checkout-mismatch"}},
+		{"a big ref file is not read", "big", map[string]string{"HEAD": pin, "refs/heads/big": strings.Repeat("x", 5000)}, ExitClean, []string{"pin-not-verified", "larger than"}},
 	} {
 		got := check(tc.ref, tc.git)
 		if got.code != tc.code {

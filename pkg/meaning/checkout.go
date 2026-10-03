@@ -3,6 +3,7 @@ package meaning
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -10,11 +11,25 @@ import (
 
 var commitID = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
+// What is read of a git checkout is bounded, and only regular files are read:
+// a ref or HEAD is a commit id or a ref name (a few dozen bytes), a .git file or
+// a commondir file holds a path, and packed-refs is a list of refs that grows
+// with the repository.
+const (
+	maxRefBytes        = 1024
+	maxGitPointerBytes = 4096
+	maxPackedRefsBytes = 8 << 20
+)
+
 // CheckoutCommit returns the commit a git checkout in dir is at: the commit id
 // that HEAD holds, or that the branch HEAD names points at. It reads plain
 // files only (.git/HEAD, the branch's ref file or .git/packed-refs); it starts
 // no process and uses no network, and it follows a linked worktree's .git file
-// to its git directory.
+// to its git directory. HEAD, the ref files and packed-refs are read only when
+// they are regular files that are not symbolic links, whose names are spelled
+// exactly as asked (a case-insensitive file system does not make MAIN the
+// branch main), and only up to a documented size (1 KiB for a ref, 8 MiB for
+// packed-refs); otherwise the commit cannot be read, and the error says so.
 //
 // It tells which commit the checkout was made at, and nothing more: it does not
 // look at the working tree, so files that were edited, added or deleted since
@@ -26,7 +41,10 @@ func CheckoutCommit(fsys FS, dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := fsys.ReadFile(filepath.Join(gitDir, "HEAD"))
+	data, found, err := readGitFile(fsys, gitDir, []string{"HEAD"}, maxRefBytes)
+	if err == nil && !found {
+		err = fs.ErrNotExist
+	}
 	if err != nil {
 		return "", fmt.Errorf("its HEAD cannot be read: %w", err)
 	}
@@ -75,33 +93,61 @@ type RefTarget struct {
 	// ID is what the ref file or packed-refs holds, or the commit an annotated
 	// tag in packed-refs peels to.
 	ID string
-	// MaybeTagObject says that ID is that of a tag that may be annotated: a loose
-	// refs/tags file holds the id of the tag object then, not that of the commit,
-	// and telling them apart means reading the object, which this does not do.
+	// MaybeTagObject says that ID may be that of a tag object, not of the commit:
+	// a loose refs/tags file holds the id of the tag object when the tag is
+	// annotated, and so does a packed one when packed-refs does not say that it is
+	// fully peeled and gives no peeled line for it. Telling the two apart means
+	// reading the object, which this does not do.
 	MaybeTagObject bool
+}
+
+// validRefName says whether name can be a branch or tag name as `?ref=` writes
+// it (FORMAT.md: letters, digits, dot, underscore, slash and hyphen): no empty
+// segment (so no leading, trailing or doubled slash) and no segment that is "."
+// or "..".
+func validRefName(name string) bool {
+	return strings.Trim(name, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-") == "" && validSegments(name)
+}
+
+// validSegments says that no segment of a ref name is empty, "." or "..".
+func validSegments(name string) bool {
+	for _, segment := range strings.Split(name, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
 }
 
 // RefTargets finds the refs that the branch or tag name names in the checkout
 // in dir: a branch, a tag, or the branch of the remote called origin, each as a
-// ref file or in packed-refs. Like CheckoutCommit it reads plain files.
+// ref file or in packed-refs. Like CheckoutCommit it reads plain files, bounded,
+// not through symbolic links, and with the exact spelling of the name. A name
+// that is no valid branch or tag name (empty, a trailing slash, an empty, "." or
+// ".." segment, a character outside the grammar) is an error, and so is a ref
+// that cannot be read that way.
 func RefTargets(fsys FS, dir, name string) ([]RefTarget, error) {
 	gitDir, common, err := gitLayout(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
-	if name == "" || strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
-		return nil, nil
+	if !validRefName(name) {
+		return nil, fmt.Errorf("%q is not a valid branch or tag name", name)
 	}
-	var packed []string
-	if data, err := fsys.ReadFile(filepath.Join(common, "packed-refs")); err == nil {
-		packed = strings.Split(string(data), "\n")
+	packed, fullyPeeled, err := readPackedRefs(fsys, common)
+	if err != nil {
+		return nil, err
 	}
 	var targets []RefTarget
 	for _, ref := range []string{"refs/heads/" + name, "refs/tags/" + name, "refs/remotes/origin/" + name} {
 		tag := strings.HasPrefix(ref, "refs/tags/")
 		found := false
 		for _, base := range []string{gitDir, common} {
-			if data, err := fsys.ReadFile(filepath.Join(base, ref)); err == nil {
+			data, ok, err := readGitFile(fsys, base, strings.Split(ref, "/"), maxRefBytes)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", ref, err)
+			}
+			if ok {
 				if id := strings.TrimSpace(string(data)); commitID.MatchString(id) {
 					targets = append(targets, RefTarget{Ref: ref, ID: id, MaybeTagObject: tag})
 				}
@@ -111,20 +157,83 @@ func RefTargets(fsys FS, dir, name string) ([]RefTarget, error) {
 		}
 		for i := 0; !found && i < len(packed); i++ {
 			if id, packedRef, ok := strings.Cut(packed[i], " "); ok && packedRef == ref && commitID.MatchString(id) {
-				// A line that follows and starts with ^ is the commit an annotated tag points at.
-				if i+1 < len(packed) && strings.HasPrefix(packed[i+1], "^") && commitID.MatchString(packed[i+1][1:]) {
-					id = packed[i+1][1:]
+				target := RefTarget{Ref: ref, ID: id}
+				switch peeled := i+1 < len(packed) && strings.HasPrefix(packed[i+1], "^") && commitID.MatchString(packed[i+1][1:]); {
+				case peeled:
+					// The line that follows is the commit an annotated tag points at.
+					target.ID = packed[i+1][1:]
+				case tag && !fullyPeeled:
+					// Without a peeled line a tag is lightweight only when packed-refs
+					// says that every annotated tag has one.
+					target.MaybeTagObject = true
 				}
-				targets = append(targets, RefTarget{Ref: ref, ID: id})
+				targets = append(targets, target)
 			}
 		}
 	}
 	return targets, nil
 }
 
-// pointedTo reads a file that holds a path (after prefix), relative to base.
+// readPackedRefs reads packed-refs of the common git directory, bounded and not
+// through a symbolic link; it returns its lines and whether its header says that
+// the annotated tags are all followed by a peeled line (fully-peeled).
+func readPackedRefs(fsys FS, common string) (lines []string, fullyPeeled bool, err error) {
+	data, found, err := readGitFile(fsys, common, []string{"packed-refs"}, maxPackedRefsBytes)
+	if err != nil {
+		return nil, false, fmt.Errorf("packed-refs: %w", err)
+	}
+	if !found {
+		return nil, false, nil
+	}
+	lines = strings.Split(string(data), "\n")
+	return lines, strings.HasPrefix(lines[0], "#") && strings.Contains(lines[0], " fully-peeled"), nil
+}
+
+// errNotFollowed is the reason a git file is not read although it is there.
+var errNotFollowed = errors.New("is a symbolic link or not a regular file, which is not read")
+
+// readGitFile reads the file base/segments..., but only when every name on the
+// way is spelled as it is in the directory listing (the open of a file system
+// that ignores case would succeed for another spelling), the directories are
+// directories and not links, and the file is a regular file, not a link, a
+// device or a pipe, of at most max bytes. found is false when a name is not
+// there; an error says why something that is there is not read.
+func readGitFile(fsys FS, base string, segments []string, max int64) (data []byte, found bool, err error) {
+	current := base
+	for i, segment := range segments {
+		entries, err := fsys.ReadDir(current)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, false, nil
+			}
+			return nil, false, err
+		}
+		var entry fs.DirEntry
+		for _, candidate := range entries {
+			if candidate.Name() == segment {
+				entry = candidate
+				break
+			}
+		}
+		switch {
+		case entry == nil:
+			return nil, false, nil
+		case i < len(segments)-1 && !entry.IsDir(), i == len(segments)-1 && !entry.Type().IsRegular():
+			return nil, false, fmt.Errorf("%s %w", filepath.Join(current, segment), errNotFollowed)
+		}
+		current = filepath.Join(current, segment)
+	}
+	data, err = fsys.ReadFileMax(current, max)
+	if err != nil {
+		return nil, false, fmt.Errorf("%s: %w", current, err)
+	}
+	return data, true, nil
+}
+
+// pointedTo reads a file that holds a path (after prefix), relative to base: at
+// most maxGitPointerBytes of it.
 func pointedTo(fsys FS, base, file, prefix string) (string, error) {
-	data, err := fsys.ReadFile(file)
+	data, err := fsys.ReadFileMax(file, maxGitPointerBytes)
 	if err != nil {
 		return "", fmt.Errorf("%s cannot be read: %w", file, err)
 	}
@@ -141,19 +250,25 @@ func pointedTo(fsys FS, base, file, prefix string) (string, error) {
 // readRef finds the commit a ref points at, in a loose ref file or in
 // packed-refs.
 func readRef(fsys FS, gitDir, common, ref string) (string, error) {
-	if strings.Contains(ref, "..") || filepath.IsAbs(ref) {
+	if !validSegments(ref) {
 		return "", fmt.Errorf("its HEAD names the ref %q, which is not a ref name", ref)
 	}
-	for _, dir := range []string{gitDir, common} {
-		if data, err := fsys.ReadFile(filepath.Join(dir, ref)); err == nil {
+	for _, base := range []string{gitDir, common} {
+		data, found, err := readGitFile(fsys, base, strings.Split(ref, "/"), maxRefBytes)
+		if err != nil {
+			return "", fmt.Errorf("the ref %q: %w", ref, err)
+		}
+		if found {
 			return strings.TrimSpace(string(data)), nil
 		}
 	}
-	if data, err := fsys.ReadFile(filepath.Join(common, "packed-refs")); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			if id, name, ok := strings.Cut(line, " "); ok && name == ref {
-				return id, nil
-			}
+	packed, _, err := readPackedRefs(fsys, common)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range packed {
+		if id, name, ok := strings.Cut(line, " "); ok && name == ref {
+			return id, nil
 		}
 	}
 	return "", fmt.Errorf("its HEAD names the ref %q, which is not found", ref)

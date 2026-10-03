@@ -1,6 +1,8 @@
 package meaning
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -52,5 +54,29 @@ func TestSortFindingsAndHasErrors(t *testing.T) {
 	}
 	if !HasErrors(list) || HasErrors(list[2:4]) {
 		t.Fatal("HasErrors")
+	}
+}
+
+func TestOSFSReadsAtMostTheBytesAsked(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "f"), []byte("12345"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		max  int64
+		want error
+	}{{5, nil}, {100, nil}, {4, ErrTooLarge}, {0, ErrTooLarge}} {
+		data, err := OSFS{}.ReadFileMax(filepath.Join(dir, "f"), tc.max)
+		if !errors.Is(err, tc.want) || (tc.want == nil && string(data) != "12345") {
+			t.Errorf("ReadFileMax(%d) = %q, %v; want %v", tc.max, data, err, tc.want)
+		}
+	}
+	if _, err := (OSFS{}).ReadFileMax(filepath.Join(dir, "missing"), 5); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("a missing file: %v", err)
+	}
+	// A directory opens and cannot be read: the error is the file system's.
+	if _, err := (OSFS{}).ReadFileMax(dir, 5); err == nil {
+		t.Error("a directory is not a file")
 	}
 }
