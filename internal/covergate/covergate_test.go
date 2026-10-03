@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -97,12 +98,137 @@ var tree = fstest.MapFS{
 	"internal/only_test/x_test.go": {Data: []byte("package x\n")},
 	"testdata/t.go":                {Data: []byte("package t\n")},
 	"vendor/v/v.go":                {Data: []byte("package v\n")},
-	"node_modules/n/n.go":          {Data: []byte("package n\n")},
 	"_hidden/h.go":                 {Data: []byte("package h\n")},
 	".hidden/h.go":                 {Data: []byte("package h\n")},
 	"scripts/go.mod":               {Data: []byte("module other\n")},
 	"scripts/main.go":              {Data: []byte("package main\n")},
 	"docs/readme.md":               {Data: []byte("text")},
+}
+
+// recordedTree is the tree that `go list ./...` was run on, once, by hand, in a
+// module "example.com/m" (Go 1.27.1, module mode): a package at the root and in
+// directories of every kind the walk has a rule for.
+var recordedTree = fstest.MapFS{
+	"go.mod":                {Data: []byte("module example.com/m\n\ngo 1.22\n")},
+	"m.go":                  {Data: []byte("package m\n")},
+	"pkg/a/a.go":            {Data: []byte("package a\n")},
+	"node_modules/x/x.go":   {Data: []byte("package x\n")},
+	"a/node_modules/n/n.go": {Data: []byte("package n\n")},
+	"vendor/v/v.go":         {Data: []byte("package v\n")},
+	"a/vendor/v/v.go":       {Data: []byte("package v\n")},
+	"testdata/t/t.go":       {Data: []byte("package t\n")},
+	"a/testdata/t/t.go":     {Data: []byte("package t\n")},
+	"_x/a/a.go":             {Data: []byte("package a\n")},
+	"a/_u/u.go":             {Data: []byte("package u\n")},
+	".x/a/a.go":             {Data: []byte("package a\n")},
+	"nested/nested.go":      {Data: []byte("package nested\n")},
+	"nested/go.mod":         {Data: []byte("module example.com/nested\n")},
+	"nested/deeper/d.go":    {Data: []byte("package deeper\n")},
+	"a/b/c/c.go":            {Data: []byte("package c\n")},
+	"cmd/tool/main.go":      {Data: []byte("package main\n")},
+	"onlytest/x_test.go":    {Data: []byte("package onlytest\n")},
+	"Upper/Case/c.go":       {Data: []byte("package c\n")},
+	"dot.dir/p/p.go":        {Data: []byte("package p\n")},
+	"x.go/xx.go":            {Data: []byte("package xx\n")},
+	"empty/.keep":           {Data: []byte("")},
+	"docs/readme.md":        {Data: []byte("text")},
+}
+
+// recordedGoList is what `go list ./...` printed for recordedTree. It lists
+// node_modules and a directory that holds only a test file; it does not list
+// vendor, testdata, _x, .x, the nested module and what is below them.
+var recordedGoList = []string{
+	"example.com/m",
+	"example.com/m/Upper/Case",
+	"example.com/m/a/b/c",
+	"example.com/m/a/node_modules/n",
+	"example.com/m/cmd/tool",
+	"example.com/m/dot.dir/p",
+	"example.com/m/node_modules/x",
+	"example.com/m/onlytest",
+	"example.com/m/pkg/a",
+	"example.com/m/x.go",
+}
+
+// The gate's packages are the recorded go list answer, but for the directory
+// that holds only a test file (it has no statement, so nothing to be missing).
+func TestTheGateWalksTheTreeAsGoListDoes(t *testing.T) {
+	t.Parallel()
+	got, err := ModulePackages(recordedTree)
+	var want []string
+	for _, pkg := range recordedGoList {
+		if pkg != "example.com/m/onlytest" {
+			want = append(want, pkg)
+		}
+	}
+	if err != nil || !slices.Equal(got, want) {
+		t.Fatalf("packages\n%v\nwant (the recorded go list answer without the test-only package)\n%v\n%v", got, want, err)
+	}
+	// Both ways, as a guard against the list and the tree drifting apart: every
+	// walked directory is in the recorded answer, test-only ones included.
+	_, dirs, err := walkPackages(recordedTree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var walked []string
+	for _, dir := range dirs {
+		walked = append(walked, path.Join("example.com/m", dir.path))
+	}
+	slices.Sort(walked)
+	if !slices.Equal(walked, recordedGoList) {
+		t.Fatalf("walked\n%v\nwant the recorded go list answer\n%v", walked, recordedGoList)
+	}
+}
+
+// The gate refuses every TestMain, in whatever form.
+func TestTheGateFindsEveryTestMain(t *testing.T) {
+	t.Parallel()
+	file := func(body string) *fstest.MapFile {
+		return &fstest.MapFile{Data: []byte("package p\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\n" + body)}
+	}
+	module := &fstest.MapFile{Data: []byte("module m\n")}
+	tests := []struct {
+		name  string
+		files fstest.MapFS
+		want  []string
+	}{
+		{"none", fstest.MapFS{"go.mod": module, "p/p_test.go": file("func TestX(t *testing.T) {}\n")}, nil},
+		{"one that exits before the tests run", fstest.MapFS{"go.mod": module, "p/p_test.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n")}, []string{"p/p_test.go"}},
+		{"one that runs them and then exits 0", fstest.MapFS{"go.mod": module, "p/p_test.go": file("func TestMain(m *testing.M) {\n\tm.Run()\n\tos.Exit(0)\n}\n")}, []string{"p/p_test.go"}},
+		{"one that passes the result on", fstest.MapFS{"go.mod": module, "p/p_test.go": file("func TestMain(m *testing.M) { os.Exit(m.Run()) }\n")}, []string{"p/p_test.go"}},
+		{"in a package of the root and in a test-only directory", fstest.MapFS{"go.mod": module, "r_test.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n"), "q/q_test.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n")}, []string{"q/q_test.go", "r_test.go"}},
+		{"in a directory that holds a source file", fstest.MapFS{"go.mod": module, "p/p.go": &fstest.MapFile{Data: []byte("package p\n")}, "p/p_test.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n")}, []string{"p/p_test.go"}},
+		{"in node_modules, which go test walks", fstest.MapFS{"go.mod": module, "node_modules/x/x.go": &fstest.MapFile{Data: []byte("package x\n")}, "node_modules/x/x_test.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n")}, []string{"node_modules/x/x_test.go"}},
+		{"not in testdata, vendor, a nested module or a hidden directory", fstest.MapFS{"go.mod": module, "testdata/t_test.go": file("func TestMain(m *testing.M) {}\n"), "vendor/v/v_test.go": file("func TestMain(m *testing.M) {}\n"), "n/go.mod": module, "n/n_test.go": file("func TestMain(m *testing.M) {}\n"), ".h/h_test.go": file("func TestMain(m *testing.M) {}\n")}, nil},
+		{"a method or a function of another name is no TestMain", fstest.MapFS{"go.mod": module, "p/p_test.go": file("type T struct{}\n\nfunc (T) TestMain(m *testing.M) {}\n\nfunc TestMainX(m *testing.M) {}\n\nfunc testMain() { _ = os.Args }\n")}, nil},
+		{"a non-test file with a TestMain is not read", fstest.MapFS{"go.mod": module, "p/p.go": file("func TestMain(m *testing.M) { os.Exit(0) }\n")}, nil},
+	}
+	for _, tc := range tests {
+		got, err := TestMains(tc.files)
+		if err != nil || !slices.Equal(got, tc.want) {
+			t.Errorf("%s: %v, %v; want %v", tc.name, got, err, tc.want)
+		}
+	}
+	for name, files := range map[string]fs.FS{
+		"no go.mod":                  fstest.MapFS{},
+		"a file that does not parse": fstest.MapFS{"go.mod": module, "p/p_test.go": &fstest.MapFile{Data: []byte("package")}},
+		"an unreadable file":         unreadableFS{fstest.MapFS{"go.mod": module, "p/p_test.go": file("")}},
+		"an unreadable tree":         unlistableTree{tree},
+	} {
+		if got, err := TestMains(files); err == nil {
+			t.Errorf("%s: %v, want an error", name, got)
+		}
+	}
+}
+
+// unreadableFS lists its files but cannot read the test file.
+type unreadableFS struct{ fstest.MapFS }
+
+func (u unreadableFS) ReadFile(name string) ([]byte, error) {
+	if strings.HasSuffix(name, "_test.go") {
+		return nil, errors.New("denied")
+	}
+	return u.MapFS.ReadFile(name)
 }
 
 func TestModulePackagesFindsWhatGoListFinds(t *testing.T) {
@@ -127,6 +253,16 @@ func TestModulePackagesFindsWhatGoListFinds(t *testing.T) {
 	if _, err := ModulePackages(unlistableTree{tree}); err == nil {
 		t.Fatal("a directory that cannot be listed is an error")
 	}
+}
+
+// withTestFile is tree with another content for a_test.go.
+func withTestFile(base fstest.MapFS, content string) fstest.MapFS {
+	files := fstest.MapFS{}
+	for name, file := range base {
+		files[name] = file
+	}
+	files["a_test.go"] = &fstest.MapFile{Data: []byte(content)}
+	return files
 }
 
 // brokenTree cannot be examined at its root: the walk reports an error.
@@ -183,6 +319,8 @@ func TestRun(t *testing.T) {
 		// the rest is complete, and the totals alone would read 100%.
 		{"a package missing from the profile", []string{"c.out"}, opener("mode: atomic\nm/a.go:1.1,2.2 3 1\n", nil), 1, "statements covered: 3 of 3\n", "package m/cmd/tool has Go files but no statement in the profile"},
 		{"no module", []string{"c.out"}, opener(whole, nil), 2, "", "the packages of the module: open go.mod"},
+		{"a TestMain", []string{"c.out"}, opener(whole, nil), 1, "statements covered: 5 of 5\n", "testmain: a_test.go declares TestMain"},
+		{"a test file that does not parse", []string{"c.out"}, opener(whole, nil), 2, "", "the test files of the module: a_test.go does not parse"},
 		{"no arguments", nil, opener("", nil), 2, "", "usage: covergate"},
 		{"two arguments", []string{"a", "b"}, opener("", nil), 2, "", "usage: covergate"},
 		{"unreadable", []string{"c.out"}, opener("", errors.New("boom")), 2, "", "covergate: boom"},
@@ -194,8 +332,13 @@ func TestRun(t *testing.T) {
 			t.Parallel()
 			var stdout, stderr bytes.Buffer
 			root := fs.FS(tree)
-			if tc.name == "no module" {
+			switch tc.name {
+			case "no module":
 				root = fstest.MapFS{}
+			case "a TestMain":
+				root = withTestFile(tree, "package m\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestMain(m *testing.M) {\n\tm.Run()\n\tos.Exit(0)\n}\n")
+			case "a test file that does not parse":
+				root = withTestFile(tree, "package")
 			}
 			if code := Run(tc.args, &stdout, &stderr, tc.open, root); code != tc.code {
 				t.Fatalf("code = %d, want %d (stderr %q)", code, tc.code, stderr.String())

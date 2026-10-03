@@ -8,6 +8,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"io/fs"
 	"path"
@@ -110,18 +113,26 @@ func (p Profile) Complete() bool {
 	return total > 0 && covered*100 >= total*RequiredPercent
 }
 
-// ModulePackages returns the import paths of the packages of the module whose
-// root is fsys: the directories that hold a Go file that is not a test file,
-// found the way `go list ./...` finds them (a directory that starts with . or _,
-// testdata, vendor and node_modules are skipped, and so is a directory that has
-// its own go.mod, which is another module). It reads the file tree, so the gate
-// and its tests start no process.
-func ModulePackages(fsys fs.FS) ([]string, error) {
+// packageDir is a directory of the module that `go list ./...` lists as a
+// package: its files, as the walk found them.
+type packageDir struct {
+	path  string // the directory, relative to the module root ("." for the root)
+	files []fs.DirEntry
+}
+
+// walkPackages finds the directories `go list ./...` lists in module mode. That
+// is every directory below the module root that holds a Go file (a test file
+// included), except a directory whose name starts with . or _, testdata and
+// vendor (and everything below them), and a directory that has a go.mod of its
+// own, which is another module. Not node_modules, which go list does not skip.
+// It reads the file tree, so the gate and its tests start no process. The rule
+// was recorded from `go list ./...` of Go 1.27.1 on a tree that holds each of
+// these cases, and the test of this package builds the same tree.
+func walkPackages(fsys fs.FS) (module string, dirs []packageDir, err error) {
 	mod, err := fs.ReadFile(fsys, "go.mod")
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	module := ""
 	for _, line := range strings.Split(string(mod), "\n") {
 		if name, ok := strings.CutPrefix(strings.TrimSpace(line), "module "); ok {
 			module = strings.Trim(strings.TrimSpace(name), "\"")
@@ -129,9 +140,8 @@ func ModulePackages(fsys fs.FS) ([]string, error) {
 		}
 	}
 	if module == "" {
-		return nil, errors.New("go.mod names no module")
+		return "", nil, errors.New("go.mod names no module")
 	}
-	var packages []string
 	err = fs.WalkDir(fsys, ".", func(dir string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -141,7 +151,7 @@ func ModulePackages(fsys fs.FS) ([]string, error) {
 		}
 		if dir != "." {
 			base := path.Base(dir)
-			if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") || base == "testdata" || base == "vendor" || base == "node_modules" {
+			if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") || base == "testdata" || base == "vendor" {
 				return fs.SkipDir
 			}
 			if _, err := fs.Stat(fsys, path.Join(dir, "go.mod")); err == nil {
@@ -152,16 +162,77 @@ func ModulePackages(fsys fs.FS) ([]string, error) {
 		if err != nil {
 			return err
 		}
+		var goFiles []fs.DirEntry
 		for _, file := range files {
-			if name := file.Name(); !file.IsDir() && strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
-				packages = append(packages, path.Join(module, dir))
-				break
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".go") {
+				goFiles = append(goFiles, file)
 			}
+		}
+		if len(goFiles) > 0 {
+			dirs = append(dirs, packageDir{path: dir, files: goFiles})
 		}
 		return nil
 	})
+	return module, dirs, err
+}
+
+// ModulePackages returns the import paths of the packages of the module whose
+// root is fsys that have a Go file that is not a test file, which is where
+// statements are: the packages `go list ./...` lists (see walkPackages), but for
+// those that hold test files only.
+func ModulePackages(fsys fs.FS) ([]string, error) {
+	module, dirs, err := walkPackages(fsys)
+	if err != nil {
+		return nil, err
+	}
+	var packages []string
+	for _, dir := range dirs {
+		for _, file := range dir.files {
+			if !strings.HasSuffix(file.Name(), "_test.go") {
+				packages = append(packages, path.Join(module, dir.path))
+				break
+			}
+		}
+	}
 	sort.Strings(packages)
-	return packages, err
+	return packages, nil
+}
+
+// TestMains returns the test files of the module that declare a TestMain, read
+// from the source. The gate refuses every one: a TestMain that exits before it
+// runs the tests (os.Exit(0)) leaves its package out of the profile, and one
+// that runs them and then exits 0 (m.Run(); os.Exit(0)) hides a failing test and
+// still leaves coverage at 100%. A file that does not parse is an error.
+func TestMains(fsys fs.FS) ([]string, error) {
+	_, dirs, err := walkPackages(fsys)
+	if err != nil {
+		return nil, err
+	}
+	var found []string
+	fset := token.NewFileSet()
+	for _, dir := range dirs {
+		for _, entry := range dir.files {
+			if !strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			name := path.Join(dir.path, entry.Name())
+			source, err := fs.ReadFile(fsys, name)
+			if err != nil {
+				return nil, err
+			}
+			file, err := parser.ParseFile(fset, name, source, parser.SkipObjectResolution)
+			if err != nil {
+				return nil, fmt.Errorf("%s does not parse: %w", name, err)
+			}
+			for _, decl := range file.Decls {
+				if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.Name == "TestMain" {
+					found = append(found, name)
+				}
+			}
+		}
+	}
+	sort.Strings(found)
+	return found, nil
 }
 
 // Missing returns the packages, of those given, that contribute no statement to
@@ -209,14 +280,25 @@ func Run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 		_, _ = fmt.Fprintf(stderr, "covergate: the packages of the module: %v\n", err)
 		return 2
 	}
+	testMains, err := TestMains(root)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "covergate: the test files of the module: %v\n", err)
+		return 2
+	}
 	covered, total := profile.Totals()
 	_, _ = fmt.Fprintf(stdout, "statements covered: %d of %d\n", covered, total)
+	for _, file := range testMains {
+		_, _ = fmt.Fprintf(stderr, "testmain: %s declares TestMain, which the gate refuses: one that exits hides its package from the profile, or hides a failing test\n", file)
+	}
 	missing := profile.Missing(packages)
 	for _, pkg := range missing {
-		_, _ = fmt.Fprintf(stderr, "missing: package %s has Go files but no statement in the profile (were its tests run?)\n", pkg)
+		_, _ = fmt.Fprintf(stderr, "missing: package %s has Go files but no statement in the profile (its tests were not run, or it has no statement)\n", pkg)
 	}
-	if profile.Complete() && len(missing) == 0 {
+	if profile.Complete() && len(missing) == 0 && len(testMains) == 0 {
 		return 0
+	}
+	if len(testMains) > 0 {
+		_, _ = fmt.Fprintf(stderr, "covergate: %d test file(s) of the module declare TestMain\n", len(testMains))
 	}
 	if len(missing) > 0 {
 		_, _ = fmt.Fprintf(stderr, "covergate: %d package(s) of the module are not in the profile\n", len(missing))
