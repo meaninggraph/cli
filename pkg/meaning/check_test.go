@@ -136,7 +136,7 @@ func TestFileLevelFindings(t *testing.T) {
 			".hidden/skipped.meaning.yaml":   "x",
 			"node_modules/p/x.meaning.yaml":  "x",
 			"more/notes.txt":                 "x",
-		}, rules: []string{RuleSubdirectoryFile}, messages: []string{"read from the repository root only"}},
+		}, rules: []string{RuleSubdirectoryFile}, messages: []string{"not read: a graph is the meaning files directly in its directory"}},
 	})
 }
 

@@ -32,6 +32,17 @@ type Validator interface {
 	Validate(v any) error
 }
 
+// SchemaCommit is the commit of github.com/meaninggraph/core the embedded
+// schema was taken from.
+func SchemaCommit() string {
+	for _, line := range strings.Split(SchemaSource, "\n") {
+		if value, ok := strings.CutPrefix(line, "commit: "); ok {
+			return value
+		}
+	}
+	return ""
+}
+
 // DefaultSchema returns the schema embedded in the binary, compiled once.
 func DefaultSchema() Validator { return embeddedSchema() }
 

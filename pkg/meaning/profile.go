@@ -15,7 +15,7 @@ func (r *run) hiddenFiles() {
 		severity = Error
 	}
 	for _, path := range subdirectoryFiles(r.c.FS, r.local.Dir, "") {
-		r.add(path, 0, RuleSubdirectoryFile, severity, "meaning files are read from the repository root only; move it there")
+		r.add(path, 0, RuleSubdirectoryFile, severity, "not read: a graph is the meaning files directly in its directory, so move this file there, or check its directory")
 	}
 }
 

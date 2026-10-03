@@ -42,6 +42,9 @@ func TestEmbeddedSchemaMatchesItsRecordedSource(t *testing.T) {
 	if fields["repository"] != "https://github.com/meaninggraph/core" || fields["path"] != "meaning.schema.json" {
 		t.Errorf("source = %v", fields)
 	}
+	if SchemaCommit() != fields["commit"] {
+		t.Errorf("SchemaCommit() = %q", SchemaCommit())
+	}
 	sum := sha256.Sum256(SchemaJSON)
 	if got := hex.EncodeToString(sum[:]); got != fields["sha256"] {
 		t.Errorf("embedded schema sha256 = %s, but meaning.schema.source records %s", got, fields["sha256"])
@@ -137,4 +140,13 @@ func TestMustPanicsOnError(t *testing.T) {
 		}
 	}()
 	must(0, errors.New("boom"))
+}
+
+func TestSchemaCommitIsEmptyWithoutARecord(t *testing.T) {
+	old := SchemaSource
+	defer func() { SchemaSource = old }()
+	SchemaSource = "repository: x\n"
+	if SchemaCommit() != "" {
+		t.Fatal("no commit line, no commit")
+	}
 }

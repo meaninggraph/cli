@@ -25,6 +25,9 @@ func TestOSFSReadsTheHostFileSystem(t *testing.T) {
 	if err != nil || len(entries) != 2 || entries[0].Name() != "a.txt" {
 		t.Fatalf("ReadDir = %v, %v", entries, err)
 	}
+	if info, err := fsys.Stat(dir); err != nil || !info.IsDir() {
+		t.Fatalf("Stat = %v, %v", info, err)
+	}
 	if _, err := fsys.ReadFile(filepath.Join(dir, "missing")); err == nil {
 		t.Fatal("a missing file must fail")
 	}

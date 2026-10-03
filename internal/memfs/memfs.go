@@ -26,6 +26,9 @@ func clean(name string) string {
 	return path.Clean(strings.TrimPrefix(filepath.ToSlash(name), "/"))
 }
 
+// Stat describes a file or directory.
+func (m FS) Stat(name string) (fs.FileInfo, error) { return m.files.Stat(clean(name)) }
+
 // ReadFile returns the content of a file.
 func (m FS) ReadFile(name string) ([]byte, error) { return m.files.ReadFile(clean(name)) }
 
