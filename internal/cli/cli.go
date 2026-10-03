@@ -67,7 +67,7 @@ func Run(args []string, env Env) int {
 	case errors.Is(err, errFindings):
 		return ExitFindings
 	}
-	fmt.Fprintf(env.Stderr, "meaninggraph: %v\n", err)
+	_, _ = fmt.Fprintf(env.Stderr, "meaninggraph: %v\n", err)
 	return ExitUsage
 }
 

@@ -112,28 +112,28 @@ func (p Profile) Complete() bool {
 // or read error. It takes exactly one argument, the profile path.
 func Run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadCloser, error)) int {
 	if len(args) != 1 {
-		fmt.Fprintln(stderr, "usage: covergate <cover profile>")
+		_, _ = fmt.Fprintln(stderr, "usage: covergate <cover profile>")
 		return 2
 	}
 	file, err := open(args[0])
 	if err != nil {
-		fmt.Fprintf(stderr, "covergate: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "covergate: %v\n", err)
 		return 2
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	profile, err := Parse(file)
 	if err != nil {
-		fmt.Fprintf(stderr, "covergate: %s: %v\n", args[0], err)
+		_, _ = fmt.Fprintf(stderr, "covergate: %s: %v\n", args[0], err)
 		return 2
 	}
 	covered, total := profile.Totals()
-	fmt.Fprintf(stdout, "statements covered: %d of %d\n", covered, total)
+	_, _ = fmt.Fprintf(stdout, "statements covered: %d of %d\n", covered, total)
 	if profile.Complete() {
 		return 0
 	}
 	for _, block := range profile.Uncovered() {
-		fmt.Fprintf(stderr, "uncovered: %s (%d statements)\n", block.Location, block.Statements)
+		_, _ = fmt.Fprintf(stderr, "uncovered: %s (%d statements)\n", block.Location, block.Statements)
 	}
-	fmt.Fprintf(stderr, "covergate: %d of %d statements are not covered; %d%% is required\n", total-covered, total, RequiredPercent)
+	_, _ = fmt.Fprintf(stderr, "covergate: %d of %d statements are not covered; %d%% is required\n", total-covered, total, RequiredPercent)
 	return 1
 }

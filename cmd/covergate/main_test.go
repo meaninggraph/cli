@@ -17,7 +17,7 @@ func TestMainRunsTheGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 	oldArgs, oldStdout, oldExit := os.Args, os.Stdout, exit
 	t.Cleanup(func() { os.Args, os.Stdout, exit = oldArgs, oldStdout, oldExit })
 	os.Args = []string{"covergate", profile}
@@ -38,5 +38,5 @@ func TestMainRunsTheGate(t *testing.T) {
 	if _, err := io.ReadAll(rc); err != nil {
 		t.Fatal(err)
 	}
-	rc.Close()
+	_ = rc.Close()
 }
