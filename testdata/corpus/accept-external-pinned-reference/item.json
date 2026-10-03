@@ -1,0 +1,7 @@
+{
+  "description": "A pinned reference to a supplied graph.",
+  "expect": "accept",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

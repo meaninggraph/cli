@@ -1,0 +1,5 @@
+{
+  "description": "The values-of entity has no entity binding.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

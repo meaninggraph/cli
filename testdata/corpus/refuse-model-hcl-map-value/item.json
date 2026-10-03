@@ -1,0 +1,5 @@
+{
+  "description": "HCL: a map-style value.",
+  "expect": "refuse",
+  "rule": "models"
+}

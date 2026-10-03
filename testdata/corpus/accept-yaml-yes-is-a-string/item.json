@@ -1,0 +1,4 @@
+{
+  "description": "YAML 1.2: yes is a string, not a boolean.",
+  "expect": "accept"
+}

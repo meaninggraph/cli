@@ -1,0 +1,5 @@
+{
+  "description": "A module name that starts with a digit.",
+  "expect": "refuse",
+  "rule": "schema"
+}

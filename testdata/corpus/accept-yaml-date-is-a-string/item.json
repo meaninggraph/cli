@@ -1,0 +1,4 @@
+{
+  "description": "A date is a string in the core schema.",
+  "expect": "accept"
+}

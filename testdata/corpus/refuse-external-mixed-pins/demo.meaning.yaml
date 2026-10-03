@@ -1,0 +1,15 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: customer
+    kind: entity
+    labels: {en: customer}
+    description: A customer.
+    extends: 'meaning://github.com/meaninggraph/core/customer?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7'
+  - id: invoice
+    kind: entity
+    labels: {en: invoice}
+    description: A invoice.
+    extends: 'meaning://github.com/meaninggraph/core/invoice?ref=main'

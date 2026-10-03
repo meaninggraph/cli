@@ -1,0 +1,13 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+models: {chinook: model.hcl}
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: A a.
+    bindings:
+      - model: modelspec:///Artist
+        role: entity

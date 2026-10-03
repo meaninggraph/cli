@@ -1,0 +1,5 @@
+{
+  "description": "HCL: a top-level attribute.",
+  "expect": "refuse",
+  "rule": "models"
+}

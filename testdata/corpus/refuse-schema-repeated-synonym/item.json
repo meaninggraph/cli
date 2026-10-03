@@ -1,0 +1,5 @@
+{
+  "description": "uniqueItems on synonyms.",
+  "expect": "refuse",
+  "rule": "schema"
+}

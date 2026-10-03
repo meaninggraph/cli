@@ -1,0 +1,9 @@
+format: meaning/draft-1
+id: demo
+name: yes
+description: on
+concepts:
+  - id: thing
+    kind: entity
+    labels: {en: thing}
+    description: A thing.

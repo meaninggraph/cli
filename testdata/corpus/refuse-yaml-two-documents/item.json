@@ -1,0 +1,5 @@
+{
+  "description": "Two YAML documents in one file.",
+  "expect": "refuse",
+  "rule": "yaml"
+}

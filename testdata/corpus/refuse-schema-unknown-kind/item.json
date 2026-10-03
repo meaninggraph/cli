@@ -1,0 +1,5 @@
+{
+  "description": "kind: thing.",
+  "expect": "refuse",
+  "rule": "schema"
+}

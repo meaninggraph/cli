@@ -1,0 +1,8 @@
+id: demo
+name: A
+description: d
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: A a.

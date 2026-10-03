@@ -1,0 +1,8 @@
+{
+  "description": "A reference to a graph other than the supplied one.",
+  "expect": "refuse",
+  "rule": "unresolved-graph",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

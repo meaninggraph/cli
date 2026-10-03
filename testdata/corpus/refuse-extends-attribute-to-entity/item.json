@@ -1,0 +1,5 @@
+{
+  "description": "An attribute extends an entity.",
+  "expect": "refuse",
+  "rule": "extends-kind"
+}

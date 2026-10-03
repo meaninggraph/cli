@@ -1,0 +1,14 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: A a.
+  - id: b
+    kind: entity
+    labels: {en: b}
+    description: A b.
+    extends: 'meaning://github.com/org/me/a?ref=cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7'

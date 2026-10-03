@@ -1,0 +1,5 @@
+{
+  "description": "A concept with two entity bindings.",
+  "expect": "refuse",
+  "rule": "entity-bindings"
+}

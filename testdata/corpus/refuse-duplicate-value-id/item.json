@@ -1,0 +1,5 @@
+{
+  "description": "The same value id twice in a concept.",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

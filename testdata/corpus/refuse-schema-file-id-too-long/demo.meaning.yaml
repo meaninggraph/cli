@@ -1,0 +1,9 @@
+format: meaning/draft-1
+id: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+name: Demo
+description: A demo graph.
+concepts:
+  - id: a
+    kind: entity
+    labels: {en: a}
+    description: A a.

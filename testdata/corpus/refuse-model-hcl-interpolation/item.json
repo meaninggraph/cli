@@ -1,0 +1,5 @@
+{
+  "description": "HCL: string interpolation.",
+  "expect": "refuse",
+  "rule": "models"
+}

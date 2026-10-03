@@ -1,0 +1,5 @@
+{
+  "description": "An entity with a unit.",
+  "expect": "refuse",
+  "rule": "schema"
+}

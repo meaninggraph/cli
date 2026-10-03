@@ -1,0 +1,8 @@
+{
+  "description": "An entity extends a measure of the other graph.",
+  "expect": "refuse",
+  "rule": "extends-kind",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

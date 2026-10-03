@@ -1,0 +1,5 @@
+{
+  "description": "An empty file is not an object.",
+  "expect": "refuse",
+  "rule": "schema"
+}

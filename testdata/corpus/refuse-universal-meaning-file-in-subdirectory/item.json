@@ -1,0 +1,7 @@
+{
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core",
+  "description": "A meaning file below the root.",
+  "expect": "refuse",
+  "rule": "subdirectory-meaning-file"
+}

@@ -1,0 +1,4 @@
+{
+  "description": "Hex and 0o octal integers are integers.",
+  "expect": "accept"
+}

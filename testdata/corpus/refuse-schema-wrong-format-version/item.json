@@ -1,0 +1,5 @@
+{
+  "description": "format: meaning/draft-2.",
+  "expect": "refuse",
+  "rule": "schema"
+}

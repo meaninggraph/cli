@@ -1,0 +1,5 @@
+{
+  "description": "Wrong YAML type: an empty description.",
+  "expect": "refuse",
+  "rule": "schema"
+}

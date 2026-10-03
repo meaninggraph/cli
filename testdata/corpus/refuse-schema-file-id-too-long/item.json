@@ -1,0 +1,5 @@
+{
+  "description": "A file id of 81 characters.",
+  "expect": "refuse",
+  "rule": "schema"
+}

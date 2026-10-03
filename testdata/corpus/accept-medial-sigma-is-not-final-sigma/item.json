@@ -1,0 +1,4 @@
+{
+  "description": "Greek sigma: οδοσ and ΟΔΟΣ lower-case to different words.",
+  "expect": "accept"
+}

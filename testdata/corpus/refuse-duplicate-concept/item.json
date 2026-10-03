@@ -1,0 +1,5 @@
+{
+  "description": "The same concept id in two files.",
+  "expect": "refuse",
+  "rule": "duplicate-concept"
+}

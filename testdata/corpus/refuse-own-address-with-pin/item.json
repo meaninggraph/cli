@@ -1,0 +1,6 @@
+{
+  "description": "A reference to the graph's own address cannot carry ?ref=.",
+  "expect": "refuse",
+  "rule": "self-pin",
+  "address": "github.com/org/me"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "HCL: the same entity twice.",
+  "expect": "refuse",
+  "rule": "models"
+}

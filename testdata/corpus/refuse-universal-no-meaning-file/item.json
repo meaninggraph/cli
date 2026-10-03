@@ -1,0 +1,7 @@
+{
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core",
+  "description": "No meaning file at all.",
+  "expect": "refuse",
+  "rule": "no-meaning-files"
+}

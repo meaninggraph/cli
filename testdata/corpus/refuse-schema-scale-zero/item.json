@@ -1,0 +1,5 @@
+{
+  "description": "scale: 0 (exclusive minimum).",
+  "expect": "refuse",
+  "rule": "schema"
+}

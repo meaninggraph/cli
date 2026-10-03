@@ -1,0 +1,5 @@
+{
+  "description": "The model is found relative to the meaning file.",
+  "expect": "accept",
+  "check": "sub"
+}

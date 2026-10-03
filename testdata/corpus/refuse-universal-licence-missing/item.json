@@ -1,0 +1,7 @@
+{
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core",
+  "description": "No license field.",
+  "expect": "refuse",
+  "rule": "universal"
+}

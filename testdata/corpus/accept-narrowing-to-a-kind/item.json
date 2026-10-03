@@ -1,0 +1,4 @@
+{
+  "description": "values-of may narrow to a kind of the parent's entity.",
+  "expect": "accept"
+}

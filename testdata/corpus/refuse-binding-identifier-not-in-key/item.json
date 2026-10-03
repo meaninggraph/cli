@@ -1,0 +1,5 @@
+{
+  "description": "An identifier that is not in the key.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}

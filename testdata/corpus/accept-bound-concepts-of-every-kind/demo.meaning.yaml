@@ -1,0 +1,52 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+models: {chinook: model.hcl}
+concepts:
+  - id: artist
+    kind: entity
+    labels: {en: artist}
+    description: A artist.
+    bindings:
+      - model: modelspec:///chinook.Artist
+        role: entity
+      - model: modelspec:///chinook.Artist
+        role: identifier
+        property: ArtistId
+      - model: modelspec:///chinook.Artist
+        role: display-name
+        property: Name
+  - id: album
+    kind: entity
+    labels: {en: album}
+    description: A album.
+    bindings:
+      - model: modelspec:///chinook.Album
+        role: entity
+  - id: title
+    kind: attribute
+    labels: {en: title}
+    description: A title.
+    bindings:
+      - model: modelspec:///chinook.Album
+        role: value
+        property: Title
+  - id: album-artist
+    kind: attribute
+    labels: {en: album-artist}
+    description: A album-artist.
+    values-of: artist
+    bindings:
+      - model: modelspec:///chinook.Album
+        role: foreign-key
+        property: ArtistId
+  - id: sales
+    kind: measure
+    labels: {en: sales}
+    description: A sales.
+    measure: {formula: x, aggregation: sum}
+    bindings:
+      - model: modelspec:///chinook.Album
+        role: value
+        property: Sales

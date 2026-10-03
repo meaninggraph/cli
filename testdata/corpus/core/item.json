@@ -1,0 +1,6 @@
+{
+  "description": "The universal concepts of github.com/meaninggraph/core, copied from the commit named in the golden file.",
+  "expect": "accept",
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "A binding to a model of another repository.",
+  "expect": "refuse",
+  "rule": "binding-model"
+}

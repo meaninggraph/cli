@@ -1,0 +1,21 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: currency
+    kind: entity
+    labels: {en: currency}
+    description: A currency.
+    values: [{id: usd, labels: {en: US dollar}}]
+  - id: amount
+    kind: attribute
+    labels: {en: amount}
+    description: A amount.
+    units-of: currency
+  - id: price
+    kind: attribute
+    labels: {en: price}
+    description: A price.
+    extends: amount
+    unit: franc

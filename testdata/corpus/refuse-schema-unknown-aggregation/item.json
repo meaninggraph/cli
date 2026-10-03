@@ -1,0 +1,5 @@
+{
+  "description": "aggregation: total.",
+  "expect": "refuse",
+  "rule": "schema"
+}

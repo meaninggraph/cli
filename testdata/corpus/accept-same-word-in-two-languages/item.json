@@ -1,0 +1,4 @@
+{
+  "description": "One value may repeat its own word.",
+  "expect": "accept"
+}

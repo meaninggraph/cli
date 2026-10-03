@@ -1,0 +1,5 @@
+{
+  "description": "format uri on a source url.",
+  "expect": "refuse",
+  "rule": "schema"
+}

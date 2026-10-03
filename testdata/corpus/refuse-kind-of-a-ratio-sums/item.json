@@ -1,0 +1,5 @@
+{
+  "description": "A kind of a ratio that states sum.",
+  "expect": "refuse",
+  "rule": "ratio-aggregation"
+}

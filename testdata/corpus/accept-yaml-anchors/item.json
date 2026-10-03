@@ -1,0 +1,4 @@
+{
+  "description": "An anchor and its alias are the same value.",
+  "expect": "accept"
+}

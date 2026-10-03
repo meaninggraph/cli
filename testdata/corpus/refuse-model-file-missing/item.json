@@ -1,0 +1,5 @@
+{
+  "description": "models names a file that is not there.",
+  "expect": "refuse",
+  "rule": "models"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "A measure grouped by an entity.",
+  "expect": "refuse",
+  "rule": "measure-dimension"
+}

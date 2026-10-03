@@ -1,0 +1,5 @@
+{
+  "description": "A unit that names two values (a shared code).",
+  "expect": "refuse",
+  "rule": "unit"
+}

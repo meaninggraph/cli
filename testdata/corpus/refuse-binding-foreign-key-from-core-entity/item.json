@@ -1,0 +1,8 @@
+{
+  "description": "The values-of entity is another graph's, so it cannot be checked.",
+  "expect": "refuse",
+  "rule": "binding-role",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

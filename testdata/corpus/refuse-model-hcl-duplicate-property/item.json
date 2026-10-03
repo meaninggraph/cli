@@ -1,0 +1,5 @@
+{
+  "description": "HCL: the same property twice.",
+  "expect": "refuse",
+  "rule": "models"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "values-of names a measure.",
+  "expect": "refuse",
+  "rule": "target-kind"
+}

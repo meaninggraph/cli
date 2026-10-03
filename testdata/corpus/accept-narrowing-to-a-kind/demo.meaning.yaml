@@ -1,0 +1,26 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: country
+    kind: entity
+    labels: {en: country}
+    description: A country.
+    values: [{id: us, labels: {en: US}}]
+  - id: region
+    kind: entity
+    labels: {en: region}
+    description: A region.
+    extends: country
+  - id: base
+    kind: attribute
+    labels: {en: base}
+    description: A base.
+    values-of: country
+  - id: narrow
+    kind: attribute
+    labels: {en: narrow}
+    description: A narrow.
+    extends: base
+    values-of: region

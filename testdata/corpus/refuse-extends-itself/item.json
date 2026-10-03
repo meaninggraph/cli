@@ -1,0 +1,5 @@
+{
+  "description": "A concept that extends itself.",
+  "expect": "refuse",
+  "rule": "extends-cycle"
+}

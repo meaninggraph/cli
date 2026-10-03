@@ -1,0 +1,5 @@
+{
+  "description": "A file without format.",
+  "expect": "refuse",
+  "rule": "schema"
+}

@@ -1,0 +1,15 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: revenue
+    kind: measure
+    labels: {en: revenue}
+    description: A revenue.
+    measure: {formula: x}
+  - id: employee
+    kind: entity
+    labels: {en: employee}
+    description: A employee.
+    extends: revenue

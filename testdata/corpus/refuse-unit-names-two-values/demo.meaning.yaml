@@ -1,0 +1,18 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: currency
+    kind: entity
+    labels: {en: currency}
+    description: A currency.
+    values:
+      - {id: a, labels: {en: A}, codes: {x: Z}}
+      - {id: b, labels: {en: B}, codes: {x: Z}}
+  - id: amount
+    kind: attribute
+    labels: {en: amount}
+    description: A amount.
+    units-of: currency
+    unit: Z

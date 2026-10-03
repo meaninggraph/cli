@@ -1,0 +1,5 @@
+{
+  "description": "İ lower-cases to i + combining dot above, as JavaScript does.",
+  "expect": "refuse",
+  "rule": "duplicate-value"
+}

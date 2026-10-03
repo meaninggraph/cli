@@ -1,0 +1,5 @@
+{
+  "description": "An entity with role value.",
+  "expect": "refuse",
+  "rule": "schema"
+}

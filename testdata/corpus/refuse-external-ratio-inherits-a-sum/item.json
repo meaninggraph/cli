@@ -1,0 +1,8 @@
+{
+  "description": "A ratio extending core revenue, which sums.",
+  "expect": "refuse",
+  "rule": "ratio-aggregation",
+  "graphs": {
+    "github.com/meaninggraph/core": "testdata/corpus/core"
+  }
+}

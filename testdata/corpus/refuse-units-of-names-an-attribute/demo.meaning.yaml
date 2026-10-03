@@ -1,0 +1,14 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts:
+  - id: x
+    kind: attribute
+    labels: {en: x}
+    description: A x.
+  - id: a
+    kind: attribute
+    labels: {en: a}
+    description: A a.
+    units-of: x

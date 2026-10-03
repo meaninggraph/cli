@@ -1,0 +1,13 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+sources:
+  - {id: a, provider: p, dataset: d, year: 0x7E5}
+  - {id: b, provider: p, dataset: d, year: 0o3751}
+  - {id: c, provider: p, dataset: d, year: 2025.0}
+concepts:
+  - id: thing
+    kind: entity
+    labels: {en: thing}
+    description: A thing.

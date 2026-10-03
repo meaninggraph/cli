@@ -1,0 +1,7 @@
+{
+  "profile": "universal",
+  "address": "github.com/meaninggraph/core",
+  "description": "One word names two unrelated concepts.",
+  "expect": "refuse",
+  "rule": "ambiguous-word"
+}

@@ -1,0 +1,5 @@
+{
+  "description": "Wrong YAML type: a concept that is a string.",
+  "expect": "refuse",
+  "rule": "schema"
+}

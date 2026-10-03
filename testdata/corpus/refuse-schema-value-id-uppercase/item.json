@@ -1,0 +1,5 @@
+{
+  "description": "A value id in uppercase.",
+  "expect": "refuse",
+  "rule": "schema"
+}

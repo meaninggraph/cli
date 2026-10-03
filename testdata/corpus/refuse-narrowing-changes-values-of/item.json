@@ -1,0 +1,5 @@
+{
+  "description": "values-of names an unrelated entity.",
+  "expect": "refuse",
+  "rule": "narrowing"
+}

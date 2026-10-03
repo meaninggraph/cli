@@ -1,0 +1,5 @@
+{
+  "description": "A display name that is an int.",
+  "expect": "refuse",
+  "rule": "binding-role"
+}
