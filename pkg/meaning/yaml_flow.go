@@ -33,20 +33,20 @@ func (r *reader) blockScalar(header string, no, p int) (*Node, *SyntaxError) {
 				break
 			}
 		}
-		r.inBlock[r.pos] = true
 	}
-	// The tabs of a line of text are text. A blank line that holds a tab is
-	// refused (its tabs are never marked): the reference parser reads it as text
-	// when it follows the indentation and refuses it when it does not. A blank
-	// line of more spaces than the text is indented by is text at the end of the
-	// file, and read differently from the lines around it elsewhere.
+	// The tabs between two characters of a line of text are text; a tab anywhere
+	// else on a line of a block scalar (and a line of blanks) is refused: the
+	// reference parser reads a tab after the indentation as text and refuses a
+	// tab where the indentation is. A blank line of more spaces than the text is
+	// indented by is text at the end of the file, and read differently from the
+	// lines around it elsewhere.
 	lines := make([]string, r.pos-first)
 	for k := range lines {
 		l := r.lines[first+k]
 		switch {
 		case !l.blank():
 			lines[k] = l.raw[indent:]
-			r.markTabs(first+k, indent, len(l.raw))
+			r.mark(first+k, indent, len(l.raw), true)
 		case indent >= 0 && len(l.raw) > indent && strings.TrimLeft(l.raw, " ") == "":
 			return nil, syntax(l.no, RuleYAMLUnsupported, "a blank line inside a block scalar holds more spaces than the text is indented by; remove the spaces")
 		}
@@ -174,6 +174,9 @@ func (f *flow) skipSpace() {
 		// except that the bracket that closes the outermost collection may stand
 		// at that indent.
 		next := f.r.lines[f.li]
+		if next.comment {
+			f.fail(RuleYAMLUnsupported, "comments inside [ ] or { } are not supported; move the comment out of the collection")
+		}
 		closes := !next.blank() && next.indent == f.p && f.depth == 1 && (next.raw[next.indent] == ']' || next.raw[next.indent] == '}')
 		if !next.blank() && next.indent <= f.p && !closes {
 			f.fail(RuleYAML, "a line that continues a [ ] or { } collection must be indented more than the line it started on")

@@ -12,7 +12,11 @@
 // every kind of last line: spaces, tabs, comments, line ends), byte order marks
 // before every kind of first line, tabs in every position, and the names of
 // JavaScript's Object.prototype in every name position of a model (block names,
-// attribute names, bindings). Same seed, same mutants.
+// attribute names, bindings), and comment lines and blank lines (with and
+// without tabs, at every column, `#x` and `# x`) in every place of a file: between a
+// key or a dash and its value, after a block scalar header, inside a multi-line
+// plain scalar, as the last line with and without a line break. Same seed, same
+// mutants.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -137,6 +141,32 @@ function tabFile(text) {
   return t;
 }
 
+const fillerLines = [];
+for (const col of [0, 1, 2, 3, 4, 6, 8]) for (const text of ['#x', '# x', '#']) fillerLines.push(' '.repeat(col) + text);
+fillerLines.push('#TODO reword', '# TODO reword', '', '  ', '    ', '\t#c', '\t# c', '  \t# c', '# a\tb', '#\tc', '\t', ' \t', '  \t ', '\t  ');
+// fillerFile puts one to three comment or blank lines between the lines of a file,
+// anywhere, the last of them possibly the last line of the file, with or without
+// a line break after it.
+function fillerFile(text) {
+  const lines = text.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  let endsWithBreak = true;
+  for (let n = 1 + int(3); n > 0; n--) {
+    const at = int(lines.length + 1);
+    lines.splice(at, 0, pick(fillerLines));
+    if (at === lines.length - 1) endsWithBreak = int(2) === 0;
+  }
+  return lines.join('\n') + (endsWithBreak ? '\n' : '');
+}
+// The shapes where the reference parser reads a comment line in a way a reader
+// that skips comments does not: a value on a later line, in a concept.
+const conceptShapes = [
+  'description:\n      A thing.\n', 'synonyms:\n      en:\n        -\n          item\n        - object\n    description: A thing.\n',
+  'description: |\n      A thing.\n', 'description: >-\n      A\n      thing.\n    synonyms: {en: [item]}\n', 'description: A\n      thing.\n',
+  'synonyms:\n      en:\n        - one\n        - two\n    description: A thing.\n', 'description: | # c\n      text\n    synonyms: {en: [x]}\n', 'description:\n    # c\n      A thing.\n',
+];
+const shapeFile = () => 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n  - id: thing\n    kind: entity\n    labels: {en: thing}\n    ' + pick(conceptShapes);
+
 const read = (path) => readFileSync(path, 'utf8');
 const coreFiles = readdirSync(core).filter((n) => n.endsWith('.meaning.yaml')).sort();
 const chinookMeaning = read(join(chinook, 'model/chinook.meaning.yaml'));
@@ -154,7 +184,7 @@ for (let i = 0; i < count; i++) {
   mkdirSync(dir);
   let item;
   let mutatedYAML = null;
-  switch (i % 8) {
+  switch (i % 10) {
     case 0: { // a core file mutated, the others intact; checked as core itself
       const target = pick(coreFiles);
       for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? mutateText(read(join(core, file)), yamlFragments) : read(join(core, file)));
@@ -230,6 +260,27 @@ for (let i = 0; i < count; i++) {
         mutatedYAML = 'demo.meaning.yaml';
         item = {};
       }
+      break;
+    }
+    case 8: { // comment and blank lines anywhere in a core file or the Chinook file
+      if (int(2) === 0) {
+        const target = pick(coreFiles);
+        for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? fillerFile(read(join(core, file))) : read(join(core, file)));
+        mutatedYAML = target;
+        item = { address: CORE };
+      } else {
+        mkdirSync(join(dir, 'model'));
+        writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), fillerFile(chinookMeaning));
+        writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), chinookModel);
+        mutatedYAML = 'model/chinook.meaning.yaml';
+        item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      }
+      break;
+    }
+    case 9: { // comment and blank lines in the shapes that read differently: a value on a later line
+      writeFileSync(join(dir, 'demo.meaning.yaml'), fillerFile(shapeFile()));
+      mutatedYAML = 'demo.meaning.yaml';
+      item = {};
       break;
     }
     default: { // a corpus item with one of its files mutated

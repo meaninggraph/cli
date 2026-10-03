@@ -1,4 +1,0 @@
-{
-  "description": "A comment line indented by a tab, and a line of tabs, between plain entries.",
-  "expect": "accept"
-}

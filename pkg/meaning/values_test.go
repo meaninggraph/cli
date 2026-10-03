@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -44,29 +45,24 @@ var refusableBy = map[string][]string{
 	"bom":             {RuleYAMLEncoding, RuleYAMLUnsupported, RuleYAMLCharacter},
 }
 
-// tabRefusals lists, per tab group, the documents (by name) that ParseYAML
-// refuses although the reference parser reads them: the tabs that are not
-// accepted. The groups that are not listed are read in full.
-var tabRefusals = map[string][]string{
-	"tab after colon":      {`"a:\t1\n"`, `"a:\tx\n"`, `"a: \t1\n"`, `"a:\t\"q\"\n"`, `"a:\t[x]\n"`, `"a:\t|\n  x\n"`, `"a:\t# c\n"`, `"a:\t\n  b: 1\n"`},
-	"tab after dash":       {`"-\tx\n"`, `"- \tx\n"`, `"-\t\"q\"\n"`, `"-\ta: 1\n"`, `"-\t\n  x\n"`},
-	"tab in flow":          {`"a: [x,\ty]\n"`, `"a: [\tx]\n"`, `"a: {k:\tv}\n"`, `"a: {k\t: v}\n"`, `"a: [x\t]\n"`, `"a: {k: v,\tl: w}\n"`, `"a: [x,\n\ty]\n"`, `"a: [\t]\n"`, `"a: {\t}\n"`},
-	"tab trailing":         {`"\"k\"\t: 1\n"`, `"k\t: 1\n"`},
-	"tab in plain scalars": {`"k\tk: 1\n"`, `"k\tk: v\tv\n"`, `"a: [x\ty]\n"`, `"a: {k: x\ty}\n"`, `"a: {k\tk: v}\n"`, `"a: x:\ty\n"`, `"a: -\tx\n"`, `"a: ?\tx\n"`, `"a: x\t: y\n"`},
-	"tab in block text":    {`"a: |\n  x\n  \t\n  y\n"`, `"a: |\n  \t\n  x\n"`, `"a: >\n  x\n  \t\n  y\n"`, `"a: |\n  x\n  \t\n"`, `"a: |\n  x\n  \t"`, `"a: |-\n  x\n  \t\n"`},
-	"tab indentation":      nil,
-}
-
 // refusalAllowed says whether ParseYAML may refuse an entry that the reference
-// parser reads, with this error.
-func refusalAllowed(entry goldenEntry, e *SyntaxError) bool {
+// parser reads, with this error. text is the document.
+func refusalAllowed(entry goldenEntry, text string, e *SyntaxError) bool {
 	switch {
-	case entry.Group == "tab after a block scalar":
-		// A tab on a blank line or before a comment right after a block scalar is
-		// refused, whatever the reference parser does there.
-		return e.Rule == RuleYAMLTab
-	case strings.HasPrefix(entry.Group, "tab "):
-		return e.Rule == RuleYAMLTab && slices.Contains(tabRefusals[entry.Group], entry.Name)
+	case entry.Group == "tab read":
+		return false // every tab of these documents is in a position that is read
+	case entry.Group == "tab refused":
+		return e.Rule == RuleYAMLTab || (e.Rule == RuleYAMLUnsupported && strings.Contains(e.Message, "comment line between"))
+	case entry.Group == "comment-lines":
+		// A comment line between a key and the value below it is refused whole, so is
+		// a comment inside [ ] or { } and a blank line of too many spaces in a block
+		// scalar, and a tab outside the places where one is read.
+		return (e.Rule == RuleYAMLUnsupported && (strings.Contains(e.Message, "comment line between") || strings.Contains(e.Message, "comments inside [ ]") || strings.Contains(e.Message, "more spaces than the text is indented by"))) ||
+			(e.Rule == RuleYAMLTab && strings.Contains(text, "\t"))
+	case entry.Group == "comment-lines-collection":
+		// A comment line before a block mapping or sequence is read at every column,
+		// with and without a space after the #; only a tab is refused.
+		return e.Rule == RuleYAMLTab && strings.Contains(text, "\t") || (e.Rule == RuleYAMLUnsupported && strings.Contains(e.Message, "more spaces than the text is indented by"))
 	case entry.Group == "corpus":
 		// The accepted items of the corpus are read in full; the others may be
 		// refused by one of the rules (they are the refusals and the stricter items).
@@ -79,6 +75,26 @@ func refusalAllowed(entry goldenEntry, e *SyntaxError) bool {
 			(e.Rule == RuleYAMLTab && strings.Contains(entry.Name, "ending indent_tab"))
 	}
 	return slices.Contains(refusableBy[entry.Group], e.Rule)
+}
+
+// tally is what the test counts, and pins: a golden file that is emptied or
+// shrunk, or a reader that refuses more, changes it.
+type tally struct {
+	Documents          int            // in the golden file
+	ReadByBoth         int            // read by the reference parser and by ParseYAML, compared by value
+	RefusedByReference int            // refused by the reference parser (ParseYAML refuses them too)
+	RefusedByRule      map[string]int // read by the reference parser and refused by ParseYAML, by rule
+}
+
+// wantTally is the count the golden file and the reader give today.
+var wantTally = tally{
+	Documents:          9073,
+	ReadByBoth:         4733,
+	RefusedByReference: 807,
+	RefusedByRule: map[string]int{
+		"yaml": 2, "yaml-anchor": 3, "yaml-character": 12, "yaml-directive": 3, "yaml-documents": 2, "yaml-encoding": 7,
+		"yaml-key": 53, "yaml-limit": 1, "yaml-number": 89, "yaml-tab": 1082, "yaml-tag": 3, "yaml-unsupported": 2276,
+	},
 }
 
 func TestParseYAMLReadsWhatTheReferenceParserReads(t *testing.T) {
@@ -97,7 +113,9 @@ func TestParseYAMLReadsWhatTheReferenceParserReads(t *testing.T) {
 		problems[key] = append(problems[key], fmt.Sprintf(format, args...))
 	}
 	groups := map[string][2]int{}
+	got := tally{RefusedByRule: map[string]int{}}
 	for _, entry := range golden.Entries {
+		got.Documents++
 		text := entry.Text
 		if entry.Group == "corpus" {
 			raw, err := os.ReadFile(filepath.Join("../..", entry.Name))
@@ -112,25 +130,34 @@ func TestParseYAMLReadsWhatTheReferenceParserReads(t *testing.T) {
 		case entry.Refused != "":
 			// The reference parser refuses it: ParseYAML must too.
 			counts[1]++
+			got.RefusedByReference++
 			if syntaxErr == nil {
 				problem(entry.Group, "ParseYAML reads what the reference parser refuses", "%s (%s)", entry.Name, entry.Refused)
 			}
 		case syntaxErr != nil:
 			counts[1]++
-			if !refusalAllowed(entry, syntaxErr) {
+			got.RefusedByRule[syntaxErr.Rule]++
+			if !refusalAllowed(entry, text, syntaxErr) {
 				problem(entry.Group, "ParseYAML refuses ("+syntaxErr.Rule+") what the reference parser reads", "%s: %s", entry.Name, syntaxErr.Message)
 			}
 		default:
 			counts[0]++
-			var got any
+			got.ReadByBoth++
+			if entry.Group == "tab refused" {
+				problem(entry.Group, "ParseYAML reads a document with a tab that is refused", "%s", entry.Name)
+			}
+			var read any
 			encoded, _ := json.Marshal(node.Value())
-			_ = json.Unmarshal(encoded, &got)
-			if !sameData(got, entry.Value) {
+			_ = json.Unmarshal(encoded, &read)
+			if !sameData(read, entry.Value) {
 				want, _ := json.Marshal(entry.Value)
 				problem(entry.Group, "ParseYAML reads other data than the reference parser", "%s: ParseYAML %s, the reference parser %s", entry.Name, encoded, want)
 			}
 		}
 		groups[entry.Group] = counts
+	}
+	if !reflect.DeepEqual(got, wantTally) {
+		t.Errorf("the golden file and the reader give\n%#v\nwant\n%#v\n(a smaller count means the golden file lost documents or the reader refuses more; change wantTally on purpose)", got, wantTally)
 	}
 	keys := make([]string, 0, len(problems))
 	for key := range problems {

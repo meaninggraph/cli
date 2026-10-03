@@ -1,0 +1,5 @@
+{
+  "description": "A comment line between a key and its plain value on the next line.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported"
+}

@@ -171,7 +171,7 @@ for (const style of styles) {
 const tabCases = {
   // outside any scalar
   'comment line': ['a: 1\n# a\tb\nb: 2\n', 'a: 1\n#\tx\nb: 2\n', '# a\tb\na: 1\n', 'a: 1\n  # a\tb\nb: 2\n', '- x\n# a\tb\n- y\n'],
-  'comment after value': ['a: 1 # a\tb\n', 'a: "q" # a\tb\n', 'a: [x] # a\tb\n', 'a: | # a\tb\n  x\n', 'a: x #\t\n', 'a: 1 #\tb\nb: 2\n'],
+  'comment after value': ['a: 1 # a\tb\n', 'a: "q" # a\tb\n', 'a: [x] # a\tb\n', 'a: | # a\tb\n  x\n', 'a: 1 #\tb\nb: 2\n'],
   'blank line': ['a: 1\n\t\nb: 2\n', 'a: 1\n \t \nb: 2\n', '\t\na: 1\n', 'a: 1\n\t', 'a: 1\n\t\n', '- x\n\t\n- y\n', 'a:\n  b: 1\n\t\n  c: 2\n', 'a: one\n\t\n  two\n', 'a: [x,\n\t\n  y]\n'],
   'trailing': ['a: 1\t\n', 'a: x\t\n', 'a: x \t \n', 'a: "q"\t\n', "a: 'q'\t\n", 'a: [x]\t\n', 'a: {k: v}\t\n', 'a:\t\n', 'a: |\t\n  x\n', 'a: >-\t\n  x\n', '- x\t\n', '-\t\n', 'a: x\t', 'a: x \t', 'a:\n  b: 1\t\n', '"k"\t: 1\n', 'k\t: 1\n', 'a: [x,\t\n  y]\n', 'a: x\n  y\t\n'],
   // between tokens
@@ -183,13 +183,61 @@ const tabCases = {
   // inside a scalar
   'in double quotes': ['a: "x\ty"\n', 'a: "\tx"\n', 'a: "x\t"\n', 'a: "\t"\n', '"k\tk": 1\n', 'a: {"k\tk": "v\tv"}\n', 'a: ["x\ty"]\n', '- "x\ty"\n', 'a: "x\t#y"\n', 'a: "x\t: y"\n'],
   'in single quotes': ["a: 'x\ty'\n", "a: '\tx'\n", "a: 'x\t'\n", "a: '\t'\n", "'k\tk': 1\n", "a: {'k\tk': 'v\tv'}\n", "a: ['x\ty']\n", "- 'x\ty'\n", "a: 'x\t#y'\n"],
-  'in plain scalars': ['a: x\ty\n', 'a: x\t y\n', 'a: x \ty\n', 'a: x\t\ty\n', 'a: x\ty z\n', '- x\ty\n', 'a: x\ty\nb: 1\n', 'k\tk: 1\n', 'k\tk: v\tv\n', 'a: x\ty # c\n', 'a: x\t#y\n', 'a: x\t# c\n', 'a: 1\t2\n', 'a: true\tx\n', 'a: x:\ty\n', 'a: x\t: y\n', 'a: x\n  y\tz\n', 'a: x\ty\n  z\n', 'x\ty\n', 'a: -\tx\n', 'a: x\t-\n', 'a: ?\tx\n', 'a: [x\ty]\n', 'a: {k: x\ty}\n', 'a: {k\tk: v}\n'],
+  'in plain scalars': ['a: x\ty\n', 'a: x\ty # c\n', 'a: x\t-\n', 'a: x\t y\n', 'a: x \ty\n', 'a: x\t\ty\n', 'a: x\ty z\n', '- x\ty\n', 'a: x\ty\nb: 1\n', 'k\tk: 1\n', 'k\tk: v\tv\n', 'a: x\ty # c\n', 'a: x\t#y\n', 'a: x\t# c\n', 'a: 1\t2\n', 'a: true\tx\n', 'a: x:\ty\n', 'a: x\t: y\n', 'a: x\n  y\tz\n', 'a: x\ty\n  z\n', 'x\ty\n', 'a: -\tx\n', 'a: x\t-\n', 'a: ?\tx\n', 'a: [x\ty]\n', 'a: {k: x\ty}\n', 'a: {k\tk: v}\n'],
   'after a block scalar': ['a: |\n  x\n\t', 'a: |\n  x\nb: 1\n\t\n', 'a: |\n  x\n# c\n\t', 'a: |\n  x\nb: 1\n\t', 'a: |\n  x\nb: 1\n \t\n', 'a: |\n  x\nb: 1\n\n\t\nc: 2\n', 'a: |\n  x\nb: |\n  y\n\t\n', 'a: >-\n  x\n # c\n\t', 'a: >-\n  x\n  # c\n\t', 'a: 1\n# c\n\t', 'a: |\n  x\n\t# c\n', 'a: 1\n\t# c\nb: 2\n', 'a: |\n  x\nb: 1\n\t# c\n', '- |\n  x\n\t\n- y\n', 'a: |\n  x\n  \t\nb: 1\n', 'a: |\n  x\n\n\t\n', 'a:\n  b: |\n    x\n\t\n  c: 1\n', 'a: |\n  x\nb: 1\n\t\nc: 2\n', 'a: |\n  x\n# a\tb\nc: 1\n', 'a: |\n  x\n  \t# c\nc: 1\n', 'a: |\n    x\n  # c\n\t', 'a: |\n    x\n  # c\n  \t\nb: 1\n', 'a: |\n  x\n\n# c\n\t\n', 'a:\n  - |\n    x\n  # c\n\t\n  - y\n', 'a: |\n  x\n#\tc\n\t# d\n'],
   'comment line indentation': ['a: 1\n\t# c\nb: 2\n', 'a:\n\t# c\n  b: 1\n', '- x\n\t# c\n- y\n', 'a: 1\n \t# c\nb: 2\n', '\t# c\na: 1\n', 'a: "q"\n\t# c\nb: 2\n', 'a: [x]\n\t# c\nb: 2\n', 'a: x\n\t# c\nb: 2\n', 'a: x\n  y\n\t# c\nb: 2\n', 'a: 1\n\t# c\n\t# d\nb: 2\n', 'a: 1\n\t\n\t# d\nb: 2\n'],
   'in block text': ['a: >\n  x\n  \ty\n  z\n', 'a: >\n  \tx\n  y\n', 'a: >-\n  x\n\n  \ty\n','a: |\n  x\ty\n', 'a: |\n  \tx\n', 'a: |\n  x\t\n', 'a: |-\n  x\t\n', 'a: >\n  x\ty\n  z\n', 'a: >-\n  x\t\n  y\n', 'a: |\n  x\n  \t\n  y\n', 'a: |\n  x\n\t\n  y\n', 'a: |\n  x\n  y\t\n\t\n', 'a: |\n  x\n\t\n', 'a: |\n  x\n  \t\n', 'a: |\n  x\n  \t', 'a: |\n  x\n\t', 'a: |\n  x\ty\nb: 1\n', 'a: >\n  x\n   \ty\n  z\n', 'a: |\n  # x\ty\n', '- |\n  x\ty\n- z\n', 'a: |\n  x\n\n\t\n', 'a: |\n  \t\n  x\n', 'a: |\n\n  x\ty\n', 'a: |-\n  x\n  \t\n', 'a: >\n  x\n  \t\n  y\n'],
 };
-for (const [group, texts] of Object.entries(tabCases)) {
-  for (const text of texts) add(`tab ${group}`, JSON.stringify(text), text);
+// The tabs that are read (inside quotes, in the text of a comment, between two
+// characters of plain and block text) and all the others, which are refused.
+const tabsRead = [
+  'a: 1\n# a\tb\nb: 2\n', 'a: 1\n#\tx\nb: 2\n', '# a\tb\na: 1\n', 'a: 1\n  # a\tb\nb: 2\n', '- x\n# a\tb\n- y\n', 'a: 1 # a\tb\n', 'a: "q" # a\tb\n', 'a: [x] # a\tb\n', 'a: | # a\tb\n  x\n', 'a: 1 #\tb\nb: 2\n', 'a: |\n  x\n# a\tb\nc: 1\n',
+  'a: "x\ty"\n', 'a: "\tx"\n', 'a: "x\t"\n', 'a: "\t"\n', '"k\tk": 1\n', 'a: {"k\tk": "v\tv"}\n', 'a: ["x\ty"]\n', '- "x\ty"\n', 'a: "x\t#y"\n', 'a: "x\t: y"\n',
+  "a: 'x\ty'\n", "a: '\tx'\n", "a: 'x\t'\n", "a: '\t'\n", "'k\tk': 1\n", "a: {'k\tk': 'v\tv'}\n", "a: ['x\ty']\n", "- 'x\ty'\n", "a: 'x\t#y'\n",
+  'a: x\ty\n', 'a: x\ty # c\n', 'a: x\t-\n', 'a: x\t y\n', 'a: x \ty\n', 'a: x\t\ty\n', 'a: x\ty z\n', '- x\ty\n', 'a: x\ty\nb: 1\n', 'a: 1\t2\n', 'a: true\tx\n', 'a: x\n  y\tz\n', 'a: x\ty\n  z\n', 'x\ty\n',
+  'a: |\n  x\ty\n', 'a: >\n  x\ty\n  z\n', 'a: |\n  x\ty\nb: 1\n', 'a: |\n  # x\ty\n', '- |\n  x\ty\n- z\n', 'a: |\n\n  x\ty\n', 'a: |\n    a\tb  \n', 'a: |-\n  x\ty\n  z\n',
+];
+for (const text of tabsRead) add('tab read', JSON.stringify(text), text);
+const readSet = new Set(tabsRead);
+const tabsRefused = [...new Set(Object.values(tabCases).flat())].filter((text) => !readSet.has(text));
+tabsRefused.push(
+  // the reviewer's cases: a comment line or a line of tabs where the reference parser acts on it
+  'a:\n\t# c\n  one\nb: 1\n', '-\n\t# c\n  one\n- two\n', 'a: |\n\t# c\nb: 1\n', 'a:\n  b: |\n  \t# c\n  c: 1\n', 'a:\n  b: 1\n  # c\n\t', 'c:\n\t\nd: 1\n', 'c:\n\t',
+  'a: 1\n\t\n', 'a: 1\n\t', 'a: 1\n \t', 'a: 1\n  \t\n', 'a:\n  b: 1\n\t# more to come\n', 'a:\n  b: 1\n  # more\n\t',
+);
+for (const text of tabsRefused) add('tab refused', JSON.stringify(text), text);
+
+// ---- comment and blank lines in every place of a small document
+const fillers = [];
+for (const col of [0, 1, 2, 4, 6]) for (const text of ['#c', '# c']) fillers.push(' '.repeat(col) + text);
+fillers.push('#', '  #', '    #', '#TODO reword', '# TODO reword', '', '  ', '    ');
+fillers.push('\t#c', '\t# c', '  \t# c', '# a\tb', '#\tc', '\t', ' \t', '  \t ', '\t  ');
+// Documents with a value on a later line that is a scalar (a comment line before
+// it is refused), and with one that starts a collection (a comment line before
+// it is everyday YAML and is read, at every column).
+const scalarAfter = [
+  'a:\n  one\nb: 1\n', '-\n  one\n- two\n', 'a: |\n  text\nb: 1\n', 'a: |\n  text\n', 'a: >-\n  t1\n  t2\nb: 1\n',
+  'a: one\n  two\nb: 1\n', '- one\n  two\n- three\n', 'a: [x,\n  y]\n', 'a:\n  "quoted"\nb: 1\n', 'a:\n  [x, y]\nb: 1\n',
+  'a: |\nb: 1\n', 'a: |\n\n  text\n', 'a: # c\n  one\nb: 1\n', '- # c\n  one\n- two\n',
+  'a: one\n', 'a: |\n  text\n  more\n\nb: 1\n', 'a:\n  b: |\n    x\n  c: 1\n', 'description:\n  A demo graph.\nconcepts:\n  - id: thing\n',
+  '- a: 1\n  b:\n    one\n  c: 2\n',
+];
+const collectionAfter = [
+  'a:\n  b: 1\nc: 2\n', 'a:\n  - x\n  - y\n', 'a:\nb: 1\n', 'a:\n  b:\n    c: 1\n', 'a:\n- x\n- y\nb: 1\n', '- - a\n  - b\n',
+  'concepts:\n  - id: thing\n    kind: entity\n    description: A thing.\n', '- a: 1\n  c: 2\n- b: 3\n', 'a:\n  b:\n  - x\n  - y\nc: 1\n', 'a:\n  - b: 1\n    c: 2\n  - d: 3\n',
+];
+for (const [group, baseDocs] of [['comment-lines', scalarAfter], ['comment-lines-collection', collectionAfter]]) for (const doc of baseDocs) {
+  const lines = doc.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  for (let at = 0; at <= lines.length; at++) {
+    for (const filler of fillers) {
+      const copy = [...lines];
+      copy.splice(at, 0, filler);
+      add(group, `${JSON.stringify(doc)} + ${JSON.stringify(filler)} before line ${at}`, copy.join('\n') + '\n');
+      // the filler as the last line, without a line break at the end of the file
+      if (at === lines.length) add(group, `${JSON.stringify(doc)} + ${JSON.stringify(filler)} at the end without a line break`, copy.join('\n'));
+    }
+  }
 }
 
 // ---- byte order marks and line ends

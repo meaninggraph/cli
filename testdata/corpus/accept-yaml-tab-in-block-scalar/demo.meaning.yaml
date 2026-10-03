@@ -8,10 +8,10 @@ concepts:
     labels: {en: a}
     description: |
       One	two
-      	three
+      three	four
   - id: b
     kind: entity
     labels: {en: b}
     description: >-
-      Four	five
-      six	
+      Five	six
+      seven

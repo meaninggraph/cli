@@ -1,0 +1,5 @@
+{
+  "description": "A tab-indented comment line between a key and its plain value.",
+  "expect": "refuse",
+  "rule": "yaml-unsupported"
+}

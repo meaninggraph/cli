@@ -92,14 +92,21 @@ func syntax(line int, rule, format string, args ...any) *SyntaxError {
 // ParseYAML reads one document of the subset described above. An empty file
 // is a Null node.
 func ParseYAML(data []byte) (*Node, *SyntaxError) {
+	node, err, _ := parseYAML(data)
+	return node, err
+}
+
+// parseYAML is ParseYAML, and also returns the number of characters the tab
+// bookkeeping looked at, which a test reads to show that it is one pass.
+func parseYAML(data []byte) (*Node, *SyntaxError, int) {
 	if len(data) > MaxFileBytes {
-		return nil, syntax(0, RuleYAMLLimit, "the file is %d bytes; at most %d are read", len(data), MaxFileBytes)
+		return nil, syntax(0, RuleYAMLLimit, "the file is %d bytes; at most %d are read", len(data), MaxFileBytes), 0
 	}
 	text, mark, err := checkText(string(data))
 	if err != nil {
-		return nil, err
+		return nil, err, 0
 	}
-	r := &reader{okTab: map[int]bool{}, inBlock: map[int]bool{}}
+	r := &reader{okTab: map[int][]bool{}}
 	raws := strings.Split(text, "\n")
 	raws = raws[:len(raws)-1+min(1, len(strings.TrimRight(raws[len(raws)-1], "\r")))] // the text after the last line break is no line
 	for i, raw := range raws {
@@ -117,17 +124,17 @@ func ParseYAML(data []byte) (*Node, *SyntaxError) {
 		// indented first line, or a block sequence that starts on it, is refused
 		// there, and read differently by a reader that skips the mark.
 		if first := r.lines[0]; !first.blank() && (first.indent > 0 || isSeqEntry(first.text())) && first.text()[0] != '#' {
-			return nil, syntax(1, RuleYAMLEncoding, "a byte order mark is followed by an indented line or a block sequence; the reference parser counts the mark as a column, so save the file without the mark")
+			return nil, syntax(1, RuleYAMLEncoding, "a byte order mark is followed by an indented line or a block sequence; the reference parser counts the mark as a column, so save the file without the mark"), 0
 		}
 	}
 	node, err := r.document()
 	if err != nil {
-		return nil, err
+		return nil, err, r.steps
 	}
 	if err := r.checkTabs(); err != nil {
-		return nil, err
+		return nil, err, r.steps
 	}
-	return node, nil
+	return node, nil, r.steps
 }
 
 // checkText applies the rules that concern characters and line ends, and
@@ -177,97 +184,86 @@ type reader struct {
 	original []string
 	pos      int
 	depth    int
-	// okTab holds the tabs (by line and column) that were read as part of a
-	// value; inBlock the lines that a block scalar took. See checkTabs.
-	okTab   map[int]bool
-	inBlock map[int]bool
+	// okTab holds, for the lines that have tabs, which columns hold a tab that
+	// was read as text. See checkTabs.
+	okTab map[int][]bool
+	// steps counts the characters the tab bookkeeping looked at, so that a test
+	// can show that it is one pass.
+	steps int
 }
 
 // Tabs.
 //
-// A tab is accepted only where it cannot change what is read, and everywhere
-// else it is refused (RuleYAMLTab). The places, with the reference parser's
-// values compared in testdata/golden/node-values.json:
+// The rule has no context: it is decided by the line and by what the reader is
+// reading when it meets the tab, never by what came before or comes after.
+// A tab is read only
 //
-//   - in a comment, and on a line that holds only blanks;
-//   - at the end of a line, after the last thing on it;
-//   - in the text of a double-quoted or single-quoted scalar, of a plain scalar
-//     (not at its start, after a colon, or before a #) and of a block scalar's
-//     lines (and at the end of the lines of the block scalar, after its last
-//     line of text).
+//   - inside a double-quoted or single-quoted scalar (a key too);
+//   - inside the text of a comment, between its # and its last character;
+//   - between two characters that are not blanks, on a text line of a plain
+//     scalar or of a block scalar (not at the start of the text, not at its end,
+//     not next to a colon or a dash that would make it something else).
 //
-// Not as indentation, after a colon or a dash, between tokens, in a flow
-// collection outside quotes. The reader says which tabs it took as part of a
-// value (acceptTabs); checkTabs refuses the others once the document is read,
-// so a tab that no part of the reader looked at is never read in silence.
+// Everywhere else a tab is refused (RuleYAMLTab): in the leading white space of
+// any line (comment lines and lines of blanks included), alone on a line,
+// before a #, at the end of a line outside quotes, after a colon or a dash,
+// between tokens, inside a flow collection outside quotes. The parts of the
+// reader that read a tab as text mark it (acceptTabs); checkTabs then refuses
+// every tab that was not marked, in one pass over the file.
 
-func (r *reader) markTabs(index, from, to int) {
+// mark marks the tabs of raw[from:to] of line index as read; with interior only
+// the tabs between the first and the last character that is not a blank.
+func (r *reader) mark(index, from, to int, interior bool) {
 	raw := r.original[index]
-	for col := from; col < to && col < len(raw); col++ {
+	to = min(to, len(raw))
+	if interior {
+		for from < to && (raw[from] == ' ' || raw[from] == '\t') {
+			from++
+		}
+		for to > from && (raw[to-1] == ' ' || raw[to-1] == '\t') {
+			to--
+		}
+	}
+	for col := from; col < to; col++ {
+		r.steps++
 		if raw[col] == '\t' {
-			r.okTab[index<<24|col] = true
+			if r.okTab[index] == nil {
+				r.okTab[index] = make([]bool, len(raw))
+			}
+			r.okTab[index][col] = true
 		}
 	}
 }
 
+// markTabs marks every tab of raw[from:to] (text inside quotes).
+func (r *reader) markTabs(index, from, to int) { r.mark(index, from, to, false) }
+
 // acceptTabs marks the tabs of t[from:to], where t is a piece of the line
 // number no that ends the line (or ends it but for blanks).
-func (r *reader) acceptTabs(no int, t string, from, to int) {
+func (r *reader) acceptTabs(no int, t string, from, to int, interior bool) {
 	raw := r.original[no-1]
 	base := len(raw) - len(t)
 	if !strings.HasSuffix(raw, t) {
 		base = len(strings.TrimRight(raw, " \t")) - len(t)
 	}
-	r.markTabs(no-1, base+from, base+to)
+	r.mark(no-1, base+from, base+to, interior)
 }
 
-// checkTabs refuses the first tab that was not taken as part of a value and is
-// not one of the tabs that are always harmless: in the text of a comment, on a
-// blank line, in a comment line's or blank line's indentation (when no block
-// scalar was read just before: the reference parser is still in the block
-// scalar for a while after it, and refuses a tab there), at the end of a line.
+// checkTabs refuses the first tab that was not read as text.
 func (r *reader) checkTabs() *SyntaxError {
 	for i, raw := range r.original {
 		if !strings.Contains(raw, "\t") {
 			continue
 		}
-		trimmed := strings.TrimLeft(raw, " \t")
-		leading := len(raw) - len(trimmed)
-		trailing := len(strings.TrimRight(raw, " \t"))
-		blankOrComment := !r.inBlock[i] && (trimmed == "" || trimmed[0] == '#')
+		ok := r.okTab[i]
 		for col := 0; col < len(raw); col++ {
-			if raw[col] != '\t' || r.okTab[i<<24|col] {
-				continue
+			r.steps++
+			if raw[col] == '\t' && (ok == nil || !ok[col]) {
+				return syntax(i+1, RuleYAMLTab, "a tab here is not read: tabs are accepted inside quotes, in a comment after the #, and between two characters of plain and block text, but not in indentation, alone on a line, before a #, at the end of a line or between tokens; use spaces")
 			}
-			switch {
-			case r.inBlock[i]:
-			case blankOrComment && col >= leading && trimmed != "":
-				continue // in the text of a comment
-			case blankOrComment:
-				if !r.followsBlock(i) {
-					continue // in the indentation of a comment or on a blank line
-				}
-			case col >= trailing:
-				continue
-			}
-			return syntax(i+1, RuleYAMLTab, "a tab here is not read: tabs are accepted in comments, on blank lines, at the end of a line and inside quoted, plain and block text, but not as indentation or between tokens; use spaces")
 		}
 	}
 	return nil
-}
-
-// followsBlock says that the last line before line i that is neither blank nor
-// a comment belongs to a block scalar.
-func (r *reader) followsBlock(i int) bool {
-	for j := i - 1; j >= 0; j-- {
-		if r.inBlock[j] {
-			return true
-		}
-		if trimmed := strings.TrimLeft(r.original[j], " \t"); trimmed != "" && trimmed[0] != '#' {
-			return false
-		}
-	}
-	return false
 }
 
 func (r *reader) eof() bool { return r.pos >= len(r.lines) }
@@ -277,6 +273,9 @@ func (r *reader) cur() yline { return r.lines[r.pos] }
 // skipBlank moves to the next line that holds more than blanks and a comment.
 func (r *reader) skipBlank() {
 	for !r.eof() && (r.cur().blank() || r.cur().comment) {
+		if raw := r.original[r.pos]; r.cur().comment {
+			r.mark(r.pos, strings.IndexByte(raw, '#'), len(raw), true) // the text of the comment
+		}
 		r.pos++
 	}
 }
@@ -345,6 +344,7 @@ func dashTabError(no int) *SyntaxError {
 // a block on the next lines, more indented than p (or, after a key, a
 // sequence at p itself when seqSame), else null.
 func (r *reader) nested(no, p int, seqSame bool) (*Node, *SyntaxError) {
+	from := r.pos
 	r.skipBlank()
 	if r.eof() {
 		return nullAt(no), nil
@@ -352,11 +352,35 @@ func (r *reader) nested(no, p int, seqSame bool) (*Node, *SyntaxError) {
 	l := r.cur()
 	switch {
 	case l.indent > p:
+		if r.commentBetween(from) && !r.startsCollection(l) {
+			// The reference parser's lexer lowers the indentation of what follows
+			// a comment line in this place (by the comment's layout), and the lines
+			// of the scalar that follows are read as part of it or refused.
+			return nil, syntax(l.no, RuleYAMLUnsupported, "a comment line between a key (or a dash) and the value that starts on a later line is not supported; move the comment above the key")
+		}
 		return r.block(p)
 	case seqSame && l.indent == p && isSeqEntry(l.text()):
 		return r.parseSeq(p)
 	}
 	return nullAt(no), nil
+}
+
+// commentBetween says that a line from line index from up to the current one is
+// a comment line.
+func (r *reader) commentBetween(from int) bool {
+	for _, l := range r.lines[from:r.pos] {
+		if l.comment {
+			return true
+		}
+	}
+	return false
+}
+
+// startsCollection says that a line starts a block sequence or a block mapping,
+// rather than a scalar (a malformed entry counts: the collection reports it).
+func (r *reader) startsCollection(l yline) bool {
+	t := l.text()
+	return isSeqEntry(t) || dashTab(t) || r.isKeyLine(t, l.no)
 }
 
 // block reads the node that starts at the current line, whose indent is more
@@ -501,7 +525,7 @@ func (r *reader) splitKey(t string, no int) (key, rest string, ok bool, err *Syn
 		if len(after) > 1 && after[1] != ' ' {
 			return "", "", false, nil
 		}
-		r.acceptTabs(no, t, 1, next-1)
+		r.acceptTabs(no, t, 1, next-1, false)
 		return value, after[1:], true, keyProblem(value, no)
 	case '&', '*':
 		return "", "", false, syntax(no, RuleYAMLAnchor, "anchors and aliases (& and *) are not supported; write the value out")
@@ -617,12 +641,6 @@ func (r *reader) plainValue(t string, no, p int) (*Node, *SyntaxError) {
 		if l.indent <= p || l.comment {
 			break
 		}
-		for _, blank := range r.lines[r.pos:next] {
-			if strings.Contains(blank.raw, "\t") {
-				// The reference parser refuses a line of tabs inside a plain scalar.
-				return nil, syntax(blank.no, RuleYAMLTab, "a tab on a blank line inside a plain value that continues below it is not accepted; remove the tab")
-			}
-		}
 		ct := l.text()
 		if strings.ContainsRune("[]{},&*!|>'\"%@`", rune(ct[0])) {
 			return nil, syntax(l.no, RuleYAML, "a plain value that continues on a new line cannot continue with %q; put the value in quotes or use a block scalar (> or |)", ct[0])
@@ -661,13 +679,13 @@ func (r *reader) plainLine(t string, no int) (text string, commented bool, err *
 	whole := t
 	if i := commentStart(t); i >= 0 {
 		t, commented = strings.TrimRight(t[:i], " \t"), true
-		r.acceptTabs(no, whole, len(t), len(whole)) // the blanks before the comment, and the comment
+		r.acceptTabs(no, whole, i, len(whole), true) // the text of the comment, not the blanks before it
 	}
 	if strings.Contains(t, ": ") || strings.HasSuffix(t, ":") {
 		return "", false, syntax(no, RuleYAML, "a colon followed by a space inside a plain value would start a mapping; put the value in quotes")
 	}
 	if plainTabsFine(t) {
-		r.acceptTabs(no, whole, 0, len(t))
+		r.acceptTabs(no, whole, 0, len(t), true)
 	}
 	return t, commented, nil
 }
@@ -736,7 +754,7 @@ func (r *reader) quotedValue(t string, no int) (*Node, *SyntaxError) {
 	if err != nil {
 		return nil, err
 	}
-	r.acceptTabs(no, t, 1, next-1)
+	r.acceptTabs(no, t, 1, next-1, false)
 	if err := r.endOfLine(t[next:], no); err != nil {
 		return nil, err
 	}
@@ -751,7 +769,7 @@ func (r *reader) endOfLine(rest string, no int) *SyntaxError {
 		return nil
 	}
 	if trimmed[0] == '#' && len(trimmed) < len(rest) {
-		r.acceptTabs(no, rest, 0, len(rest))
+		r.acceptTabs(no, rest, len(rest)-len(trimmed), len(rest), true) // the text of the comment
 		return nil
 	}
 	return syntax(no, RuleYAML, "unexpected text %q after the end of the value", firstWord(trimmed))

@@ -47,13 +47,11 @@ func TestParseYAMLAccepts(t *testing.T) {
 		{"a document start with a comment", "# c\n--- # c\n\na: 1\n", `{"a":1}`},
 		{"a byte order mark", "\xef\xbb\xbfa: 1\n", `{"a":1}`},
 		{"a byte order mark and a comment", "\xef\xbb\xbf  # c\n  \na: 1\n", `{"a":1}`},
-		{"tabs in comments and at the end of lines", "# a\tb\na: 1\t# c\td\nb: x\t\nc: \"q\"\t\nd: [x]\t \ne:\t\nf: |\t\n  t\ng: 1\n\t# end\n\t\n", `{"a":1,"b":"x","c":"q","d":["x"],"e":null,"f":"t\n","g":1}`},
-		{"tabs in text", "a: \"x\ty\"\nb: 'x\ty'\nc: x\ty\n  z\td\nd: |\n  x\ty\n  \tz\n\"k\tk\": 1\n", `{"a":"x\ty","b":"x\ty","c":"x\ty z\td","d":"x\ty\n\tz\n","k\tk":1}`},
-		{"tabs in a flow collection's quotes and a trailing tab", "a: {\"k\tk\": 'v\tv',\t\n  l: 1}\t\n", `{"a":{"k\tk":"v\tv","l":1}}`},
-		{"a blank line of tabs between entries", "a: 1\n\t\n \t \nb: 2\n", `{"a":1,"b":2}`},
+		{"tabs inside comments", "# a\tb\na: 1 # c\td\nb: x # e\tf\nc: \"q\" #\tg\nd: [x] # h\ti\nf: | # j\tk\n  t\ng: 1\n  # l\tm\n", `{"a":1,"b":"x","c":"q","d":["x"],"f":"t\n","g":1}`},
+		{"tabs in text", "a: \"x\ty\"\nb: 'x\ty'\nc: x\ty\n  z\td\nd: |\n  x\ty  \n  z\t  w\n\"k\tk\": 1\n", `{"a":"x\ty","b":"x\ty","c":"x\ty z\td","d":"x\ty  \nz\t  w\n","k\tk":1}`},
+		{"tabs in a flow collection's quotes", "a: {\"k\tk\": 'v\tv',\n  l: 1}\n", `{"a":{"k\tk":"v\tv","l":1}}`},
+		{"a comment before a block sequence and before a block mapping", "a:\n# c\n  # d\n  - x\n  - y\nb:\n #e\n  c: 1\n", `{"a":["x","y"],"b":{"c":1}}`},
 		{"a signed hexadecimal text and an invalid octal one are strings", "a: -0x1F\nb: 0o89\nc: +0x1\n", `{"a":"-0x1F","b":"0o89","c":"+0x1"}`},
-		{"a tab in a comment line and on a blank line after a block scalar's key line", "a: |\n  b\nc: 1\n\t# c\n \t\n# d\te\n", `{"a":"b\n","c":1}`},
-		{"a tab in the text of a comment line right after a block scalar", "a: |\n  b\n# c\td\n", `{"a":"b\n"}`},
 		{"blank lines after a block scalar", "a: |\n  x\n\n  \n\nb: 1\n", `{"a":"x\n","b":1}`},
 		{"line ends of CRLF", "a: 1\r\nb: |\r\n  x\r\n  y\r\nc: [1,\r\n  2]\r\n", `{"a":1,"b":"x\ny\n","c":[1,2]}`},
 		{"no final line break", "a: 1", `{"a":1}`},
@@ -113,7 +111,7 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"UTF-16 with a byte order mark", "\xff\xfea\x00:\x00", RuleYAMLEncoding, 1, "not UTF-8"},
 		{"a NUL character", "a: 1\x00\n", RuleYAMLEncoding, 1, "NUL"},
 		{"a lone carriage return", "a: 1\nb: 2\rc: 3\n", RuleYAMLLineEnding, 2, "carriage return"},
-		{"a tab as indentation", "a:\n\tb: 1\n", RuleYAMLTab, 2, "not as indentation"},
+		{"a tab as indentation", "a:\n\tb: 1\n", RuleYAMLTab, 2, "not in indentation"},
 		{"a tab after a dash in a sequence", "- a\n-\tb\n", RuleYAMLTab, 2, "after a dash"},
 		{"a tab after a dash in a mapping", "a: 1\n-\tb\n", RuleYAMLTab, 2, "after a dash"},
 		{"a tab after a dash as a block", "a:\n  -\tb\n", RuleYAMLTab, 2, "after a dash"},
@@ -122,13 +120,28 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"a tab after the colon of a quoted key", "\"a\":\tb\n", RuleYAMLTab, 1, "after a colon"},
 		{"a tab between a quoted key and its colon", "\"a\"\t: b\n", RuleYAMLTab, 1, "between a key and its colon"},
 		{"a quoted key glued to a value", "\"a\":b\n", RuleYAML, 1, "unexpected text"},
+		{"a tab at the end of a line", "a: x\t\n", RuleYAMLTab, 1, "not read"},
+		{"a tab at the end of a quoted value", "a: \"x\"\t\n", RuleYAMLTab, 1, "not read"},
+		{"a tab before a comment", "a: x\t# c\n", RuleYAMLTab, 1, "before a #"},
+		{"a tab at the end of a comment", "a: x # c\t\n", RuleYAMLTab, 1, "not read"},
+		{"a tab at the end of a whole-line comment", "# c\t\na: 1\n", RuleYAMLTab, 1, "not read"},
+		{"a tab right after the indentation of block text", "a: |\n  \tb\n", RuleYAMLTab, 2, "not read"},
+		{"a tab at the end of block text", "a: |\n  b\t\n", RuleYAMLTab, 2, "not read"},
+		{"a tab in the indentation of a comment line", "a: 1\n\t# c\nb: 2\n", RuleYAMLTab, 2, "not read"},
+		{"a line of a tab", "a: 1\n\t\nb: 2\n", RuleYAMLTab, 2, "not read"},
+		{"a line of a tab at the end, without a line break", "a: 1\n\t", RuleYAMLTab, 2, "not read"},
+		{"a comment between a key and its plain value", "a:\n# c\n  one\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
+		{"a comment between a dash and its plain value", "-\n  # c\n  one\n- two\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
+		{"a comment between a key and its quoted value", "a:\n  # c\n  \"one\"\n", RuleYAMLUnsupported, 3, "comment line between"},
+		{"a comment between a key and its flow value", "a:\n  # c\n  [one]\n", RuleYAMLUnsupported, 3, "comment line between"},
+		{"a comment inside a flow collection at the left margin", "a: [x,\n#c\n  y]\n", RuleYAMLUnsupported, 2, "comments inside [ ]"},
 		{"a tab in a plain key", "a\tb: 1\n", RuleYAMLTab, 1, "not read"},
 		{"a tab at the start of a plain value", "a: \tb\n", RuleYAMLTab, 1, "not read"},
 		{"a tab next to a colon inside a plain value", "a: b:\tc\n", RuleYAMLTab, 1, "not read"},
 		{"a tab in a flow collection", "a: [b,\tc]\n", RuleYAMLTab, 1, "accepted in quotes only"},
 		{"a tab in a flow mapping", "a: {b:\tc}\n", RuleYAMLTab, 1, "accepted in quotes only"},
 		{"a tab in the indentation of a flow line", "a: [b,\n\tc]\n", RuleYAML, 2, "must be indented more"},
-		{"a line of tabs inside a plain value that continues", "a: b\n\t\n  c\n", RuleYAMLTab, 2, "blank line inside a plain value"},
+		{"a line of tabs inside a plain value that continues", "a: b\n\t\n  c\n", RuleYAMLTab, 2, "not read"},
 		{"a line that holds a tab inside a block scalar", "a: |\n  b\n  \t\n  c\n", RuleYAMLTab, 3, "not read"},
 		{"a tab in the indentation of a comment line after a block scalar", "a: |\n  b\n\t# c\n", RuleYAMLTab, 3, "not read"},
 		{"a blank line of a tab after a block scalar and a comment", "a: |\n  b\n# c\n\t\n", RuleYAMLTab, 4, "not read"},
@@ -360,4 +373,34 @@ func nestedMaps(levels int) string {
 		sb.WriteString(strings.Repeat(" ", i) + "a:\n")
 	}
 	return sb.String()
+}
+
+// The tab bookkeeping is one pass: the characters it looks at are counted, for
+// documents in which every tab is read and for ones in which the first is not,
+// at two sizes. A walk back over the lines for every tab (quadratic: 80,000
+// lines of tabs took half a minute) would show as four times the steps for
+// twice the lines.
+func TestTabsAreCheckedInOnePass(t *testing.T) {
+	t.Parallel()
+	docs := map[string]func(n int) string{
+		"the text of a block scalar": func(n int) string { return "a: |\n" + strings.Repeat("  x\ty\n", n) },
+		"comments":                   func(n int) string { return strings.Repeat("# x\ty\n", n) + "a: 1\n" },
+		"a quoted scalar":            func(n int) string { return "a: \"" + strings.Repeat("x\ty", n) + "\"\n" },
+		"plain scalar lines":         func(n int) string { return "a: x\ty\n" + strings.Repeat("  x\ty\n", n) },
+		"lines of tabs":              func(n int) string { return "a: 1\n" + strings.Repeat("\t\n", n) },
+		"tab comment lines":          func(n int) string { return "a: |\n  x\n" + strings.Repeat("\t# c\n", n) },
+		"tab-ended lines":            func(n int) string { return strings.Repeat("a: 1\t\n", n) },
+	}
+	for name, doc := range docs {
+		_, _, small := parseYAML([]byte(doc(5_000)))
+		_, _, large := parseYAML([]byte(doc(10_000)))
+		if large > small*5/2+100 || large > 10_000*40 {
+			t.Errorf("%s: %d steps for 5,000 lines, %d for 10,000: the work must grow in step with the file", name, small, large)
+		}
+	}
+	// A file at the size limit, all of it lines of tabs, is refused at the first.
+	node, err, steps := parseYAML([]byte("a: 1\n" + strings.Repeat("\t\n", (MaxFileBytes-5)/2)))
+	if node != nil || err == nil || err.Rule != RuleYAMLTab || err.Line != 2 || steps > 100 {
+		t.Fatalf("a file of lines of tabs: %v, %v after %d steps", node, err, steps)
+	}
 }

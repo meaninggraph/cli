@@ -1,0 +1,5 @@
+{
+  "description": "A tab-indented comment line right after a block scalar header that has no text.",
+  "expect": "refuse",
+  "rule": "yaml-tab"
+}

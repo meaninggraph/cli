@@ -129,6 +129,10 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-comment-before-nested-collection": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-comments-and-flow": {
       "verdict": "accept",
       "problems": []
@@ -186,14 +190,6 @@
       "problems": []
     },
     "accept-yaml-signed-hex-is-a-string": {
-      "verdict": "accept",
-      "problems": []
-    },
-    "accept-yaml-tab-at-end-of-line": {
-      "verdict": "accept",
-      "problems": []
-    },
-    "accept-yaml-tab-comment-line-between-entries": {
       "verdict": "accept",
       "problems": []
     },
@@ -1257,6 +1253,20 @@
         "All mapping items must start at the same column at line 2, column 1:"
       ]
     },
+    "refuse-yaml-comment-between-key-and-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 6, column 3:"
+      ]
+    },
+    "refuse-yaml-comment-between-key-and-scalar-in-a-concept": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 11, column 7:"
+      ]
+    },
     "refuse-yaml-duplicate-key": {
       "verdict": "refuse",
       "crashed": true,
@@ -1324,6 +1334,20 @@
         "Block scalar lines must not be less indented than their first line at line 12, column 1:"
       ]
     },
+    "refuse-yaml-tab-comment-after-empty-block-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Block scalar values in collections must be indented at line 6, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-comment-between-key-and-scalar": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Implicit keys need to be on a single line at line 11, column 7:"
+      ]
+    },
     "refuse-yaml-tab-comment-line-after-block-scalar": {
       "verdict": "refuse",
       "crashed": true,
@@ -1343,6 +1367,20 @@
       "crashed": true,
       "problems": [
         "Tabs are not allowed as indentation at line 10, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-line-after-key-without-value": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 6, column 1:"
+      ]
+    },
+    "refuse-yaml-tab-only-last-line-after-comment": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "Tabs are not allowed as indentation at line 11, column 1:"
       ]
     },
     "refuse-yaml-two-documents": {
@@ -1389,6 +1427,10 @@
       "problems": []
     },
     "stricter-yaml-bom-inside-text": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-comment-between-dash-and-scalar": {
       "verdict": "accept",
       "problems": []
     },
@@ -1489,7 +1531,15 @@
       "verdict": "accept",
       "problems": []
     },
+    "stricter-yaml-tab-at-end-of-line": {
+      "verdict": "accept",
+      "problems": []
+    },
     "stricter-yaml-tab-before-comment-key-colon": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-comment-line": {
       "verdict": "accept",
       "problems": []
     },
