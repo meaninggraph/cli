@@ -1,0 +1,10 @@
+# Build and test output
+/dist/
+/cover.out
+/meaninggraph
+/covergate
+*.test
+# Local worktree metadata
+.worktree.md
+.wb/
+.wb-worklog/

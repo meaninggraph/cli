@@ -1,0 +1,43 @@
+name: CI
+
+# Pull requests and main. The `test` job is the quality gate: formatting, vet,
+# every test with the race detector, and 100% statement coverage. The gate
+# compares covered with total statements in the cover profile, exactly; there
+# is no threshold to set. The release workflow refuses to release a commit this
+# workflow did not pass (require_workflow_success: CI), so nothing uncovered
+# can ship.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Only a superseded pull-request run is cancelled: cancelling a run on main
+  # would make the release guard see a cancelled CI.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Format, vet, test, coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Module files are tidy
+        run: go mod tidy -diff
+      - name: Test with the race detector
+        run: go test -race -covermode=atomic -coverprofile=cover.out ./...
+      - name: Every statement is covered
+        run: go run ./cmd/covergate cover.out
