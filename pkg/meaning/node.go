@@ -126,7 +126,7 @@ var yamlLine = regexp.MustCompile(`^(?:yaml: )?(?:line (\d+): )?`)
 // ParseYAML parses one YAML document. An empty file is a Null node. Several
 // documents, duplicate keys, keys that are not scalars, tags other than
 // !!str, and numbers that are not finite are refused.
-func ParseYAML(data []byte) (*Node, error) {
+func ParseYAML(data []byte) (*Node, *SyntaxError) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	var doc yaml.Node
 	if err := dec.Decode(&doc); errors.Is(err, io.EOF) {
@@ -149,7 +149,7 @@ func syntaxError(err error) *SyntaxError {
 	return &SyntaxError{Line: line, Message: text[len(loc[0]):]}
 }
 
-func convert(n *yaml.Node, budget *int) (*Node, error) {
+func convert(n *yaml.Node, budget *int) (*Node, *SyntaxError) {
 	if *budget--; *budget < 0 {
 		return nil, &SyntaxError{Line: n.Line, Message: "the document is too large once aliases are expanded"}
 	}
@@ -172,7 +172,7 @@ func convert(n *yaml.Node, budget *int) (*Node, error) {
 	return convertScalar(n)
 }
 
-func convertMap(n *yaml.Node, budget *int) (*Node, error) {
+func convertMap(n *yaml.Node, budget *int) (*Node, *SyntaxError) {
 	out := &Node{Kind: Map, Line: n.Line, Fields: map[string]*Node{}}
 	for i := 0; i < len(n.Content); i += 2 {
 		keyNode := n.Content[i]
@@ -204,7 +204,7 @@ var (
 	yamlInf   = regexp.MustCompile(`^[-+]?\.(?:inf|Inf|INF)$|^\.(?:nan|NaN|NAN)$`)
 )
 
-func convertScalar(n *yaml.Node) (*Node, error) {
+func convertScalar(n *yaml.Node) (*Node, *SyntaxError) {
 	out := &Node{Line: n.Line, Kind: String, Text: n.Value}
 	if n.Style&yaml.TaggedStyle != 0 {
 		if n.ShortTag() != "!!str" {

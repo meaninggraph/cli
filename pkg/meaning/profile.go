@@ -1,0 +1,127 @@
+package meaning
+
+import (
+	"path/filepath"
+	"strings"
+)
+
+// hiddenFiles reports meaning files below the root of the graph's directory:
+// they are never read, so they would be silently dead. A file is an error
+// under the universal profile, which the reference checker fails on, and
+// otherwise a warning.
+func (r *run) hiddenFiles() {
+	severity := Warning
+	if r.c.Profile == ProfileUniversal {
+		severity = Error
+	}
+	for _, path := range subdirectoryFiles(r.c.FS, r.local.Dir, "") {
+		r.add(path, 0, RuleSubdirectoryFile, severity, "meaning files are read from the repository root only; move it there")
+	}
+}
+
+// subdirectoryFiles lists the *.meaning.yaml files below dir (those in dir itself
+// are not listed), skipping directories whose name starts with "." and
+// node_modules. A directory that cannot be read is skipped.
+func subdirectoryFiles(fsys FS, dir, prefix string) []string {
+	entries, err := fsys.ReadDir(filepath.Join(dir, prefix))
+	if err != nil {
+		return nil
+	}
+	var found []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") || name == "node_modules" {
+			continue
+		}
+		path := filepath.Join(prefix, name)
+		switch {
+		case entry.IsDir():
+			found = append(found, subdirectoryFiles(fsys, dir, path)...)
+		case prefix != "" && strings.HasSuffix(name, FileSuffix):
+			found = append(found, filepath.Join(dir, path))
+		}
+	}
+	return found
+}
+
+// universal applies the rules of a repository of universal concepts.
+func (r *run) universal() {
+	g := r.local
+	if g.Dir != "" && !g.hasLicense {
+		r.add(g.Dir, 0, RuleUniversal, Error, "LICENSE is missing")
+	}
+	for _, f := range g.Files {
+		if f.ParseErr != nil {
+			continue
+		}
+		if f.License != "CC0-1.0" {
+			r.err(f, f.Root.Field("license").lineOr(f.Root.Line), RuleUniversal, "license must be CC0-1.0")
+		}
+		if f.Root.Field("models") != nil {
+			r.err(f, f.Root.Field("models").Line, RuleUniversal, "models belong in a dataset repository, not in the universal concepts")
+		}
+		for _, c := range f.Concepts {
+			if len(c.Bindings) > 0 {
+				r.err(f, c.lineOf("bindings"), RuleUniversal, "concept %s: bindings belong in a dataset repository, not in the universal concepts", c.ID)
+			}
+		}
+	}
+	r.oneWordOneConcept()
+}
+
+// lineOr is the line of the node, or def when it is nil.
+func (n *Node) lineOr(def int) int {
+	if n == nil {
+		return def
+	}
+	return n.Line
+}
+
+// oneWordOneConcept: a label or synonym that two concepts share in a language
+// is ambiguous, unless one concept is a kind of the other. A language counts
+// when the concept has a label or synonyms in it.
+func (r *run) oneWordOneConcept() {
+	owners := map[string][]*Concept{}
+	for _, f := range r.local.Files {
+		for _, c := range f.Concepts {
+			if r.local.Concepts[c.ID].Concept != c {
+				continue // a duplicate declaration is reported on its own
+			}
+			r.ownWords(f, c, owners)
+		}
+	}
+}
+
+func (r *run) ownWords(f *File, c *Concept, owners map[string][]*Concept) {
+	languages := map[string]bool{}
+	for lang := range c.Labels {
+		languages[lang] = true
+	}
+	for lang := range c.Synonyms {
+		languages[lang] = true
+	}
+	for _, lang := range sortedKeys(languages) {
+		words := append([]string{c.Labels[lang]}, c.Synonyms[lang]...)
+		for _, word := range words {
+			if word == "" {
+				continue
+			}
+			key := lang + ":" + lower(word)
+			for _, other := range owners[key] {
+				if !r.related(c, other) {
+					r.err(f, c.Line, RuleAmbiguousWord, "concept %s: %q (%s) is also a word of concept %s; one word must name one concept", c.ID, word, lang, other.ID)
+				}
+			}
+			owners[key] = append(owners[key], c)
+		}
+	}
+}
+
+// related reports whether one concept is a kind of the other, or the same.
+func (r *run) related(a, b *Concept) bool {
+	return r.kindOf(a, b) || r.kindOf(b, a)
+}
+
+func (r *run) kindOf(c, ancestor *Concept) bool {
+	return seenConcept(r.lineage(c, r.local), ancestor)
+}
