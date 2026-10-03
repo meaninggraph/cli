@@ -6,7 +6,13 @@
 //
 // The mutations act on the text of the files (insert, delete, swap, break a
 // line, add a tab, a carriage return, a quote, a ?, a tag ...), so most of what
-// they find is YAML and HCL syntax. Same seed, same mutants.
+// they find is YAML and HCL syntax. Beside the random text mutations, three
+// families are generated on purpose, because random mutation does not reach
+// them: the ends of block scalars at the end of a file (every chomping style,
+// every kind of last line: spaces, tabs, comments, line ends), byte order marks
+// before every kind of first line, tabs in every position, and the names of
+// JavaScript's Object.prototype in every name position of a model (block names,
+// attribute names, bindings). Same seed, same mutants.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -57,6 +63,80 @@ function mutateText(text, fragments) {
   return t;
 }
 
+const protoNames = ['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__', 'constructor', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString', 'toString', 'valueOf'];
+
+// protoModel puts a name of Object.prototype into the model in a name position:
+// the name of an entity, property, component, enum or field, an attribute name in
+// any block (also a new attribute), or, in the meaning file, in a binding.
+function protoModel(hcl, meaning) {
+  let model = hcl;
+  let bindings = meaning;
+  const name = () => pick(protoNames);
+  const ops = [
+    () => { const all = [...model.matchAll(/\b(entity|property|component|enum|field)\s+"([^"]+)"/g)]; if (all.length) { const m = pick(all); model = model.slice(0, m.index) + m[0].replace(/"[^"]+"/, `"${name()}"`) + model.slice(m.index + m[0].length); } },
+    () => { const all = [...model.matchAll(/^(\s*)(key|type|entity|required|use|values|enum|component)(\s*=)/gm)]; if (all.length) { const m = pick(all); model = model.slice(0, m.index) + `${m[1]}${name()}${m[3]}` + model.slice(m.index + m[0].length); } },
+    () => { const all = [...model.matchAll(/\{[ \t]*\n/g)]; if (all.length) { const m = pick(all); model = model.slice(0, m.index + m[0].length) + `  ${name()} = ${pick(['1', 'true', '"x"', '["a"]'])}\n` + model.slice(m.index + m[0].length); } },
+    () => { const all = [...model.matchAll(/\{([^{}\n]*)\}/g)].filter((m) => m[1].includes('=')); if (all.length) { const m = pick(all); model = model.slice(0, m.index) + `{ ${name()} = 1, ${m[1].trim()} }`.replace(', ', '\n') + model.slice(m.index + m[0].length); } },
+    () => { bindings = bindings.replace(/chinook\.[A-Za-z]+/, `chinook.${name()}`); },
+    () => { bindings = bindings.replace(/property: [A-Za-z]+/, `property: ${name()}`); },
+  ];
+  for (let n = 1 + int(2); n > 0; n--) pick(ops)();
+  return { model, meaning: bindings };
+}
+
+const blockStyles = ['|', '>', '|-', '>-', '|+', '>+', '|2', '>-2', '|+2', '|2-', '|1', '>2'];
+const blockLines = ['', 'text', 'more words here', ' indented', '  more indented', '# looks like a comment', 'x   ', 'a: b', '- not a list', '"quoted"', '\ttab inside', 'tab\tinside', ' \ttab after space'];
+// An ending for the file after the last line of the scalar: whitespace and
+// comments of every kind.
+function blockEnding(indent) {
+  const spaces = (k) => ' '.repeat(k);
+  return pick(['', '\n', '\n\n', '\n\n\n', `\n${spaces(indent)}`, `\n${spaces(indent + 1 + int(4))}`, `\n${spaces(int(indent))}`, `\n\n${spaces(int(indent + 4))}`, `\n${spaces(int(indent + 4))}\n`, '\n\t', '\n\t\n', `\n${spaces(indent)}\t`, `\n${spaces(indent)}\t\n`, '\n# end', `\n${spaces(indent)}# end`, '\n# end\n', '\r\n', `\r\n${spaces(indent + 2)}`, `\r\n${spaces(indent)}`, '\n\r\n', ' ', '\t', '\n  ', '\n    ', '\n      ', '\n        ']);
+}
+const conceptHead = 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n';
+function blockScalarFile() {
+  const key = pick(['description', 'description', 'name']);
+  const indent = pick([6, 6, 8, 5, 4 + 2]);
+  const lines = Array.from({ length: 1 + int(4) }, () => pick(blockLines));
+  const body = lines.map((l) => (l === '' ? '' : `${' '.repeat(indent)}${l}`)).join('\n');
+  const scalar = `    ${key === 'name' ? 'description' : key}: ${pick(blockStyles)}${pick(['', '', '', ' # c', '\t'])}\n${body}`;
+  const first = `  - id: a\n    kind: entity\n    labels: {en: a}\n`;
+  const next = pick(['', '', `\n  - id: b\n    kind: entity\n    labels: {en: b}\n    description: d`]);
+  return conceptHead + first + scalar + blockEnding(indent) + next;
+}
+
+// bomFile puts a byte order mark before the first line of a document, which may
+// have been indented, started by a comment, a blank line or ---.
+function bomFile(text) {
+  const shift = pick([0, 0, 1, 2, 3]);
+  const lines = text.split('\n').map((l) => (shift && l ? ' '.repeat(shift) + l : l));
+  const first = pick(['', '', '', '# c\n', '  # c\n', '\n', '---\n', '  \n', '\t# c\n', '- a\n']);
+  return pick(['\ufeff', '\ufeff', '\ufeff', '']) + first + lines.join('\n');
+}
+
+// tabFile puts tabs into a document: in indentation, after a colon or a dash,
+// at the ends of lines, before comments, in values, on blank lines.
+function tabFile(text) {
+  let t = text;
+  const lines = () => t.split('\n');
+  const ops = [
+    () => { const l = lines(); const i = int(l.length); l[i] = '\t' + l[i]; t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/^( *)/, (m) => m.slice(0, int(m.length + 1)) + '\t' + m.slice(0, 0)); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] += '\t'.repeat(1 + int(2)); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/: /, ':\t'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/- /, '-\t'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/ /, '\t'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/ #/, '\t#'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/([a-z])([a-z])/, '$1\t$2'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l.splice(i, 0, pick(['\t', ' \t', '\t ', '\t# c', '  \t# c', '\t\t'])); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/\{ ?/, (m) => m + '\t'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/,/, ',\t'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/(")([^"]+)(")/, '$1\t$2\t$3'); t = l.join('\n'); },
+    () => { const l = lines(); const i = int(l.length); l[i] = l[i].replace(/\]/, '\t]'); t = l.join('\n'); },
+  ];
+  for (let n = 1 + int(3); n > 0; n--) pick(ops)();
+  return t;
+}
+
 const read = (path) => readFileSync(path, 'utf8');
 const coreFiles = readdirSync(core).filter((n) => n.endsWith('.meaning.yaml')).sort();
 const chinookMeaning = read(join(chinook, 'model/chinook.meaning.yaml'));
@@ -74,7 +154,7 @@ for (let i = 0; i < count; i++) {
   mkdirSync(dir);
   let item;
   let mutatedYAML = null;
-  switch (i % 4) {
+  switch (i % 8) {
     case 0: { // a core file mutated, the others intact; checked as core itself
       const target = pick(coreFiles);
       for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? mutateText(read(join(core, file)), yamlFragments) : read(join(core, file)));
@@ -95,6 +175,61 @@ for (let i = 0; i < count; i++) {
       writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), chinookMeaning);
       writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), mutateText(chinookModel, hclFragments));
       item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      break;
+    }
+    case 3: { // the names of Object.prototype in every name position of the Chinook model and its bindings
+      mkdirSync(join(dir, 'model'));
+      const changed = protoModel(chinookModel, chinookMeaning);
+      writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), changed.meaning);
+      writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), changed.model);
+      mutatedYAML = 'model/chinook.meaning.yaml';
+      item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      break;
+    }
+    case 4: { // a block scalar at the end of a file, in every style and with every ending
+      writeFileSync(join(dir, 'demo.meaning.yaml'), blockScalarFile());
+      mutatedYAML = 'demo.meaning.yaml';
+      item = {};
+      break;
+    }
+    case 5: { // a byte order mark, and a first line of every kind, before a core file, the Chinook file or a block scalar file
+      const choice = int(3);
+      if (choice === 0) {
+        const target = pick(coreFiles);
+        for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? bomFile(read(join(core, file))) : read(join(core, file)));
+        mutatedYAML = target;
+        item = { address: CORE };
+      } else if (choice === 1) {
+        mkdirSync(join(dir, 'model'));
+        writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), bomFile(chinookMeaning));
+        writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), chinookModel);
+        mutatedYAML = 'model/chinook.meaning.yaml';
+        item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      } else {
+        writeFileSync(join(dir, 'demo.meaning.yaml'), bomFile(blockScalarFile()));
+        mutatedYAML = 'demo.meaning.yaml';
+        item = {};
+      }
+      break;
+    }
+    case 6: { // tabs in every position of a core file, the Chinook file or a block scalar file
+      const choice = int(3);
+      if (choice === 0) {
+        const target = pick(coreFiles);
+        for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? tabFile(read(join(core, file))) : read(join(core, file)));
+        mutatedYAML = target;
+        item = { address: CORE };
+      } else if (choice === 1) {
+        mkdirSync(join(dir, 'model'));
+        writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), tabFile(chinookMeaning));
+        writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), chinookModel);
+        mutatedYAML = 'model/chinook.meaning.yaml';
+        item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      } else {
+        writeFileSync(join(dir, 'demo.meaning.yaml'), tabFile(blockScalarFile()));
+        mutatedYAML = 'demo.meaning.yaml';
+        item = {};
+      }
       break;
     }
     default: { // a corpus item with one of its files mutated
