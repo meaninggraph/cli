@@ -236,8 +236,8 @@ func (f *flow) plain() string {
 	if text == "" {
 		return ""
 	}
-	if strings.Contains(text, "\t") {
-		f.fail(RuleYAMLTab, "a tab inside [ ] or { } is accepted in quotes only; use spaces")
+	if tab := strings.IndexByte(text, '\t'); tab >= 0 {
+		panic(flowFailure{tabError(f.no(), raw, f.ci+tab, "a tab inside [ ] or { } is accepted in quotes only; use spaces")})
 	}
 	if first := text[0]; (first == '-' || first == '?' || first == ':') && (len(text) == 1 || text[1] == ' ') {
 		return ""

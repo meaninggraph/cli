@@ -3,6 +3,7 @@ package meaning
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -131,10 +132,11 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"a tab in the indentation of a comment line", "a: 1\n\t# c\nb: 2\n", RuleYAMLTab, 2, "not read"},
 		{"a line of a tab", "a: 1\n\t\nb: 2\n", RuleYAMLTab, 2, "not read"},
 		{"a line of a tab at the end, without a line break", "a: 1\n\t", RuleYAMLTab, 2, "not read"},
-		{"a comment between a key and its plain value", "a:\n# c\n  one\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
-		{"a comment between a dash and its plain value", "-\n  # c\n  one\n- two\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
-		{"a comment between a key and its quoted value", "a:\n  # c\n  \"one\"\n", RuleYAMLUnsupported, 3, "comment line between"},
-		{"a comment between a key and its flow value", "a:\n  # c\n  [one]\n", RuleYAMLUnsupported, 3, "comment line between"},
+		{"a comment between a key and its plain value", "a:\n# c\n  one\n", RuleYAMLUnsupported, 2, "comment line between a key (or a dash) and the value that starts on a later line (line 3)"},
+		{"a comment between a dash and its plain value", "-\n  # c\n  one\n- two\n", RuleYAMLUnsupported, 2, "comment line between a key (or a dash) and the value that starts on a later line (line 3)"},
+		{"a comment between a key and its quoted value", "a:\n  # c\n  \"one\"\n", RuleYAMLUnsupported, 2, "comment line between"},
+		{"a comment between a key and its flow value", "a:\n  # c\n  [one]\n", RuleYAMLUnsupported, 2, "comment line between"},
+		{"a comment between a key and its value is named by its own line", "a: 1\nb:\n\n  # old wording\n  # more\n\n  text\nc: 2\n", RuleYAMLUnsupported, 4, "(line 7)"},
 		{"a comment inside a flow collection at the left margin", "a: [x,\n#c\n  y]\n", RuleYAMLUnsupported, 2, "comments inside [ ]"},
 		{"a tab in a plain key", "a\tb: 1\n", RuleYAMLTab, 1, "not read"},
 		{"a tab at the start of a plain value", "a: \tb\n", RuleYAMLTab, 1, "not read"},
@@ -403,6 +405,52 @@ func TestTabsAreCheckedInOnePass(t *testing.T) {
 	node, err, steps := parseYAML([]byte("a: 1\n" + strings.Repeat("\t\n", (MaxFileBytes-5)/2)))
 	if node != nil || err == nil || err.Rule != RuleYAMLTab || err.Line != 2 || steps > 100 {
 		t.Fatalf("a file of lines of tabs: %v, %v after %d steps", node, err, steps)
+	}
+}
+
+// A tab is invisible, so the finding says where it is: the column, counted in
+// characters from 1 (a tab is one), in the message and in SyntaxError.Column.
+func TestYAMLTabNamesItsColumn(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, text   string
+		line, column int
+	}{
+		{"at the end of a line", "a: x\t\n", 1, 5},
+		{"at the end of a line with CRLF", "a: x\t\r\n", 1, 5},
+		{"after non-ASCII text", "\u00e9: x\t\n", 1, 5},
+		{"in indentation", "a:\n  b: 1\n\tc: 2\n", 3, 1},
+		{"in the indentation of a comment line", "a: 1\n  \t# c\n", 2, 3},
+		{"on a line of its own", "a: 1\n\t\n", 2, 1},
+		{"after a dash", "- a\n-\tb\n", 2, 2},
+		{"after an indented dash", "a:\n  -\tb\n", 2, 4},
+		{"after the dash of a value", "a: -\tb\n", 1, 5},
+		{"after a colon", "a:\tb\n", 1, 3},
+		{"after the colon of a quoted key", "\"a\":\tb\n", 1, 5},
+		{"after the colon of a key on a dash line", "- a:\tb\n", 1, 5},
+		{"between a quoted key and its colon", "\"a\"\t: b\n", 1, 4},
+		{"before a comment", "a: x\t# c\n", 1, 5},
+		{"at the end of a comment", "a: x # c\t\n", 1, 9},
+		{"at the end of the comment of a key", "a: # note\t\n", 1, 10},
+		{"before the comment of a key", "a:\t# note\n", 1, 3},
+		{"in a flow sequence", "a: [b,\tc]\n", 1, 7},
+		{"in a plain flow value", "a: [bb\tc]\n", 1, 7},
+		{"in a flow collection after non-ASCII text", "\u00e9: [\u00e9\tc]\n", 1, 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := ParseYAML([]byte(tc.text))
+			if err == nil || err.Rule != RuleYAMLTab || err.Line != tc.line || err.Column != tc.column {
+				t.Fatalf("got %+v, want %s at line %d column %d", err, RuleYAMLTab, tc.line, tc.column)
+			}
+			if want := fmt.Sprintf("column %d: ", tc.column); !strings.HasPrefix(err.Message, want) {
+				t.Fatalf("message %q does not begin with %q", err.Message, want)
+			}
+		})
+	}
+	// A problem that is not a tab has no column.
+	if _, err := ParseYAML([]byte("a: 1\na: 2\n")); err == nil || err.Column != 0 {
+		t.Fatalf("got %+v", err)
 	}
 }
 

@@ -76,9 +76,13 @@ const (
 )
 
 // SyntaxError is a problem with the YAML of a file: Rule says which rule of the
-// subset (or of YAML itself) it breaks, Line where, 0 when not known.
+// subset (or of YAML itself) it breaks, Line where, 0 when not known. A tab
+// that is refused (RuleYAMLTab) also has its Column, counted in characters from
+// 1, a tab being one character, and the message starts with it; for any other
+// problem Column is 0.
 type SyntaxError struct {
 	Line    int
+	Column  int
 	Rule    string
 	Message string
 }
@@ -87,6 +91,15 @@ func (e *SyntaxError) Error() string { return e.Message }
 
 func syntax(line int, rule, format string, args ...any) *SyntaxError {
 	return &SyntaxError{Line: line, Rule: rule, Message: fmt.Sprintf(format, args...)}
+}
+
+// tabError is a yaml-tab error for the tab at byte i of the line raw, of line
+// number line: a tab is invisible, so the message begins with its column.
+func tabError(line int, raw string, i int, format string, args ...any) *SyntaxError {
+	column := utf8.RuneCountInString(raw[:i]) + 1
+	err := syntax(line, RuleYAMLTab, "column %d: "+format, append([]any{column}, args...)...)
+	err.Column = column
+	return err
 }
 
 // ParseYAML reads one document of the subset described above. An empty file
@@ -241,12 +254,24 @@ func (r *reader) markTabs(index, from, to int) { r.mark(index, from, to, false) 
 // acceptTabs marks the tabs of t[from:to], where t is a piece of the line
 // number no that ends the line (or ends it but for blanks).
 func (r *reader) acceptTabs(no int, t string, from, to int, interior bool) {
-	raw := r.original[no-1]
-	base := len(raw) - len(t)
-	if !strings.HasSuffix(raw, t) {
-		base = len(strings.TrimRight(raw, " \t")) - len(t)
-	}
+	base := r.base(no, t)
 	r.mark(no-1, base+from, base+to, interior)
+}
+
+// base is the byte index in line number no where t starts, t being the end of
+// the line or the end of it but for blanks.
+func (r *reader) base(no int, t string) int {
+	raw := r.original[no-1]
+	if strings.HasSuffix(raw, t) {
+		return len(raw) - len(t)
+	}
+	return len(strings.TrimRight(raw, " \t")) - len(t)
+}
+
+// tabAt is the yaml-tab error for the tab at byte i of t, a piece of line
+// number no that ends the line (or ends it but for blanks).
+func (r *reader) tabAt(no int, t string, i int, format string, args ...any) *SyntaxError {
+	return tabError(no, r.original[no-1], r.base(no, t)+i, format, args...)
 }
 
 // checkTabs refuses the first tab that was not read as text.
@@ -259,7 +284,7 @@ func (r *reader) checkTabs() *SyntaxError {
 		for col := 0; col < len(raw); col++ {
 			r.steps++
 			if raw[col] == '\t' && (ok == nil || !ok[col]) {
-				return syntax(i+1, RuleYAMLTab, "a tab here is not read: tabs are accepted inside quotes, in a comment after the #, and between two characters of plain and block text, but not in indentation, alone on a line, before a #, at the end of a line or between tokens; use spaces")
+				return tabError(i+1, raw, col, "a tab here is not read: tabs are accepted inside quotes, in a comment after the #, and between two characters of plain and block text, but not in indentation, alone on a line, before a #, at the end of a line or between tokens; use spaces")
 			}
 		}
 	}
@@ -338,8 +363,10 @@ func isSeqEntry(t string) bool { return t == "-" || strings.HasPrefix(t, "- ") }
 // followed by a tab, which the subset does not read.
 func dashTab(t string) bool { return strings.HasPrefix(t, "-\t") }
 
-func dashTabError(no int) *SyntaxError {
-	return syntax(no, RuleYAMLTab, "a tab after a dash is not accepted; use a space")
+// dashTabError is the error for the tab of "-<tab>" at the start of the text t
+// of line no.
+func (r *reader) dashTabError(no int, t string) *SyntaxError {
+	return r.tabAt(no, t, 1, "a tab after a dash is not accepted; use a space")
 }
 
 // nested reads the value that follows a key or a dash with nothing after it but
@@ -355,11 +382,11 @@ func (r *reader) nested(no, p int, seqSame bool, comment string) (*Node, *Syntax
 	l := r.cur()
 	switch {
 	case l.indent > p:
-		if r.commentBetween(from) && !r.startsCollection(l) {
+		if comment := r.commentBetween(from); comment > 0 && !r.startsCollection(l) {
 			// The reference parser's lexer lowers the indentation of what follows
 			// a comment line in this place (by the comment's layout), and the lines
 			// of the scalar that follows are read as part of it or refused.
-			return nil, syntax(l.no, RuleYAMLUnsupported, "a comment line between a key (or a dash) and the value that starts on a later line is not supported; move the comment above the key")
+			return nil, syntax(comment, RuleYAMLUnsupported, "a comment line between a key (or a dash) and the value that starts on a later line (line %d) is not supported; move this comment above the key", l.no)
 		}
 		return r.block(p)
 	case seqSame && l.indent == p && isSeqEntry(l.text()):
@@ -368,15 +395,15 @@ func (r *reader) nested(no, p int, seqSame bool, comment string) (*Node, *Syntax
 	return nullAt(no), nil
 }
 
-// commentBetween says that a line from line index from up to the current one is
-// a comment line.
-func (r *reader) commentBetween(from int) bool {
+// commentBetween is the number of the first comment line among the lines from
+// line index from up to the current one, 0 when there is none.
+func (r *reader) commentBetween(from int) int {
 	for _, l := range r.lines[from:r.pos] {
 		if l.comment {
-			return true
+			return l.no
 		}
 	}
-	return false
+	return 0
 }
 
 // startsCollection says that a line starts a block sequence or a block mapping,
@@ -396,7 +423,7 @@ func (r *reader) block(p int) (*Node, *SyntaxError) {
 	defer r.leave()
 	t := l.text()
 	if dashTab(t) {
-		return nil, dashTabError(l.no)
+		return nil, r.dashTabError(l.no, t)
 	}
 	if isSeqEntry(t) {
 		return r.parseSeq(l.indent)
@@ -424,7 +451,7 @@ func (r *reader) parseMap(ind int) (*Node, *SyntaxError) {
 		case l.indent > ind:
 			return nil, syntax(l.no, RuleYAML, "this line is indented more than the other entries of its mapping")
 		case dashTab(t):
-			return nil, dashTabError(l.no)
+			return nil, r.dashTabError(l.no, t)
 		case isSeqEntry(t):
 			return nil, syntax(l.no, RuleYAML, "a sequence entry (-) where a \"key: value\" entry of the mapping is expected")
 		}
@@ -471,7 +498,7 @@ func (r *reader) parseSeq(ind int) (*Node, *SyntaxError) {
 		case l.indent > ind:
 			return nil, syntax(l.no, RuleYAML, "this line is indented more than the other entries of its sequence")
 		case dashTab(t):
-			return nil, dashTabError(l.no)
+			return nil, r.dashTabError(l.no, t)
 		case !isSeqEntry(t):
 			return node, nil
 		}
@@ -517,13 +544,13 @@ func (r *reader) splitKey(t string, no int) (key, rest string, ok bool, err *Syn
 		}
 		after := strings.TrimLeft(t[next:], " ")
 		if strings.HasPrefix(after, "\t") && strings.HasPrefix(strings.TrimLeft(after, " \t"), ":") {
-			return "", "", false, syntax(no, RuleYAMLTab, "a tab between a key and its colon is not accepted; use a space or none")
+			return "", "", false, r.tabAt(no, t, len(t)-len(after), "a tab between a key and its colon is not accepted; use a space or none")
 		}
 		if !strings.HasPrefix(after, ":") {
 			return "", "", false, nil
 		}
 		if len(after) > 1 && after[1] == '\t' {
-			return "", "", false, syntax(no, RuleYAMLTab, "a tab after a colon is not accepted; use a space")
+			return "", "", false, r.tabAt(no, t, len(t)-len(after)+1, "a tab after a colon is not accepted; use a space")
 		}
 		if len(after) > 1 && after[1] != ' ' {
 			return "", "", false, nil
@@ -546,7 +573,7 @@ func (r *reader) splitKey(t string, no int) (key, rest string, ok bool, err *Syn
 		case (t[i] == ' ' || t[i] == '\t') && i+1 < len(t) && t[i+1] == '#':
 			return "", "", false, nil
 		case t[i] == ':' && i+1 < len(t) && t[i+1] == '\t':
-			return "", "", false, syntax(no, RuleYAMLTab, "a tab after a colon is not accepted; use a space")
+			return "", "", false, r.tabAt(no, t, i+1, "a tab after a colon is not accepted; use a space")
 		case t[i] == ':' && (i+1 == len(t) || t[i+1] == ' '):
 			key = strings.TrimRight(t[:i], " ")
 			kind, _, perr := resolvePlain(key, no)
@@ -611,7 +638,7 @@ func (r *reader) value(t string, no, p int, onIndicatorLine bool) (*Node, *Synta
 		return nil, syntax(no, RuleYAML, "a value cannot start with %q; put it in quotes", t[0])
 	case '-', '?', ':':
 		if len(t) > 1 && t[1] == '\t' {
-			return nil, syntax(no, RuleYAMLTab, "a tab after %q is not accepted; use a space", t[0])
+			return nil, r.tabAt(no, t, 1, "a tab after %q is not accepted; use a space", t[0])
 		}
 		if len(t) == 1 || t[1] == ' ' {
 			return nil, syntax(no, RuleYAML, "%q followed by a space cannot start a value here; put the value in quotes", t[0])
