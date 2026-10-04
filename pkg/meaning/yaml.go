@@ -337,7 +337,9 @@ func (r *reader) document() (*Node, *SyntaxError) {
 		return nullAt(1), nil
 	}
 	line := r.cur().no
-	if first := r.cur(); isMarker(first.raw, "---") {
+	if first := r.cur(); strings.HasPrefix(first.raw, "---\t") {
+		return nil, tabError(first.no, first.raw, 3, "a tab after --- is not accepted; use a space")
+	} else if isMarker(first.raw, "---") {
 		rest := strings.TrimSpace(strings.TrimPrefix(first.raw, "---"))
 		if rest != "" && !strings.HasPrefix(rest, "#") {
 			return nil, syntax(first.no, RuleYAMLDocuments, "text on the --- line; start the document on the next line")
@@ -634,6 +636,11 @@ func keyProblem(key string, span, no int) *SyntaxError {
 // dash). p is the indent of the collection that holds it.
 func (r *reader) value(t string, no, p int, onIndicatorLine bool) (*Node, *SyntaxError) {
 	switch t[0] {
+	case '\t':
+		// After "key: " or "- " a tab is not read, and said so here: left to the
+		// plain scalar it would be a null value that a comment ends, and the
+		// error would be the next line's.
+		return nil, r.tabAt(no, t, 0, "a tab here is not read: a value or a comment does not start with a tab; use a space")
 	case '|', '>':
 		if !onIndicatorLine {
 			return nil, syntax(no, RuleYAMLUnsupported, "a block scalar (%c) must start on the line of its key or dash", t[0])
