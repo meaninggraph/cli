@@ -1,0 +1,6 @@
+{
+  "description": "A tab at the end of the comment that follows a key with nothing else on its line.",
+  "expect": "refuse",
+  "rule": "yaml-tab",
+  "stricter": "A tab at the end of a comment is not read by the subset (the tab rule has no context: a tab is read only between the first and the last character of a comment); the reference parser reads it."
+}

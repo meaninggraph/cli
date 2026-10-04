@@ -46,6 +46,13 @@ var refusableBy = map[string][]string{
 	// A key in a flow mapping has no limit for the reference parser, and a key of
 	// many bytes but few UTF-16 units is over the limit here and not there.
 	"key-limit": {RuleYAMLKey},
+	// A tab in the text of a comment on a key, dash or --- line is read; what the
+	// CLI refuses of these documents is a comment line between the key and a
+	// scalar, or a block scalar that starts on the next line, whatever the tab.
+	"tab-in-key-comment": {RuleYAMLUnsupported},
+	// A tab at the end of such a comment, or before its #, is refused by the CLI
+	// and read by the reference parser (stricter), or refused for the other reasons.
+	"tab-at-end-of-key-comment": {RuleYAMLTab, RuleYAMLUnsupported},
 }
 
 // refusalAllowed says whether ParseYAML may refuse an entry that the reference
@@ -91,12 +98,12 @@ type tally struct {
 
 // wantTally is the count the golden file and the reader give today.
 var wantTally = tally{
-	Documents:          10418,
-	ReadByBoth:         5062,
+	Documents:          14074,
+	ReadByBoth:         7163,
 	RefusedByReference: 1511,
 	RefusedByRule: map[string]int{
 		"yaml": 2, "yaml-anchor": 3, "yaml-character": 12, "yaml-directive": 3, "yaml-documents": 2, "yaml-encoding": 7,
-		"yaml-key": 365, "yaml-limit": 1, "yaml-number": 89, "yaml-tab": 1082, "yaml-tag": 3, "yaml-unsupported": 2276,
+		"yaml-key": 365, "yaml-limit": 1, "yaml-number": 89, "yaml-tab": 1923, "yaml-tag": 3, "yaml-unsupported": 2990,
 	},
 }
 

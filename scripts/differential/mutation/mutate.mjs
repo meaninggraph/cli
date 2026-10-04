@@ -17,7 +17,8 @@
 // key or a dash and its value, after a block scalar header, inside a multi-line
 // plain scalar, as the last line with and without a line break, keys at the
 // limit of 1024 as written (plain, quoted, with escapes, doubled quotes, multibyte
-// text, blanks before the colon). Same seed, same mutants.
+// text, blanks before the colon), and comments with tabs after a key, a dash or
+// ---. Same seed, same mutants.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -191,6 +192,21 @@ function keyFile() {
   return int(4) === 0 ? `${key}: X\n${head}` : `${head}          ${key}: X\n`;
 }
 
+// tabCommentFile puts a comment with tabs after the key or the dash of lines that
+// have nothing else after them (`key: # a<TAB>b`), a tab at the end of such a
+// comment, and a comment with tabs after a --- line.
+const tabComments = ['# a\tb', '#\tx', '# note\tmore', '# a\t\tb', '# a \t b', '#\t#', '# k: a\tb', '# a\t- b', '# a\t"b', '# end\t', '#\t', '# a\tb \t'];
+function tabCommentFile(text) {
+  const lines = text.split('\n');
+  const spots = lines.flatMap((l, i) => (/(:|-)$/.test(l) ? [i] : []));
+  for (let n = 1 + int(4); n > 0 && spots.length > 0; n--) {
+    const i = pick(spots);
+    lines[i] = lines[i].replace(/ *(#.*)?$/, '') + pick([' ', ' ', '  ']) + pick(tabComments);
+  }
+  if (int(4) === 0) lines.unshift(pick(['--- ', '---  ', '---']) + pick(tabComments));
+  return lines.join('\n');
+}
+
 const read = (path) => readFileSync(path, 'utf8');
 const coreFiles = readdirSync(core).filter((n) => n.endsWith('.meaning.yaml')).sort();
 const chinookMeaning = read(join(chinook, 'model/chinook.meaning.yaml'));
@@ -208,7 +224,7 @@ for (let i = 0; i < count; i++) {
   mkdirSync(dir);
   let item;
   let mutatedYAML = null;
-  switch (i % 11) {
+  switch (i % 12) {
     case 0: { // a core file mutated, the others intact; checked as core itself
       const target = pick(coreFiles);
       for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? mutateText(read(join(core, file)), yamlFragments) : read(join(core, file)));
@@ -311,6 +327,26 @@ for (let i = 0; i < count; i++) {
       writeFileSync(join(dir, 'demo.meaning.yaml'), keyFile());
       mutatedYAML = 'demo.meaning.yaml';
       item = {};
+      break;
+    }
+    case 11: { // tabs in comments after a key, a dash or ---, in a core file, the Chinook file or a concept shape
+      const choice = int(3);
+      if (choice === 0) {
+        const target = pick(coreFiles);
+        for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? tabCommentFile(read(join(core, file))) : read(join(core, file)));
+        mutatedYAML = target;
+        item = { address: CORE };
+      } else if (choice === 1) {
+        mkdirSync(join(dir, 'model'));
+        writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), tabCommentFile(chinookMeaning));
+        writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), chinookModel);
+        mutatedYAML = 'model/chinook.meaning.yaml';
+        item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      } else {
+        writeFileSync(join(dir, 'demo.meaning.yaml'), tabCommentFile(shapeFile()));
+        mutatedYAML = 'demo.meaning.yaml';
+        item = {};
+      }
       break;
     }
     default: { // a corpus item with one of its files mutated

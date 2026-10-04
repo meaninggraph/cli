@@ -209,6 +209,10 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-tab-in-comment-of-key": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-tab-in-double-quotes": {
       "verdict": "accept",
       "problems": []
@@ -1564,6 +1568,10 @@
       "problems": []
     },
     "stricter-yaml-tab-after-colon": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "stricter-yaml-tab-at-end-of-comment-of-key": {
       "verdict": "accept",
       "problems": []
     },

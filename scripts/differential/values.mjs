@@ -379,6 +379,49 @@ for (const text of structures) add('structure', JSON.stringify(text), text);
   }
 }
 
+// ---- a tab in the comment of a key, a dash or a --- line with nothing else on the line
+// `a: # note<TAB>more` is read like `a: 1 # note<TAB>more`: the tab is in the text
+// of a comment. A tab at the end of the comment, or before its #, is refused by the
+// CLI (the reference parser reads some of those). Heads in different places, two
+// spacings, the comments, and the lines that follow.
+{
+  const inner = ['# note\tmore', '#\tx', '# \tx', '#x\ty', '# a\t\tb', '# a \t b', '# a\t: b', '# a\t- b', '# a\t"q', '#\t#'];
+  const outer = ['# note\t', '# note \t', '#\t', '# a\tb\t'];
+  const heads = {
+    'key': ['', (c, sp) => `a:${sp}${c}`, 0],
+    'nested key': ['x:\n', (c, sp) => `  a:${sp}${c}`, 2],
+    'quoted key': ['', (c, sp) => `"a":${sp}${c}`, 0],
+    'key after a dash': ['', (c, sp) => `- a:${sp}${c}`, 2],
+    'dash': ['', (c, sp) => `-${sp}${c}`, 0],
+    'nested dash': ['x:\n', (c, sp) => `  -${sp}${c}`, 2],
+    'dash at the key indent': ['x:\n', (c, sp) => `-${sp}${c}`, 0],
+    'marker': ['', (c, sp) => `---${sp}${c}`, 0],
+    'key after a comment line': ['# top\n', (c, sp) => `a:${sp}${c}`, 0],
+  };
+  const tails = (o, dash) => {
+    const in2 = ' '.repeat(o + 2), at = ' '.repeat(o);
+    return {
+      'end': '', 'map': `${in2}b: 1\n`, 'seq': `${in2}- x\n`, 'scalar': `${in2}v\n`, 'two-line scalar': `${in2}v\n${in2}w\n`,
+      'comment, map': `${in2}# k\n${in2}b: 1\n`, 'comment with a tab, map': `${in2}# a\tb\n${in2}b: 1\n`,
+      'comment, scalar': `${in2}# k\n${in2}v\n`, 'block scalar on the next line': `${in2}|\n${in2}  text\n`,
+      'next entry': dash ? `${at}- y\n` : `${at}b: 2\n`,
+    };
+  };
+  for (const [kind, comments, group] of [['inner', inner, 'tab-in-key-comment'], ['outer', outer, 'tab-at-end-of-key-comment']]) {
+    for (const [head, [prefix, make, o]] of Object.entries(heads)) {
+      for (const sp of [' ', '   ']) {
+        for (const comment of comments) {
+          for (const [tail, rest] of Object.entries(tails(o, head.includes('dash')))) {
+            const text = `${prefix}${make(comment, sp)}\n${rest}`;
+            add(group, `${head}, ${JSON.stringify(sp)} before ${JSON.stringify(comment)}, then ${tail}`, text);
+            if (sp === ' ' && tail !== 'comment with a tab, map') add(group, `${head}, ${JSON.stringify(sp)} before ${JSON.stringify(comment)}, then ${tail}, CRLF`, text.replaceAll('\n', '\r\n'));
+          }
+        }
+      }
+    }
+  }
+}
+
 const commit = execFileSync('git', ['-C', core, 'rev-parse', 'HEAD']).toString().trim();
 const version = JSON.parse(readFileSync(join(core, 'node_modules', 'yaml', 'package.json'), 'utf8')).version;
 // One entry per line, so that a change to the matrix is a readable diff.
