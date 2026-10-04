@@ -29,9 +29,19 @@
 // refusal of the subset and not always a YAML error, since some files are
 // refused that the reference parser reads (the README lists them).
 //
-// ParseYAML returns a *SyntaxError, not an error: assigning that result to a
-// variable of type error makes a non-nil error of a nil pointer, so test the
-// *SyntaxError itself. The returned Node holds scalars as the YAML 1.2 core
-// schema reads them (Node.Value gives nil, string, bool, json.Number, []any and
-// map[string]any), and every node has the line it starts on.
+// ParseYAML returns an error, nil for a file it reads. A refused file's error is
+// a *SyntaxError, reached with errors.As:
+//
+//	node, err := meaning.ParseYAML(data)
+//	var refused *meaning.SyntaxError
+//	if errors.As(err, &refused) {
+//		// refused.Rule is the stable rule id ("yaml-tab", "yaml-key", ...),
+//		// refused.Line the 1-based line (0 when not known) and refused.Column the
+//		// 1-based column in characters (set for a refused tab, else 0); the
+//		// message already begins with the column of a tab.
+//	}
+//
+// The returned Node holds scalars as the YAML 1.2 core schema reads them
+// (Node.Value gives nil, string, bool, json.Number, []any and map[string]any),
+// and every node has the line it starts on.
 package meaning

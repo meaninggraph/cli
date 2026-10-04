@@ -125,7 +125,7 @@ func TestParseYAMLReadsWhatTheReferenceParserReads(t *testing.T) {
 			text = string(raw)
 		}
 		counts := groups[entry.Group]
-		node, syntaxErr := ParseYAML([]byte(text))
+		node, syntaxErr := parseSyntax([]byte(text))
 		switch {
 		case entry.Refused != "":
 			// The reference parser refuses it: ParseYAML must too.

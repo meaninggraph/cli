@@ -9,10 +9,21 @@ import (
 	"testing"
 )
 
+// parseSyntax is ParseYAML with the refusal as the *SyntaxError it is, nil when
+// the file is read.
+func parseSyntax(data []byte) (*Node, *SyntaxError) {
+	node, err := ParseYAML(data)
+	var refused *SyntaxError
+	if err != nil && !errors.As(err, &refused) {
+		panic("ParseYAML returned an error that is no *SyntaxError: " + err.Error())
+	}
+	return node, refused
+}
+
 // valueOf parses and renders the value as JSON, which sorts mapping keys.
 func valueOf(t *testing.T, text string) string {
 	t.Helper()
-	node, err := ParseYAML([]byte(text))
+	node, err := parseSyntax([]byte(text))
 	if err != nil {
 		t.Fatalf("ParseYAML(%q): %v", text, err)
 	}
@@ -306,7 +317,7 @@ func TestParseYAMLRefuses(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParseYAML([]byte(tc.text))
+			_, err := parseSyntax([]byte(tc.text))
 			if err == nil {
 				t.Fatalf("accepted: %s", valueOf(t, tc.text))
 			}
@@ -322,19 +333,19 @@ func TestParseYAMLRefuses(t *testing.T) {
 
 func TestParseYAMLLimits(t *testing.T) {
 	t.Parallel()
-	_, err := ParseYAML([]byte(strings.Repeat("x", MaxFileBytes+1)))
+	_, err := parseSyntax([]byte(strings.Repeat("x", MaxFileBytes+1)))
 	if err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("err = %v", err)
 	}
 	// 64 levels of nesting are read, the 65th is not.
-	if _, err := ParseYAML([]byte(nestedMaps(MaxYAMLDepth))); err != nil {
+	if _, err := parseSyntax([]byte(nestedMaps(MaxYAMLDepth))); err != nil {
 		t.Fatalf("%d levels: %v", MaxYAMLDepth, err)
 	}
-	if _, err := ParseYAML([]byte(nestedMaps(MaxYAMLDepth + 1))); err == nil || err.Rule != RuleYAMLLimit {
+	if _, err := parseSyntax([]byte(nestedMaps(MaxYAMLDepth + 1))); err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("%d levels: %v", MaxYAMLDepth+1, err)
 	}
 	// A hostile file of unclosed brackets is refused at once, not parsed to the end.
-	if _, err := ParseYAML([]byte("a: " + strings.Repeat("[", 5_000_000))); err == nil || err.Rule != RuleYAMLLimit {
+	if _, err := parseSyntax([]byte("a: " + strings.Repeat("[", 5_000_000))); err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("5,000,000 brackets: %v", err)
 	}
 }
@@ -342,7 +353,7 @@ func TestParseYAMLLimits(t *testing.T) {
 func TestParseYAMLEmptyInputIsNull(t *testing.T) {
 	t.Parallel()
 	for _, text := range []string{"", "\n\n", "# only a comment\n", "---\n", "--- # nothing\n", "---\n# c\n"} {
-		n, err := ParseYAML([]byte(text))
+		n, err := parseSyntax([]byte(text))
 		if err != nil || n.Kind != Null || n.Value() != nil {
 			t.Errorf("ParseYAML(%q) = %+v, %v", text, n, err)
 		}
@@ -439,7 +450,7 @@ func TestYAMLTabNamesItsColumn(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParseYAML([]byte(tc.text))
+			_, err := parseSyntax([]byte(tc.text))
 			if err == nil || err.Rule != RuleYAMLTab || err.Line != tc.line || err.Column != tc.column {
 				t.Fatalf("got %+v, want %s at line %d column %d", err, RuleYAMLTab, tc.line, tc.column)
 			}
@@ -449,7 +460,7 @@ func TestYAMLTabNamesItsColumn(t *testing.T) {
 		})
 	}
 	// A problem that is not a tab has no column.
-	if _, err := ParseYAML([]byte("a: 1\na: 2\n")); err == nil || err.Column != 0 {
+	if _, err := parseSyntax([]byte("a: 1\na: 2\n")); err == nil || err.Column != 0 {
 		t.Fatalf("got %+v", err)
 	}
 }
@@ -478,7 +489,7 @@ func TestATabInTheCommentOfAKeyOrDashLineIsRead(t *testing.T) {
 		}
 	}
 	for _, text := range []string{"a: # note\t\n  b: 1\n", "- # note\t\n  one\n", "--- # note\t\na: 1\n", "a:\t# note\n  b: 1\n", "-\t# note\n  one\n"} {
-		if _, err := ParseYAML([]byte(text)); err == nil || err.Rule != RuleYAMLTab {
+		if _, err := parseSyntax([]byte(text)); err == nil || err.Rule != RuleYAMLTab {
 			t.Errorf("%q: got %v, want %s", text, err, RuleYAMLTab)
 		}
 	}
@@ -520,8 +531,8 @@ func TestATabInTheCommentOfAKeyOrDashLineChangesNothingElse(t *testing.T) {
 				for _, tail := range tails(h.column) {
 					doc := strings.ReplaceAll(h.prefix+h.head(c)+"\n"+tail, "\n", eol)
 					twin := strings.ReplaceAll(h.prefix+h.head(strings.ReplaceAll(c, "\t", " "))+"\n"+tail, "\n", eol)
-					got, gotErr := ParseYAML([]byte(doc))
-					want, wantErr := ParseYAML([]byte(twin))
+					got, gotErr := parseSyntax([]byte(doc))
+					want, wantErr := parseSyntax([]byte(twin))
 					switch {
 					case (gotErr == nil) != (wantErr == nil):
 						t.Fatalf("%q: %v, but %q: %v", doc, gotErr, twin, wantErr)
@@ -537,5 +548,28 @@ func TestATabInTheCommentOfAKeyOrDashLineChangesNothingElse(t *testing.T) {
 	}
 	if n != 2*9*9*14 {
 		t.Fatalf("%d documents", n)
+	}
+}
+
+// ParseYAML returns an error: nil for a file that is read (a caller that passes
+// the result on as an error must not get a non-nil one for a valid file), and
+// for a refused file one that errors.As turns into the *SyntaxError, also when
+// the caller wraps it.
+func TestParseYAMLReturnsAnErrorThatErrorsAsReaches(t *testing.T) {
+	t.Parallel()
+	read := func(text string) (*Node, error) {
+		node, err := ParseYAML([]byte(text))
+		return node, err
+	}
+	if node, err := read("a: 1\n"); err != nil || node == nil {
+		t.Fatalf("a file that is read: %v, %v", node, err)
+	}
+	node, err := read("a:\tb\n")
+	var refused *SyntaxError
+	if node != nil || !errors.As(fmt.Errorf("file x: %w", err), &refused) {
+		t.Fatalf("a refused file: %v, %v", node, err)
+	}
+	if refused.Rule != RuleYAMLTab || refused.Line != 1 || refused.Column != 3 || err.Error() != refused.Message {
+		t.Fatalf("got %+v", refused)
 	}
 }

@@ -105,11 +105,15 @@ func tabError(line int, raw string, i int, format string, args ...any) *SyntaxEr
 // ParseYAML reads one document of the subset described above. An empty file
 // is a Null node. It is exported for other tools: it enforces the size, depth
 // and key limits and every rule of the subset itself (see the package
-// documentation), and returns a *SyntaxError, not an error, so a caller tests
-// the pointer.
-func ParseYAML(data []byte) (*Node, *SyntaxError) {
+// documentation). A refused file is an error that is a *SyntaxError, which
+// errors.As reaches for its Line, Column and Rule; the result for a file that is
+// read is a nil error.
+func ParseYAML(data []byte) (*Node, error) {
 	node, err, _ := parseYAML(data)
-	return node, err
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
 }
 
 // parseYAML is ParseYAML, and also returns the number of characters the tab
