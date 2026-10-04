@@ -161,6 +161,14 @@
       "verdict": "accept",
       "problems": []
     },
+    "accept-yaml-key-plain-at-the-limit": {
+      "verdict": "accept",
+      "problems": []
+    },
+    "accept-yaml-key-quoted-at-the-limit": {
+      "verdict": "accept",
+      "problems": []
+    },
     "accept-yaml-literal-block-scalar": {
       "verdict": "accept",
       "problems": []
@@ -1291,6 +1299,34 @@
       "verdict": "refuse",
       "problems": [
         "demo.meaning.yaml: schema: /concepts/0/labels/fr must be string"
+      ]
+    },
+    "refuse-yaml-key-blank-before-colon": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 15, column 11:"
+      ]
+    },
+    "refuse-yaml-key-doubled-quotes": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 15, column 11:"
+      ]
+    },
+    "refuse-yaml-key-escapes-longer-than-text": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 15, column 11:"
+      ]
+    },
+    "refuse-yaml-key-quoted-over-limit": {
+      "verdict": "refuse",
+      "crashed": true,
+      "problems": [
+        "The : indicator must be at most 1024 chars after the start of an implicit block mapping key at line 15, column 11:"
       ]
     },
     "refuse-yaml-lone-carriage-return": {

@@ -333,7 +333,7 @@ func (f *flow) mapping() *Node {
 
 // key reads a key of a flow mapping: a quoted or a plain string.
 func (f *flow) key() string {
-	line := f.no()
+	line, start := f.no(), f.ci
 	var key string
 	switch c := f.raw()[f.ci]; c {
 	case '"', '\'':
@@ -354,7 +354,7 @@ func (f *flow) key() string {
 			f.fail(RuleYAMLKey, "the key %s is not read as a string (YAML reads it as %s); put it in quotes", describeKey(key), kindName(kind))
 		}
 	}
-	if err := keyProblem(key, line); err != nil {
+	if err := keyProblem(key, f.ci-start, line); err != nil {
 		panic(flowFailure{err})
 	}
 	return key

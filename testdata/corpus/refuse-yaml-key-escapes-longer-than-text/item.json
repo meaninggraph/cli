@@ -1,0 +1,5 @@
+{
+  "description": "A double-quoted key of 171 escapes (\\u006b, six characters written for one read): 1,028 written, 171 read.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

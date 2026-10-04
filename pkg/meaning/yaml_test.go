@@ -212,9 +212,9 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"a number key in a flow mapping", "a: {5: 1}\n", RuleYAMLKey, 1, "number"},
 		{"a null key in a flow mapping", "a: {null: 1}\n", RuleYAMLKey, 1, "null"},
 		{"an empty key in a flow mapping", "a: {: 1}\n", RuleYAMLKey, 1, "(empty)"},
-		{"a key that is too long", strings.Repeat("k", 1025) + ": 1\n", RuleYAMLKey, 1, "1025 characters"},
-		{"a quoted key that is too long", "\"" + strings.Repeat("k", 1025) + "\": 1\n", RuleYAMLKey, 1, "1025 characters"},
-		{"a flow key that is too long", "a: {" + strings.Repeat("k", 1025) + ": 1}\n", RuleYAMLKey, 1, "1025 characters"},
+		{"a key that is too long", strings.Repeat("k", 1025) + ": 1\n", RuleYAMLKey, 1, "this one is 1025"},
+		{"a quoted key that is too long", "\"" + strings.Repeat("k", 1025) + "\": 1\n", RuleYAMLKey, 1, "this one is 1027"},
+		{"a flow key that is too long", "a: {" + strings.Repeat("k", 1025) + ": 1}\n", RuleYAMLKey, 1, "this one is 1025"},
 		{"a repeated key", "a: 1\nb: 2\na: 3\n", RuleYAMLDuplicate, 3, `"a" is repeated`},
 		{"a repeated key, once quoted", "a: 1\n\"a\": 2\n", RuleYAMLDuplicate, 2, `"a" is repeated`},
 		{"a repeated key in a flow mapping", "a: {k: 1, k: 2}\n", RuleYAMLDuplicate, 1, `"k" is repeated`},
@@ -571,5 +571,50 @@ func TestParseYAMLReturnsAnErrorThatErrorsAsReaches(t *testing.T) {
 	}
 	if refused.Rule != RuleYAMLTab || refused.Line != 1 || refused.Column != 3 || err.Error() != refused.Message {
 		t.Fatalf("got %+v", refused)
+	}
+}
+
+// A block mapping key is refused when it is written over 1024 bytes from its
+// first character to its colon: the reference parser counts that source, quotes,
+// escapes as written and blanks before the colon included, and refuses a key
+// whose colon is more than 1024 units after its start. A flow mapping key has no
+// such limit there.
+func TestAKeyIsMeasuredAsWrittenFromItsFirstCharacterToItsColon(t *testing.T) {
+	t.Parallel()
+	k := func(n int) string { return strings.Repeat("k", n) }
+	for _, tc := range []struct {
+		name, text string
+		refused    bool
+	}{
+		{"a plain key of 1024", k(1024) + ": 1\n", false},
+		{"a plain key of 1025", k(1025) + ": 1\n", true},
+		{"a plain key of 1024 and a blank before the colon", k(1024) + " : 1\n", true},
+		{"a plain key of 1023 and a blank before the colon", k(1023) + " : 1\n", false},
+		{"a quoted key whose quotes make 1024", `"` + k(1022) + `": 1` + "\n", false},
+		{"a quoted key whose quotes make 1025", `"` + k(1023) + `": 1` + "\n", true},
+		{"a quoted key of 1022 and a blank before the colon", `"` + k(1022) + `" : 1` + "\n", true},
+		{"a single-quoted key whose quotes make 1025", "'" + k(1023) + "': 1\n", true},
+		{"a double-quoted key of escapes, 170 times six characters", `"` + strings.Repeat(`\u006b`, 170) + `": 1` + "\n", false},
+		{"a double-quoted key of escapes, 171 times six characters", `"` + strings.Repeat(`\u006b`, 171) + `": 1` + "\n", true},
+		{"a single-quoted key of 511 doubled quotes", "'" + strings.Repeat("''", 511) + "': 1\n", false},
+		{"a single-quoted key of 512 doubled quotes", "'" + strings.Repeat("''", 512) + "': 1\n", true},
+		{"a nested key", "a:\n  " + k(1025) + ": 1\n", true},
+		{"a key after a dash", "- " + k(1025) + ": 1\n", true},
+		{"a key of 512 two-byte characters", strings.Repeat("\u00e9", 512) + ": 1\n", false},
+		{"a key of 513 two-byte characters (more bytes than units)", strings.Repeat("\u00e9", 513) + ": 1\n", true},
+		{"a flow key of 1024", "a: {" + k(1024) + ": 1}\n", false},
+		{"a flow key of 1025", "a: {" + k(1025) + ": 1}\n", true},
+		{"a quoted flow key whose quotes make 1025", `a: {"` + k(1023) + `": 1}` + "\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseSyntax([]byte(tc.text))
+			switch {
+			case tc.refused && (err == nil || err.Rule != RuleYAMLKey || !strings.Contains(err.Message, "written over 1024 bytes")):
+				t.Fatalf("got %v, want a %s refusal", err, RuleYAMLKey)
+			case !tc.refused && err != nil:
+				t.Fatalf("got %v, want the key read", err)
+			}
+		})
 	}
 }

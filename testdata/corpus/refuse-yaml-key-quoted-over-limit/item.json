@@ -1,0 +1,5 @@
+{
+  "description": "A quoted key of 1,023 characters: 1,025 written with its quotes, so the colon is more than 1,024 after its start (the reference parser refuses it; the decoded text is under the limit).",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

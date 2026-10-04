@@ -15,8 +15,9 @@
 // attribute names, bindings), and comment lines and blank lines (with and
 // without tabs, at every column, `#x` and `# x`) in every place of a file: between a
 // key or a dash and its value, after a block scalar header, inside a multi-line
-// plain scalar, as the last line with and without a line break. Same seed, same
-// mutants.
+// plain scalar, as the last line with and without a line break, keys at the
+// limit of 1024 as written (plain, quoted, with escapes, doubled quotes, multibyte
+// text, blanks before the colon). Same seed, same mutants.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -167,6 +168,29 @@ const conceptShapes = [
 ];
 const shapeFile = () => 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n  - id: thing\n    kind: entity\n    labels: {en: thing}\n    ' + pick(conceptShapes);
 
+// keyFile writes a key of a mapping whose length as written is near the limit of
+// 1024: the reference parser counts the source from the first character of a
+// block mapping key to its colon, in UTF-16 units, so quotes, escapes as written
+// and blanks before the colon count. The key is plain, double-quoted (with
+// escapes, which are longer written than read) or single-quoted (with doubled
+// quotes), made of ASCII letters (a key a schema accepts as a code) or of
+// multibyte characters, and stands among the codes of a value or at the root.
+function keyFile() {
+  const styles = {
+    'plain': () => 'k', 'plain-2-bytes': () => '\u00e9', 'plain-3-bytes': () => '\u20ac', 'plain-astral': () => '\u{1F600}',
+    'dq': () => 'k', 'dq-multibyte': () => '\u00e9', 'dq-escapes': () => pick(['\\u006b', '\\x6b', 'k']), 'dq-quoted': () => '\\"',
+    'sq': () => 'k', 'sq-doubled': () => "''",
+  };
+  const style = pick(Object.keys(styles));
+  const aim = 1010 + int(30);
+  let body = '';
+  while (body.length < aim) body += styles[style]();
+  const quote = style.startsWith('dq') ? '"' : style.startsWith('sq') ? "'" : '';
+  const key = quote + body + quote + ' '.repeat(pick([0, 0, 1, 2, 3]));
+  const head = 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n  - id: currency\n    kind: entity\n    labels: {en: currency}\n    description: A currency.\n    values:\n      - id: usd\n        labels: {en: US dollar}\n        codes:\n          iso: USD\n';
+  return int(4) === 0 ? `${key}: X\n${head}` : `${head}          ${key}: X\n`;
+}
+
 const read = (path) => readFileSync(path, 'utf8');
 const coreFiles = readdirSync(core).filter((n) => n.endsWith('.meaning.yaml')).sort();
 const chinookMeaning = read(join(chinook, 'model/chinook.meaning.yaml'));
@@ -184,7 +208,7 @@ for (let i = 0; i < count; i++) {
   mkdirSync(dir);
   let item;
   let mutatedYAML = null;
-  switch (i % 10) {
+  switch (i % 11) {
     case 0: { // a core file mutated, the others intact; checked as core itself
       const target = pick(coreFiles);
       for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? mutateText(read(join(core, file)), yamlFragments) : read(join(core, file)));
@@ -279,6 +303,12 @@ for (let i = 0; i < count; i++) {
     }
     case 9: { // comment and blank lines in the shapes that read differently: a value on a later line
       writeFileSync(join(dir, 'demo.meaning.yaml'), fillerFile(shapeFile()));
+      mutatedYAML = 'demo.meaning.yaml';
+      item = {};
+      break;
+    }
+    case 10: { // a key of a mapping near the limit of 1024 as written
+      writeFileSync(join(dir, 'demo.meaning.yaml'), keyFile());
       mutatedYAML = 'demo.meaning.yaml';
       item = {};
       break;

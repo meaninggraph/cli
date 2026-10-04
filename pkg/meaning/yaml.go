@@ -50,7 +50,8 @@ const (
 	MaxFileBytes = 8 << 20
 	// MaxYAMLDepth bounds the nesting of collections in a meaning file.
 	MaxYAMLDepth = 64
-	// maxKeyLength is the longest key the reference parser accepts.
+	// maxKeyLength is the longest a block mapping key may be as written, from its
+	// first character to its colon, as the reference parser reads it.
 	maxKeyLength = 1024
 	// maxExactInt is the largest integer a double holds exactly.
 	maxExactInt = 1 << 53
@@ -563,7 +564,7 @@ func (r *reader) splitKey(t string, no int) (key, rest string, ok bool, err *Syn
 			return "", "", false, nil
 		}
 		r.acceptTabs(no, t, 1, next-1, false)
-		return value, after[1:], true, keyProblem(value, no)
+		return value, after[1:], true, keyProblem(value, len(t)-len(after), no)
 	case '&', '*':
 		return "", "", false, syntax(no, RuleYAMLAnchor, "anchors and aliases (& and *) are not supported; write the value out")
 	case '!':
@@ -590,7 +591,7 @@ func (r *reader) splitKey(t string, no int) (key, rest string, ok bool, err *Syn
 			if kind != String {
 				return "", "", false, syntax(no, RuleYAMLKey, "the key %s is not read as a string (YAML reads it as %s); put it in quotes", describeKey(key), kindName(kind))
 			}
-			return key, t[i+1:], true, keyProblem(key, no)
+			return key, t[i+1:], true, keyProblem(key, i, no)
 		}
 	}
 	return "", "", false, nil
@@ -613,11 +614,16 @@ func kindName(k Kind) string {
 	return "a number"
 }
 
-// keyProblem checks a key's text: not too long, not a merge key.
-func keyProblem(key string, no int) *SyntaxError {
+// keyProblem checks a key: not too long, not a merge key. span is how long the
+// key is as written, in bytes, from its first character to its colon (or, in a
+// flow mapping, to its last character): the reference parser refuses a block
+// mapping key whose colon is more than 1024 UTF-16 units after its first
+// character, counting the quotes, the escapes as written and the blanks before
+// the colon, and a byte is never fewer than a unit.
+func keyProblem(key string, span, no int) *SyntaxError {
 	switch {
-	case len(key) > maxKeyLength:
-		return syntax(no, RuleYAMLKey, "a key of %d characters; the longest key read is %d", len(key), maxKeyLength)
+	case span > maxKeyLength:
+		return syntax(no, RuleYAMLKey, "a key written over %d bytes, counted from its first character to its colon (quotes, escapes as written and blanks before the colon included); this one is %d", maxKeyLength, span)
 	case key == "<<":
 		return syntax(no, RuleYAMLAnchor, "merge keys (<<) are not supported; write the entries out")
 	}

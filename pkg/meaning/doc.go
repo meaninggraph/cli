@@ -19,13 +19,15 @@
 //
 // Its limits are enforced by ParseYAML itself, not by its caller: at most
 // MaxFileBytes bytes of text, at most MaxYAMLDepth levels of nesting (block and
-// flow together), keys of at most 1024 bytes, one document, UTF-8 only,
+// flow together), keys written in at most 1024 bytes from their first character
+// to their colon (quotes, escapes as written and blanks before the colon count),
+// one document, UTF-8 only,
 // string keys only, no repeated key, no anchor, alias, merge key or tag, no
 // keep chomping or indentation indicator on a block scalar, and tabs only where
 // they are text (an error that says where: Line, and for a tab Column). The file
 // is read in one pass over lines whose work grows with the size of the input,
 // and the quadratic shapes (a long plain scalar, a long run of comment lines)
-// are linear. A refused file is a *SyntaxError with a stable Rule; it is a
+// are linear. A refused file's error is a *SyntaxError with a stable Rule; it is a
 // refusal of the subset and not always a YAML error, since some files are
 // refused that the reference parser reads (the README lists them).
 //

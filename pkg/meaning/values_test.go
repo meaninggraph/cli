@@ -43,6 +43,9 @@ var refusableBy = map[string][]string{
 	"block-indicator": {RuleYAMLUnsupported},
 	"line-ends":       {RuleYAMLLineEnding},
 	"bom":             {RuleYAMLEncoding, RuleYAMLUnsupported, RuleYAMLCharacter},
+	// A key in a flow mapping has no limit for the reference parser, and a key of
+	// many bytes but few UTF-16 units is over the limit here and not there.
+	"key-limit": {RuleYAMLKey},
 }
 
 // refusalAllowed says whether ParseYAML may refuse an entry that the reference
@@ -88,12 +91,12 @@ type tally struct {
 
 // wantTally is the count the golden file and the reader give today.
 var wantTally = tally{
-	Documents:          9073,
-	ReadByBoth:         4733,
-	RefusedByReference: 807,
+	Documents:          10418,
+	ReadByBoth:         5062,
+	RefusedByReference: 1511,
 	RefusedByRule: map[string]int{
 		"yaml": 2, "yaml-anchor": 3, "yaml-character": 12, "yaml-directive": 3, "yaml-documents": 2, "yaml-encoding": 7,
-		"yaml-key": 53, "yaml-limit": 1, "yaml-number": 89, "yaml-tab": 1082, "yaml-tag": 3, "yaml-unsupported": 2276,
+		"yaml-key": 365, "yaml-limit": 1, "yaml-number": 89, "yaml-tab": 1082, "yaml-tag": 3, "yaml-unsupported": 2276,
 	},
 }
 
