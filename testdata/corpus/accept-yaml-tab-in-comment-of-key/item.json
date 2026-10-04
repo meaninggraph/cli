@@ -1,0 +1,4 @@
+{
+  "description": "A tab in the text of a comment that follows a key, or --- , with nothing else on its line.",
+  "expect": "accept"
+}

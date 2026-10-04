@@ -236,8 +236,8 @@ func (f *flow) plain() string {
 	if text == "" {
 		return ""
 	}
-	if strings.Contains(text, "\t") {
-		f.fail(RuleYAMLTab, "a tab inside [ ] or { } is accepted in quotes only; use spaces")
+	if tab := strings.IndexByte(text, '\t'); tab >= 0 {
+		panic(flowFailure{tabError(f.no(), raw, f.ci+tab, "a tab inside [ ] or { } is accepted in quotes only; use spaces")})
 	}
 	if first := text[0]; (first == '-' || first == '?' || first == ':') && (len(text) == 1 || text[1] == ' ') {
 		return ""
@@ -333,7 +333,7 @@ func (f *flow) mapping() *Node {
 
 // key reads a key of a flow mapping: a quoted or a plain string.
 func (f *flow) key() string {
-	line := f.no()
+	line, start := f.no(), f.ci
 	var key string
 	switch c := f.raw()[f.ci]; c {
 	case '"', '\'':
@@ -354,7 +354,7 @@ func (f *flow) key() string {
 			f.fail(RuleYAMLKey, "the key %s is not read as a string (YAML reads it as %s); put it in quotes", describeKey(key), kindName(kind))
 		}
 	}
-	if err := keyProblem(key, line); err != nil {
+	if err := keyProblem(key, f.ci-start, line); err != nil {
 		panic(flowFailure{err})
 	}
 	return key

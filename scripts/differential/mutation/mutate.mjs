@@ -15,8 +15,10 @@
 // attribute names, bindings), and comment lines and blank lines (with and
 // without tabs, at every column, `#x` and `# x`) in every place of a file: between a
 // key or a dash and its value, after a block scalar header, inside a multi-line
-// plain scalar, as the last line with and without a line break. Same seed, same
-// mutants.
+// plain scalar, as the last line with and without a line break, keys at the
+// limit of 1024 as written (plain, quoted, with escapes, doubled quotes, multibyte
+// text, blanks before the colon), and comments with tabs after a key, a dash or
+// ---. Same seed, same mutants.
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -167,6 +169,44 @@ const conceptShapes = [
 ];
 const shapeFile = () => 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n  - id: thing\n    kind: entity\n    labels: {en: thing}\n    ' + pick(conceptShapes);
 
+// keyFile writes a key of a mapping whose length as written is near the limit of
+// 1024: the reference parser counts the source from the first character of a
+// block mapping key to its colon, in UTF-16 units, so quotes, escapes as written
+// and blanks before the colon count. The key is plain, double-quoted (with
+// escapes, which are longer written than read) or single-quoted (with doubled
+// quotes), made of ASCII letters (a key a schema accepts as a code) or of
+// multibyte characters, and stands among the codes of a value or at the root.
+function keyFile() {
+  const styles = {
+    'plain': () => 'k', 'plain-2-bytes': () => '\u00e9', 'plain-3-bytes': () => '\u20ac', 'plain-astral': () => '\u{1F600}',
+    'dq': () => 'k', 'dq-multibyte': () => '\u00e9', 'dq-escapes': () => pick(['\\u006b', '\\x6b', 'k']), 'dq-quoted': () => '\\"',
+    'sq': () => 'k', 'sq-doubled': () => "''",
+  };
+  const style = pick(Object.keys(styles));
+  const aim = 1010 + int(30);
+  let body = '';
+  while (body.length < aim) body += styles[style]();
+  const quote = style.startsWith('dq') ? '"' : style.startsWith('sq') ? "'" : '';
+  const key = quote + body + quote + ' '.repeat(pick([0, 0, 1, 2, 3]));
+  const head = 'format: meaning/draft-1\nid: demo\nname: Demo\ndescription: A demo graph.\nconcepts:\n  - id: currency\n    kind: entity\n    labels: {en: currency}\n    description: A currency.\n    values:\n      - id: usd\n        labels: {en: US dollar}\n        codes:\n          iso: USD\n';
+  return int(4) === 0 ? `${key}: X\n${head}` : `${head}          ${key}: X\n`;
+}
+
+// tabCommentFile puts a comment with tabs after the key or the dash of lines that
+// have nothing else after them (`key: # a<TAB>b`), a tab at the end of such a
+// comment, and a comment with tabs after a --- line.
+const tabComments = ['# a\tb', '#\tx', '# note\tmore', '# a\t\tb', '# a \t b', '#\t#', '# k: a\tb', '# a\t- b', '# a\t"b', '# end\t', '#\t', '# a\tb \t'];
+function tabCommentFile(text) {
+  const lines = text.split('\n');
+  const spots = lines.flatMap((l, i) => (/(:|-)$/.test(l) ? [i] : []));
+  for (let n = 1 + int(4); n > 0 && spots.length > 0; n--) {
+    const i = pick(spots);
+    lines[i] = lines[i].replace(/ *(#.*)?$/, '') + pick([' ', ' ', '  ']) + pick(tabComments);
+  }
+  if (int(4) === 0) lines.unshift(pick(['--- ', '---  ', '---']) + pick(tabComments));
+  return lines.join('\n');
+}
+
 const read = (path) => readFileSync(path, 'utf8');
 const coreFiles = readdirSync(core).filter((n) => n.endsWith('.meaning.yaml')).sort();
 const chinookMeaning = read(join(chinook, 'model/chinook.meaning.yaml'));
@@ -184,7 +224,7 @@ for (let i = 0; i < count; i++) {
   mkdirSync(dir);
   let item;
   let mutatedYAML = null;
-  switch (i % 10) {
+  switch (i % 12) {
     case 0: { // a core file mutated, the others intact; checked as core itself
       const target = pick(coreFiles);
       for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? mutateText(read(join(core, file)), yamlFragments) : read(join(core, file)));
@@ -281,6 +321,32 @@ for (let i = 0; i < count; i++) {
       writeFileSync(join(dir, 'demo.meaning.yaml'), fillerFile(shapeFile()));
       mutatedYAML = 'demo.meaning.yaml';
       item = {};
+      break;
+    }
+    case 10: { // a key of a mapping near the limit of 1024 as written
+      writeFileSync(join(dir, 'demo.meaning.yaml'), keyFile());
+      mutatedYAML = 'demo.meaning.yaml';
+      item = {};
+      break;
+    }
+    case 11: { // tabs in comments after a key, a dash or ---, in a core file, the Chinook file or a concept shape
+      const choice = int(3);
+      if (choice === 0) {
+        const target = pick(coreFiles);
+        for (const file of coreFiles) writeFileSync(join(dir, file), file === target ? tabCommentFile(read(join(core, file))) : read(join(core, file)));
+        mutatedYAML = target;
+        item = { address: CORE };
+      } else if (choice === 1) {
+        mkdirSync(join(dir, 'model'));
+        writeFileSync(join(dir, 'model', 'chinook.meaning.yaml'), tabCommentFile(chinookMeaning));
+        writeFileSync(join(dir, 'model', 'chinook.modelspec.hcl'), chinookModel);
+        mutatedYAML = 'model/chinook.meaning.yaml';
+        item = { address: 'github.com/datatug/chinookdb', check: 'model', graphs: { [CORE]: core } };
+      } else {
+        writeFileSync(join(dir, 'demo.meaning.yaml'), tabCommentFile(shapeFile()));
+        mutatedYAML = 'demo.meaning.yaml';
+        item = {};
+      }
       break;
     }
     default: { // a corpus item with one of its files mutated

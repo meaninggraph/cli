@@ -1,0 +1,5 @@
+{
+  "description": "A plain key of 1,024 characters and a blank before the colon: the colon is 1,025 after its start.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

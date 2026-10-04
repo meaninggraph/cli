@@ -3,14 +3,27 @@ package meaning
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
 
+// parseSyntax is ParseYAML with the refusal as the *SyntaxError it is, nil when
+// the file is read.
+func parseSyntax(data []byte) (*Node, *SyntaxError) {
+	node, err := ParseYAML(data)
+	var refused *SyntaxError
+	if err != nil && !errors.As(err, &refused) {
+		panic("ParseYAML returned an error that is no *SyntaxError: " + err.Error())
+	}
+	return node, refused
+}
+
 // valueOf parses and renders the value as JSON, which sorts mapping keys.
 func valueOf(t *testing.T, text string) string {
 	t.Helper()
-	node, err := ParseYAML([]byte(text))
+	node, err := parseSyntax([]byte(text))
 	if err != nil {
 		t.Fatalf("ParseYAML(%q): %v", text, err)
 	}
@@ -130,10 +143,11 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"a tab in the indentation of a comment line", "a: 1\n\t# c\nb: 2\n", RuleYAMLTab, 2, "not read"},
 		{"a line of a tab", "a: 1\n\t\nb: 2\n", RuleYAMLTab, 2, "not read"},
 		{"a line of a tab at the end, without a line break", "a: 1\n\t", RuleYAMLTab, 2, "not read"},
-		{"a comment between a key and its plain value", "a:\n# c\n  one\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
-		{"a comment between a dash and its plain value", "-\n  # c\n  one\n- two\n", RuleYAMLUnsupported, 3, "comment line between a key (or a dash)"},
-		{"a comment between a key and its quoted value", "a:\n  # c\n  \"one\"\n", RuleYAMLUnsupported, 3, "comment line between"},
-		{"a comment between a key and its flow value", "a:\n  # c\n  [one]\n", RuleYAMLUnsupported, 3, "comment line between"},
+		{"a comment between a key and its plain value", "a:\n# c\n  one\n", RuleYAMLUnsupported, 2, "comment line between a key (or a dash) and the value that starts on a later line (line 3)"},
+		{"a comment between a dash and its plain value", "-\n  # c\n  one\n- two\n", RuleYAMLUnsupported, 2, "comment line between a key (or a dash) and the value that starts on a later line (line 3)"},
+		{"a comment between a key and its quoted value", "a:\n  # c\n  \"one\"\n", RuleYAMLUnsupported, 2, "comment line between"},
+		{"a comment between a key and its flow value", "a:\n  # c\n  [one]\n", RuleYAMLUnsupported, 2, "comment line between"},
+		{"a comment between a key and its value is named by its own line", "a: 1\nb:\n\n  # old wording\n  # more\n\n  text\nc: 2\n", RuleYAMLUnsupported, 4, "(line 7)"},
 		{"a comment inside a flow collection at the left margin", "a: [x,\n#c\n  y]\n", RuleYAMLUnsupported, 2, "comments inside [ ]"},
 		{"a tab in a plain key", "a\tb: 1\n", RuleYAMLTab, 1, "not read"},
 		{"a tab at the start of a plain value", "a: \tb\n", RuleYAMLTab, 1, "not read"},
@@ -198,9 +212,9 @@ func TestParseYAMLRefuses(t *testing.T) {
 		{"a number key in a flow mapping", "a: {5: 1}\n", RuleYAMLKey, 1, "number"},
 		{"a null key in a flow mapping", "a: {null: 1}\n", RuleYAMLKey, 1, "null"},
 		{"an empty key in a flow mapping", "a: {: 1}\n", RuleYAMLKey, 1, "(empty)"},
-		{"a key that is too long", strings.Repeat("k", 1025) + ": 1\n", RuleYAMLKey, 1, "1025 characters"},
-		{"a quoted key that is too long", "\"" + strings.Repeat("k", 1025) + "\": 1\n", RuleYAMLKey, 1, "1025 characters"},
-		{"a flow key that is too long", "a: {" + strings.Repeat("k", 1025) + ": 1}\n", RuleYAMLKey, 1, "1025 characters"},
+		{"a key that is too long", strings.Repeat("k", 1025) + ": 1\n", RuleYAMLKey, 1, "this one is 1025"},
+		{"a quoted key that is too long", "\"" + strings.Repeat("k", 1025) + "\": 1\n", RuleYAMLKey, 1, "this one is 1027"},
+		{"a flow key that is too long", "a: {" + strings.Repeat("k", 1025) + ": 1}\n", RuleYAMLKey, 1, "this one is 1025"},
 		{"a repeated key", "a: 1\nb: 2\na: 3\n", RuleYAMLDuplicate, 3, `"a" is repeated`},
 		{"a repeated key, once quoted", "a: 1\n\"a\": 2\n", RuleYAMLDuplicate, 2, `"a" is repeated`},
 		{"a repeated key in a flow mapping", "a: {k: 1, k: 2}\n", RuleYAMLDuplicate, 1, `"k" is repeated`},
@@ -303,7 +317,7 @@ func TestParseYAMLRefuses(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParseYAML([]byte(tc.text))
+			_, err := parseSyntax([]byte(tc.text))
 			if err == nil {
 				t.Fatalf("accepted: %s", valueOf(t, tc.text))
 			}
@@ -319,19 +333,19 @@ func TestParseYAMLRefuses(t *testing.T) {
 
 func TestParseYAMLLimits(t *testing.T) {
 	t.Parallel()
-	_, err := ParseYAML([]byte(strings.Repeat("x", MaxFileBytes+1)))
+	_, err := parseSyntax([]byte(strings.Repeat("x", MaxFileBytes+1)))
 	if err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("err = %v", err)
 	}
 	// 64 levels of nesting are read, the 65th is not.
-	if _, err := ParseYAML([]byte(nestedMaps(MaxYAMLDepth))); err != nil {
+	if _, err := parseSyntax([]byte(nestedMaps(MaxYAMLDepth))); err != nil {
 		t.Fatalf("%d levels: %v", MaxYAMLDepth, err)
 	}
-	if _, err := ParseYAML([]byte(nestedMaps(MaxYAMLDepth + 1))); err == nil || err.Rule != RuleYAMLLimit {
+	if _, err := parseSyntax([]byte(nestedMaps(MaxYAMLDepth + 1))); err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("%d levels: %v", MaxYAMLDepth+1, err)
 	}
 	// A hostile file of unclosed brackets is refused at once, not parsed to the end.
-	if _, err := ParseYAML([]byte("a: " + strings.Repeat("[", 5_000_000))); err == nil || err.Rule != RuleYAMLLimit {
+	if _, err := parseSyntax([]byte("a: " + strings.Repeat("[", 5_000_000))); err == nil || err.Rule != RuleYAMLLimit {
 		t.Fatalf("5,000,000 brackets: %v", err)
 	}
 }
@@ -339,7 +353,7 @@ func TestParseYAMLLimits(t *testing.T) {
 func TestParseYAMLEmptyInputIsNull(t *testing.T) {
 	t.Parallel()
 	for _, text := range []string{"", "\n\n", "# only a comment\n", "---\n", "--- # nothing\n", "---\n# c\n"} {
-		n, err := ParseYAML([]byte(text))
+		n, err := parseSyntax([]byte(text))
 		if err != nil || n.Kind != Null || n.Value() != nil {
 			t.Errorf("ParseYAML(%q) = %+v, %v", text, n, err)
 		}
@@ -402,5 +416,211 @@ func TestTabsAreCheckedInOnePass(t *testing.T) {
 	node, err, steps := parseYAML([]byte("a: 1\n" + strings.Repeat("\t\n", (MaxFileBytes-5)/2)))
 	if node != nil || err == nil || err.Rule != RuleYAMLTab || err.Line != 2 || steps > 100 {
 		t.Fatalf("a file of lines of tabs: %v, %v after %d steps", node, err, steps)
+	}
+}
+
+// A tab is invisible, so the finding says where it is: the column, counted in
+// characters from 1 (a tab is one), in the message and in SyntaxError.Column.
+func TestYAMLTabNamesItsColumn(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, text   string
+		line, column int
+	}{
+		{"at the end of a line", "a: x\t\n", 1, 5},
+		{"at the end of a line with CRLF", "a: x\t\r\n", 1, 5},
+		{"after non-ASCII text", "\u00e9: x\t\n", 1, 5},
+		{"in indentation", "a:\n  b: 1\n\tc: 2\n", 3, 1},
+		{"in the indentation of a comment line", "a: 1\n  \t# c\n", 2, 3},
+		{"on a line of its own", "a: 1\n\t\n", 2, 1},
+		{"after a dash", "- a\n-\tb\n", 2, 2},
+		{"after an indented dash", "a:\n  -\tb\n", 2, 4},
+		{"after the dash of a value", "a: -\tb\n", 1, 5},
+		{"after a colon", "a:\tb\n", 1, 3},
+		{"after the colon of a quoted key", "\"a\":\tb\n", 1, 5},
+		{"after the colon of a key on a dash line", "- a:\tb\n", 1, 5},
+		{"between a quoted key and its colon", "\"a\"\t: b\n", 1, 4},
+		{"before a comment", "a: x\t# c\n", 1, 5},
+		{"at the end of a comment", "a: x # c\t\n", 1, 9},
+		{"at the end of the comment of a key", "a: # note\t\n", 1, 10},
+		{"before the comment of a key", "a:\t# note\n", 1, 3},
+		{"before the comment of a key, after a blank", "concepts: \t# the list\n  - id: a\n", 1, 11},
+		{"before the comment of a key, after blanks", "a:  \t# c\n  - x\n", 1, 5},
+		{"before the comment of a nested key", "x:\n  a: \t# c\n    b: 1\n", 2, 6},
+		{"before the comment of a dash", "- \t# c\n  b: 1\n", 1, 3},
+		{"before a value", "a: \tb\n", 1, 4},
+		{"after the marker", "---\t# c\na: 1\n", 1, 4},
+		{"in a flow sequence", "a: [b,\tc]\n", 1, 7},
+		{"in a plain flow value", "a: [bb\tc]\n", 1, 7},
+		{"in a flow collection after non-ASCII text", "\u00e9: [\u00e9\tc]\n", 1, 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseSyntax([]byte(tc.text))
+			if err == nil || err.Rule != RuleYAMLTab || err.Line != tc.line || err.Column != tc.column {
+				t.Fatalf("got %+v, want %s at line %d column %d", err, RuleYAMLTab, tc.line, tc.column)
+			}
+			if want := fmt.Sprintf("column %d: ", tc.column); !strings.HasPrefix(err.Message, want) {
+				t.Fatalf("message %q does not begin with %q", err.Message, want)
+			}
+		})
+	}
+	// A problem that is not a tab has no column.
+	if _, err := parseSyntax([]byte("a: 1\na: 2\n")); err == nil || err.Column != 0 {
+		t.Fatalf("got %+v", err)
+	}
+}
+
+// A comment that follows a key, a dash or the --- marker with nothing else on
+// its line may hold tabs between its # and its last character, as the comment
+// after a value does (the values are the ones the reference parser reads); a tab
+// at the end of the comment, or before its #, is refused as everywhere else.
+func TestATabInTheCommentOfAKeyOrDashLineIsRead(t *testing.T) {
+	t.Parallel()
+	for text, want := range map[string]string{
+		"a: # note\tmore\n  b: 1\n":                  `{"a":{"b":1}}`,
+		"- # note\tmore\n  one\n":                    `["one"]`,
+		"--- # note\tmore\na: 1\n":                   `{"a":1}`,
+		"a:   #\tx\n":                                `{"a":null}`,
+		"\"a\": # a\t\tb\n  - x\n":                   `{"a":["x"]}`,
+		"- a: # c\td\n    b: 1\n- - # e\tf\n  - x\n": `[{"a":{"b":1}},[null,"x"]]`,
+		"x:\n- # a\tb\n  v\n":                        `{"x":["v"]}`,
+		"a: # k: a\tb\nb: 2\n":                       `{"a":null,"b":2}`,
+		"a: # note\tmore\r\n  b: 1\r\n":              `{"a":{"b":1}}`,
+		"--- # note\tmore\r\n- x\r\n":                `["x"]`,
+		"---   # note\tmore\n":                       `null`,
+	} {
+		if got := valueOf(t, text); got != want {
+			t.Errorf("%q: got %s, want %s", text, got, want)
+		}
+	}
+	for _, text := range []string{"a: # note\t\n  b: 1\n", "- # note\t\n  one\n", "--- # note\t\na: 1\n", "a:\t# note\n  b: 1\n", "-\t# note\n  one\n"} {
+		if _, err := parseSyntax([]byte(text)); err == nil || err.Rule != RuleYAMLTab {
+			t.Errorf("%q: got %v, want %s", text, err, RuleYAMLTab)
+		}
+	}
+}
+
+// The tab in such a comment changes nothing but the tab: for the heads (a key,
+// a dash, the marker, in several places), the comments, the lines that follow
+// and the line ends of a generated family (the one the reference parser was
+// asked about when the position was accepted), a document is read as the same
+// document with spaces in place of the tabs of the comment, or refused for the
+// same rule on the same line.
+func TestATabInTheCommentOfAKeyOrDashLineChangesNothingElse(t *testing.T) {
+	t.Parallel()
+	heads := []struct {
+		prefix string
+		head   func(comment string) string
+		column int
+	}{
+		{"", func(c string) string { return "a: " + c }, 0},
+		{"x:\n", func(c string) string { return "  a:  " + c }, 2},
+		{"", func(c string) string { return `"a": ` + c }, 0},
+		{"", func(c string) string { return "- a: " + c }, 2},
+		{"", func(c string) string { return "- " + c }, 0},
+		{"x:\n", func(c string) string { return "- " + c }, 0},
+		{"", func(c string) string { return "- - " + c }, 2},
+		{"", func(c string) string { return "--- " + c }, 0},
+		{"# top\n", func(c string) string { return "---   " + c }, 0},
+	}
+	comments := []string{"# note\tmore", "#\tx", "# \tx", "# a\t\tb", "# a\t: b", "# a\t- b", "# a\t[b", "# a\t\"q", "#\t#"}
+	tails := func(o int) []string {
+		in, at := strings.Repeat(" ", o+2), strings.Repeat(" ", o)
+		return []string{"", in + "b: 1\n", in + "- x\n", in + "v\n", in + "v\n" + in + "w\n", in + "\"v\"\n", in + "[x, y]\n", in + "# k\n" + in + "b: 1\n",
+			in + "# k\n" + in + "v\n", "\n" + in + "b: 1\n", in + "# a\tb\n" + in + "b: 1\n", at + "b: 2\n", at + "- x\n", "z: 9\n"}
+	}
+	n := 0
+	for _, eol := range []string{"\n", "\r\n"} {
+		for _, h := range heads {
+			for _, c := range comments {
+				for _, tail := range tails(h.column) {
+					doc := strings.ReplaceAll(h.prefix+h.head(c)+"\n"+tail, "\n", eol)
+					twin := strings.ReplaceAll(h.prefix+h.head(strings.ReplaceAll(c, "\t", " "))+"\n"+tail, "\n", eol)
+					got, gotErr := parseSyntax([]byte(doc))
+					want, wantErr := parseSyntax([]byte(twin))
+					switch {
+					case (gotErr == nil) != (wantErr == nil):
+						t.Fatalf("%q: %v, but %q: %v", doc, gotErr, twin, wantErr)
+					case gotErr != nil && (gotErr.Rule != wantErr.Rule || gotErr.Line != wantErr.Line):
+						t.Fatalf("%q: %v, but %q: %v", doc, gotErr, twin, wantErr)
+					case gotErr == nil && !reflect.DeepEqual(got.Value(), want.Value()):
+						t.Fatalf("%q reads %v, but %q reads %v", doc, got.Value(), twin, want.Value())
+					}
+					n++
+				}
+			}
+		}
+	}
+	if n != 2*9*9*14 {
+		t.Fatalf("%d documents", n)
+	}
+}
+
+// ParseYAML returns an error: nil for a file that is read (a caller that passes
+// the result on as an error must not get a non-nil one for a valid file), and
+// for a refused file one that errors.As turns into the *SyntaxError, also when
+// the caller wraps it.
+func TestParseYAMLReturnsAnErrorThatErrorsAsReaches(t *testing.T) {
+	t.Parallel()
+	read := func(text string) (*Node, error) {
+		node, err := ParseYAML([]byte(text))
+		return node, err
+	}
+	if node, err := read("a: 1\n"); err != nil || node == nil {
+		t.Fatalf("a file that is read: %v, %v", node, err)
+	}
+	node, err := read("a:\tb\n")
+	var refused *SyntaxError
+	if node != nil || !errors.As(fmt.Errorf("file x: %w", err), &refused) {
+		t.Fatalf("a refused file: %v, %v", node, err)
+	}
+	if refused.Rule != RuleYAMLTab || refused.Line != 1 || refused.Column != 3 || err.Error() != refused.Message {
+		t.Fatalf("got %+v", refused)
+	}
+}
+
+// A block mapping key is refused when it is written over 1024 bytes from its
+// first character to its colon: the reference parser counts that source, quotes,
+// escapes as written and blanks before the colon included, and refuses a key
+// whose colon is more than 1024 units after its start. A flow mapping key has no
+// such limit there.
+func TestAKeyIsMeasuredAsWrittenFromItsFirstCharacterToItsColon(t *testing.T) {
+	t.Parallel()
+	k := func(n int) string { return strings.Repeat("k", n) }
+	for _, tc := range []struct {
+		name, text string
+		refused    bool
+	}{
+		{"a plain key of 1024", k(1024) + ": 1\n", false},
+		{"a plain key of 1025", k(1025) + ": 1\n", true},
+		{"a plain key of 1024 and a blank before the colon", k(1024) + " : 1\n", true},
+		{"a plain key of 1023 and a blank before the colon", k(1023) + " : 1\n", false},
+		{"a quoted key whose quotes make 1024", `"` + k(1022) + `": 1` + "\n", false},
+		{"a quoted key whose quotes make 1025", `"` + k(1023) + `": 1` + "\n", true},
+		{"a quoted key of 1022 and a blank before the colon", `"` + k(1022) + `" : 1` + "\n", true},
+		{"a single-quoted key whose quotes make 1025", "'" + k(1023) + "': 1\n", true},
+		{"a double-quoted key of escapes, 170 times six characters", `"` + strings.Repeat(`\u006b`, 170) + `": 1` + "\n", false},
+		{"a double-quoted key of escapes, 171 times six characters", `"` + strings.Repeat(`\u006b`, 171) + `": 1` + "\n", true},
+		{"a single-quoted key of 511 doubled quotes", "'" + strings.Repeat("''", 511) + "': 1\n", false},
+		{"a single-quoted key of 512 doubled quotes", "'" + strings.Repeat("''", 512) + "': 1\n", true},
+		{"a nested key", "a:\n  " + k(1025) + ": 1\n", true},
+		{"a key after a dash", "- " + k(1025) + ": 1\n", true},
+		{"a key of 512 two-byte characters", strings.Repeat("\u00e9", 512) + ": 1\n", false},
+		{"a key of 513 two-byte characters (more bytes than units)", strings.Repeat("\u00e9", 513) + ": 1\n", true},
+		{"a flow key of 1024", "a: {" + k(1024) + ": 1}\n", false},
+		{"a flow key of 1025", "a: {" + k(1025) + ": 1}\n", true},
+		{"a quoted flow key whose quotes make 1025", `a: {"` + k(1023) + `": 1}` + "\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseSyntax([]byte(tc.text))
+			switch {
+			case tc.refused && (err == nil || err.Rule != RuleYAMLKey || !strings.Contains(err.Message, "written over 1024 bytes")):
+				t.Fatalf("got %v, want a %s refusal", err, RuleYAMLKey)
+			case !tc.refused && err != nil:
+				t.Fatalf("got %v, want the key read", err)
+			}
+		})
 	}
 }

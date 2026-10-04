@@ -165,7 +165,7 @@ func (g *Graph) add(f *File) {
 
 func decodeFile(path string, data []byte) *File {
 	f := &File{Path: path}
-	root, err := ParseYAML(data)
+	root, err, _ := parseYAML(data)
 	if err != nil {
 		f.ParseErr = err
 		return f

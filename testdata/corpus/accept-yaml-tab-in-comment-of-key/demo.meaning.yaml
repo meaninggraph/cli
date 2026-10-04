@@ -1,0 +1,13 @@
+--- # the graph	of things
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+concepts: # the list	of things
+  - id: thing
+    kind: entity
+    labels: {en: thing}
+    synonyms: # note	more
+      en:
+        - item
+    description: A thing.

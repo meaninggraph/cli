@@ -1,0 +1,4 @@
+{
+  "description": "A quoted key of 1,022 characters: the colon is exactly 1,024 after its start.",
+  "expect": "accept"
+}

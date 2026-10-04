@@ -1,0 +1,5 @@
+{
+  "description": "A single-quoted key of 512 doubled quotes: 1,026 written, 512 read.",
+  "expect": "refuse",
+  "rule": "yaml-key"
+}

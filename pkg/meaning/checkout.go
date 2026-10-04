@@ -28,8 +28,10 @@ const (
 // to its git directory. HEAD, the ref files and packed-refs are read only when
 // they are regular files that are not symbolic links, whose names are spelled
 // exactly as asked (a case-insensitive file system does not make MAIN the
-// branch main), and only up to a documented size (1 KiB for a ref, 8 MiB for
-// packed-refs); otherwise the commit cannot be read, and the error says so.
+// branch main), and only up to a documented size (1 KiB for a ref, 4 KiB for a
+// .git pointer file or a commondir file, 8 MiB for packed-refs); otherwise the
+// commit cannot be read, and the error says so. A .git that is a link, and a
+// pointer file or commondir that is a pipe or a device, is not opened.
 //
 // It tells which commit the checkout was made at, and nothing more: it does not
 // look at the working tree, so files that were edited, added or deleted since
@@ -66,22 +68,29 @@ func CheckoutCommit(fsys FS, dir string) (string, error) {
 
 // gitLayout finds the git directory of the checkout in dir (the one that holds
 // HEAD) and the common one that holds the refs (the same, but for a linked
-// worktree).
+// worktree). The .git entry and a commondir file are read as HEAD and the refs
+// are: a regular file that is not a link, of a bounded size. A .git that is a
+// link, a pipe or a device, and a commondir that is anything but a regular file,
+// are not opened (opening a pipe waits for a writer) and are an error.
 func gitLayout(fsys FS, dir string) (gitDir, common string, err error) {
 	dotGit := filepath.Join(dir, ".git")
-	info, err := fsys.Stat(dotGit)
-	if err != nil {
+	entry, err := lookup(fsys, dir, ".git")
+	switch {
+	case err != nil:
+		return "", "", err
+	case entry == nil:
 		return "", "", errors.New("it is not a git checkout (it has no .git)")
+	case entry.IsDir():
+		return dotGit, dotGit, nil
 	}
-	gitDir, common = dotGit, dotGit
-	if !info.IsDir() {
-		if gitDir, err = pointedTo(fsys, dir, dotGit, "gitdir: "); err != nil {
-			return "", "", err
-		}
+	if gitDir, err = pointedTo(fsys, dir, ".git", "gitdir: "); err != nil {
+		return "", "", err
+	}
+	switch common, err = pointedTo(fsys, gitDir, "commondir", ""); {
+	case errors.Is(err, fs.ErrNotExist):
 		common = gitDir
-		if shared, err := pointedTo(fsys, gitDir, filepath.Join(gitDir, "commondir"), ""); err == nil {
-			common = shared
-		}
+	case err != nil:
+		return "", "", err
 	}
 	return gitDir, common, nil
 }
@@ -192,32 +201,38 @@ func readPackedRefs(fsys FS, common string) (lines []string, fullyPeeled bool, e
 // errNotFollowed is the reason a git file is not read although it is there.
 var errNotFollowed = errors.New("is a symbolic link or not a regular file, which is not read")
 
+// lookup finds the entry called name in the directory dir, spelled as the
+// directory lists it (the open of a file system that ignores case would succeed
+// for another spelling); it is nil when there is none, or no such directory.
+// The entry says what it is without following a link.
+func lookup(fsys FS, dir, name string) (fs.DirEntry, error) {
+	entries, err := fsys.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	for _, candidate := range entries {
+		if candidate.Name() == name {
+			return candidate, nil
+		}
+	}
+	return nil, nil
+}
+
 // readGitFile reads the file base/segments..., but only when every name on the
-// way is spelled as it is in the directory listing (the open of a file system
-// that ignores case would succeed for another spelling), the directories are
+// way is spelled as it is in the directory listing, the directories are
 // directories and not links, and the file is a regular file, not a link, a
 // device or a pipe, of at most max bytes. found is false when a name is not
 // there; an error says why something that is there is not read.
 func readGitFile(fsys FS, base string, segments []string, max int64) (data []byte, found bool, err error) {
 	current := base
 	for i, segment := range segments {
-		entries, err := fsys.ReadDir(current)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, false, nil
-			}
-			return nil, false, err
-		}
-		var entry fs.DirEntry
-		for _, candidate := range entries {
-			if candidate.Name() == segment {
-				entry = candidate
-				break
-			}
-		}
+		entry, err := lookup(fsys, current, segment)
 		switch {
-		case entry == nil:
-			return nil, false, nil
+		case err != nil || entry == nil:
+			return nil, false, err
 		case i < len(segments)-1 && !entry.IsDir(), i == len(segments)-1 && !entry.Type().IsRegular():
 			return nil, false, fmt.Errorf("%s %w", filepath.Join(current, segment), errNotFollowed)
 		}
@@ -230,19 +245,23 @@ func readGitFile(fsys FS, base string, segments []string, max int64) (data []byt
 	return data, true, nil
 }
 
-// pointedTo reads a file that holds a path (after prefix), relative to base: at
-// most maxGitPointerBytes of it.
-func pointedTo(fsys FS, base, file, prefix string) (string, error) {
-	data, err := fsys.ReadFileMax(file, maxGitPointerBytes)
+// pointedTo reads the file dir/name, which holds a path (after prefix), relative
+// to dir: a regular file that is not a link, of at most maxGitPointerBytes. A
+// file that is not there is fs.ErrNotExist.
+func pointedTo(fsys FS, dir, name, prefix string) (string, error) {
+	data, found, err := readGitFile(fsys, dir, []string{name}, maxGitPointerBytes)
+	if err == nil && !found {
+		err = fs.ErrNotExist
+	}
 	if err != nil {
-		return "", fmt.Errorf("%s cannot be read: %w", file, err)
+		return "", err
 	}
 	target, ok := strings.CutPrefix(strings.TrimSpace(string(data)), prefix)
 	if !ok || target == "" {
-		return "", fmt.Errorf("%s does not name a git directory", file)
+		return "", fmt.Errorf("%s does not name a git directory", filepath.Join(dir, name))
 	}
 	if !filepath.IsAbs(target) {
-		target = filepath.Join(base, target)
+		target = filepath.Join(dir, target)
 	}
 	return target, nil
 }

@@ -334,6 +334,94 @@ const structures = [
 ];
 for (const text of structures) add('structure', JSON.stringify(text), text);
 
+// ---- the length of a block mapping key
+// The reference parser refuses an implicit block mapping key when its colon is
+// more than 1024 UTF-16 units after the first character of the key: the quotes,
+// the escapes as written and the blanks before the colon count (resolve-block-map.js,
+// KEY_OVER_1024_CHARS). Keys of a flow mapping have no limit there. Every kind of
+// key is written at lengths on both sides of the limit, in four places.
+{
+  const rep = (unit, n) => unit.repeat(n);
+  // each maker takes the number of repeats and gives the key as written, with the blanks before the colon
+  const kinds = {
+    'plain': (n, b) => rep('k', n) + rep(' ', b),
+    'plain, multibyte (2 bytes, 1 unit)': (n, b) => rep('\u00e9', n) + rep(' ', b),
+    'plain, multibyte (3 bytes, 1 unit)': (n, b) => rep('\u20ac', n) + rep(' ', b),
+    'plain, astral (4 bytes, 2 units)': (n, b) => rep('\u{1F600}', n) + rep(' ', b),
+    'double-quoted': (n, b) => `"${rep('k', n)}"` + rep(' ', b),
+    'double-quoted, multibyte': (n, b) => `"${rep('\u00e9', n)}"` + rep(' ', b),
+    'double-quoted, escapes of 6 units': (n, b) => `"${rep('\\u00e9', n)}"` + rep(' ', b),
+    'double-quoted, escapes of 2 units': (n, b) => `"${rep('\\"', n)}"` + rep(' ', b),
+    'single-quoted': (n, b) => `'${rep('k', n)}'` + rep(' ', b),
+    'single-quoted, doubled quotes': (n, b) => `'${rep("''", n)}'` + rep(' ', b),
+  };
+  // the number of UTF-16 units of one repeat of each kind
+  const unitsOf = { 'plain': 1, 'plain, multibyte (2 bytes, 1 unit)': 1, 'plain, multibyte (3 bytes, 1 unit)': 1, 'plain, astral (4 bytes, 2 units)': 2, 'double-quoted': 1, 'double-quoted, multibyte': 1, 'double-quoted, escapes of 6 units': 6, 'double-quoted, escapes of 2 units': 2, 'single-quoted': 1, 'single-quoted, doubled quotes': 2 };
+  const quotes = (name) => (name.startsWith('double') || name.startsWith('single') ? 2 : 0);
+  const places = {
+    'top': (key) => `${key}: 1\nb: 2\n`,
+    'nested': (key) => `a:\n  ${key}: 1\n  b: 2\n`,
+    'after a dash': (key) => `- ${key}: 1\n  b: 2\n`,
+    'after a comment line': (key) => `# c\n${key}: 1\n`,
+    'in a flow mapping': (key) => `a: {${key}: 1}\n`,
+  };
+  for (const [name, make] of Object.entries(kinds)) {
+    const unit = unitsOf[name];
+    // the repeat counts that put the span (the key as written and the blanks) from 1018 to 1030 units
+    for (let repeats = Math.floor((1018 - quotes(name)) / unit); repeats <= Math.ceil((1030 - quotes(name)) / unit); repeats++) {
+      for (const blanks of [0, 1, 3]) {
+        for (const [place, wrap] of Object.entries(places)) {
+          if (place === 'in a flow mapping' && blanks > 0) continue;
+          add('key-limit', `${name}, ${repeats} repeats, ${blanks} blanks, ${place}`, wrap(make(repeats, blanks)));
+        }
+      }
+    }
+  }
+}
+
+// ---- a tab in the comment of a key, a dash or a --- line with nothing else on the line
+// `a: # note<TAB>more` is read like `a: 1 # note<TAB>more`: the tab is in the text
+// of a comment. A tab at the end of the comment, or before its #, is refused by the
+// CLI (the reference parser reads some of those). Heads in different places, two
+// spacings, the comments, and the lines that follow.
+{
+  const inner = ['# note\tmore', '#\tx', '# \tx', '#x\ty', '# a\t\tb', '# a \t b', '# a\t: b', '# a\t- b', '# a\t"q', '#\t#'];
+  const outer = ['# note\t', '# note \t', '#\t', '# a\tb\t'];
+  const heads = {
+    'key': ['', (c, sp) => `a:${sp}${c}`, 0],
+    'nested key': ['x:\n', (c, sp) => `  a:${sp}${c}`, 2],
+    'quoted key': ['', (c, sp) => `"a":${sp}${c}`, 0],
+    'key after a dash': ['', (c, sp) => `- a:${sp}${c}`, 2],
+    'dash': ['', (c, sp) => `-${sp}${c}`, 0],
+    'nested dash': ['x:\n', (c, sp) => `  -${sp}${c}`, 2],
+    'dash at the key indent': ['x:\n', (c, sp) => `-${sp}${c}`, 0],
+    'marker': ['', (c, sp) => `---${sp}${c}`, 0],
+    'key after a comment line': ['# top\n', (c, sp) => `a:${sp}${c}`, 0],
+  };
+  const tails = (o, dash) => {
+    const in2 = ' '.repeat(o + 2), at = ' '.repeat(o);
+    return {
+      'end': '', 'map': `${in2}b: 1\n`, 'seq': `${in2}- x\n`, 'scalar': `${in2}v\n`, 'two-line scalar': `${in2}v\n${in2}w\n`,
+      'comment, map': `${in2}# k\n${in2}b: 1\n`, 'comment with a tab, map': `${in2}# a\tb\n${in2}b: 1\n`,
+      'comment, scalar': `${in2}# k\n${in2}v\n`, 'block scalar on the next line': `${in2}|\n${in2}  text\n`,
+      'next entry': dash ? `${at}- y\n` : `${at}b: 2\n`,
+    };
+  };
+  for (const [kind, comments, group] of [['inner', inner, 'tab-in-key-comment'], ['outer', outer, 'tab-at-end-of-key-comment']]) {
+    for (const [head, [prefix, make, o]] of Object.entries(heads)) {
+      for (const sp of [' ', '   ']) {
+        for (const comment of comments) {
+          for (const [tail, rest] of Object.entries(tails(o, head.includes('dash')))) {
+            const text = `${prefix}${make(comment, sp)}\n${rest}`;
+            add(group, `${head}, ${JSON.stringify(sp)} before ${JSON.stringify(comment)}, then ${tail}`, text);
+            if (sp === ' ' && tail !== 'comment with a tab, map') add(group, `${head}, ${JSON.stringify(sp)} before ${JSON.stringify(comment)}, then ${tail}, CRLF`, text.replaceAll('\n', '\r\n'));
+          }
+        }
+      }
+    }
+  }
+}
+
 const commit = execFileSync('git', ['-C', core, 'rev-parse', 'HEAD']).toString().trim();
 const version = JSON.parse(readFileSync(join(core, 'node_modules', 'yaml', 'package.json'), 'utf8')).version;
 // One entry per line, so that a change to the matrix is a readable diff.
