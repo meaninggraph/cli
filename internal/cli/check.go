@@ -155,6 +155,9 @@ type target struct {
 	owns  map[string]bool
 	dir   string
 	graph *meaning.Graph
+	// spelling is a note for a graph that has no address although a directory
+	// that may be the same one was supplied: see assignAddresses.
+	spelling string
 }
 
 // loadTargets reads what the paths name: each directory is a graph of its own,
@@ -290,8 +293,37 @@ func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[s
 	}
 	for i, t := range targets {
 		t.graph.Address = addresses[i]
+		if t.dir != "" && addresses[i] == "" {
+			targets[i].spelling = spellingNote(t, supplied, inUse)
+		}
 	}
 	return inUse, nil
+}
+
+// spellingNote is the note for a checked directory that has no address, when a
+// supplied directory that no checked path matched holds meaning files of the
+// same names: directories are matched by their path, cleaned, in the same letter
+// case, and links are not followed, so a link to the checked directory, or the
+// same directory in another case, is not recognised. Empty when there is none.
+func spellingNote(t target, supplied map[string]*meaning.Graph, inUse map[string]bool) string {
+	names := func(g *meaning.Graph) string {
+		var list []string
+		for _, f := range g.Files {
+			list = append(list, filepath.Base(f.Path))
+		}
+		slices.Sort(list)
+		return strings.Join(list, "\n")
+	}
+	var same []string
+	for _, address := range slices.Sorted(maps.Keys(supplied)) {
+		if !inUse[address] && len(t.graph.Files) > 0 && names(supplied[address]) == names(t.graph) {
+			same = append(same, address+"="+supplied[address].Dir)
+		}
+	}
+	if len(same) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s was checked without an address, but --graph %s holds meaning files of the same names; if it is the same directory, write the two paths the same way: a checked path and a --graph directory are matched by their path (cleaned, in the same letter case), and links are not followed", t.label(), strings.Join(same, ", "))
 }
 
 // graphReport is the result of checking one graph.
@@ -330,6 +362,9 @@ func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meani
 				findings = append(findings, f)
 			}
 		}
+	}
+	if t.spelling != "" {
+		findings = append(findings, meaning.Finding{File: t.paths[0], Rule: "graph-path-spelling", Severity: meaning.Info, Message: t.spelling})
 	}
 	// A graph with no finding has an empty list, not none: JSON says [] for it.
 	report := graphReport{Paths: t.paths, Address: t.graph.Address, Files: len(t.graph.Files), Concepts: len(t.graph.Concepts), Findings: []meaning.Finding{}}

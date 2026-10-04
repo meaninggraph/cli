@@ -235,3 +235,52 @@ func TestCheckAGraphThatIsAlsoSuppliedIsNotUnused(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+// Paths are matched by spelling (cleaned, same letter case), and links are not
+// followed. A supplied directory that may be a checked one under another spelling
+// (meaning files of the same names) is said so in an info finding, which tells
+// the author to write the two paths the same way.
+func TestCheckSaysWhenASuppliedPathMayBeACheckedDirectoryWrittenAnotherWay(t *testing.T) {
+	t.Parallel()
+	self := file(concept("a", "entity", ""), concept("b", "entity", ", extends: 'meaning://github.com/org/b/a'"))
+	files := map[string]string{
+		"/b/b.meaning.yaml":     self,
+		"/lb/b.meaning.yaml":    self, // stands for a link to /b
+		"/B/b.meaning.yaml":     self, // stands for /b on a file system that ignores case
+		"/other/o.meaning.yaml": file(concept("o", "entity", "")),
+	}
+	const b = "github.com/org/b"
+	for _, supplied := range []string{"/lb", "/B"} {
+		got := execute(files, "check", "--format", "json", "/b", "--graph", b+"="+supplied)
+		graphs := graphsOf(t, got)
+		if got.code != ExitFindings || len(graphs["/b"].Findings) < 2 {
+			t.Fatalf("%s: got %+v", supplied, got)
+		}
+		var note meaning.Finding
+		for _, f := range graphs["/b"].Findings {
+			if f.Rule == "graph-path-spelling" {
+				note = f
+			}
+		}
+		if note.Severity != meaning.Info || !strings.Contains(note.Message, "/b was checked without an address, but --graph "+b+"="+supplied+" holds meaning files of the same names") || !strings.Contains(note.Message, "write the two paths the same way") {
+			t.Errorf("%s: the note is %+v", supplied, note)
+		}
+		if graphs["/b"].Errors == 0 {
+			t.Errorf("%s: the self reference still fails: %+v", supplied, graphs["/b"])
+		}
+	}
+	for name, args := range map[string][]string{
+		"the same spelling is one graph":               {"check", "/b", "--graph", b + "=/b/."},
+		"an address was given":                         {"check", "/b", "--address", b, "--graph", b + "=/lb"},
+		"other file names":                             {"check", "/b", "--address", b, "--graph", "github.com/org/o=/other"},
+		"a supplied directory that is checked is used": {"check", "/b", "/lb", "--graph", b + "=/lb"},
+	} {
+		if got := execute(files, args...); strings.Contains(got.stdout, "graph-path-spelling") || strings.Contains(got.stdout, "same way") {
+			t.Errorf("%s: %+v", name, got)
+		}
+	}
+	// No file in the checked directory: nothing to compare.
+	if got := execute(map[string]string{"/e/x.txt": "x", "/lb/b.meaning.yaml": self}, "check", "/e", "--graph", b+"=/lb"); strings.Contains(got.stdout, "same way") {
+		t.Errorf("an empty directory: %+v", got)
+	}
+}
