@@ -103,7 +103,10 @@ func tabError(line int, raw string, i int, format string, args ...any) *SyntaxEr
 }
 
 // ParseYAML reads one document of the subset described above. An empty file
-// is a Null node.
+// is a Null node. It is exported for other tools: it enforces the size, depth
+// and key limits and every rule of the subset itself (see the package
+// documentation), and returns a *SyntaxError, not an error, so a caller tests
+// the pointer.
 func ParseYAML(data []byte) (*Node, *SyntaxError) {
 	node, err, _ := parseYAML(data)
 	return node, err
