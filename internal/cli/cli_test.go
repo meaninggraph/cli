@@ -200,7 +200,7 @@ func TestCheckAddressLetsAGraphReferenceItself(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 	got := execute(files, "check", "/g", "/g/a.meaning.yaml", "--address", "github.com/org/me")
-	if got.code != ExitUsage || !strings.Contains(got.stderr, "--address names one graph, but 2 graphs are being checked") {
+	if got.code != ExitUsage || !strings.Contains(got.stderr, "--address github.com/org/me names no path, but 2 graphs are being checked: write --address github.com/org/me=<path>") {
 		t.Fatalf("got %+v", got)
 	}
 }
@@ -234,6 +234,8 @@ func TestCheckRefusesWrongUsage(t *testing.T) {
 	}{
 		{"format", []string{"check", "--format", "xml", "/g"}, `invalid --format "xml"`},
 		{"address", []string{"check", "--address", "nope", "/g"}, `invalid --address "nope"`},
+		{"address with an empty path", []string{"check", "--address", "github.com/o/r=", "/g"}, `invalid --address "github.com/o/r="`},
+		{"address with a path and no address", []string{"check", "--address", "=/g", "/g"}, `invalid --address "=/g"`},
 		{"profile", []string{"check", "--profile", "strict", "/g"}, `invalid --profile "strict"`},
 		{"graph without equals", []string{"check", "--graph", "github.com/o/r", "/g"}, `invalid --graph "github.com/o/r"`},
 		{"graph with a bad address", []string{"check", "--graph", "core=/g", "/g"}, `invalid --graph "core=/g"`},

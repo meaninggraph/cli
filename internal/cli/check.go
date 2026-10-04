@@ -18,9 +18,16 @@ import (
 )
 
 type checkOptions struct {
-	format, address, profile string
-	graphs                   []string
+	format, profile string
+	graphs          []string
+	// addresses are the --address flags as written; addressFlags are the same, parsed.
+	addresses    []string
+	addressFlags []addressFlag
 }
+
+// addressFlag is one --address: <address>, or <address>=<path> (the path of the
+// graph that has that address, one of the paths being checked).
+type addressFlag struct{ spec, address, path string }
 
 func newCheckCommand(env Env) *cobra.Command {
 	var o checkOptions
@@ -40,17 +47,25 @@ together are one more graph. The default path is the current directory.
 References to other graphs are read from directories you supply with --graph:
 nothing is fetched. A reference to a graph that was not supplied is an error.
 
+--address gives a graph that is being checked its address, so that its own
+references to itself resolve: bare (--address <address>) when one graph is
+checked, else once per path as --address <address>=<path>. A directory that is
+checked and also given with --graph <address>=<directory> is that graph, with
+that address, and is checked once, in full: one run checks a repository and the
+dependency it supplied.
+
 Exit codes: 0 no error found, 1 at least one finding of error severity, 2 wrong
 usage or a file that cannot be read.`,
 		Example: `  meaninggraph check
   meaninggraph check model --graph github.com/meaninggraph/core=../core
-  meaninggraph check . --address github.com/meaninggraph/core --profile universal --format json`,
+  meaninggraph check . --address github.com/meaninggraph/core --profile universal --format json
+  meaninggraph check model ../core --address github.com/org/data=model --graph github.com/meaninggraph/core=../core`,
 		RunE: func(cmd *cobra.Command, args []string) error { return o.run(cmd, env, args) },
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&o.format, "format", "text", "output format: text or json")
 	flags.StringArrayVar(&o.graphs, "graph", nil, "another graph references may name, as <host>/<org>/<repo>=<directory>; repeatable")
-	flags.StringVar(&o.address, "address", "", "the address of the graph being checked, <host>/<org>/<repo>, so that references to itself resolve")
+	flags.StringArrayVar(&o.addresses, "address", nil, "the address of a graph being checked, <host>/<org>/<repo>, so that references to itself resolve: bare for one graph, else <address>=<path> once per checked path; repeatable")
 	flags.StringVar(&o.profile, "profile", "", `extra rules: "universal" for a repository of universal concepts such as meaninggraph/core`)
 	return cmd
 }
@@ -70,8 +85,8 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if o.address != "" && len(targets) != 1 {
-		return fmt.Errorf("--address names one graph, but %d graphs are being checked", len(targets))
+	if err := o.assignAddresses(env, targets, supplied); err != nil {
+		return err
 	}
 	if profile == meaning.ProfileUniversal && slices.ContainsFunc(targets, func(t target) bool { return t.graph.Dir == "" }) {
 		return fmt.Errorf("--profile universal checks a repository: name its directory, not files")
@@ -79,7 +94,6 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 	var reports []graphReport
 	asked := map[string]bool{}
 	for _, t := range targets {
-		t.graph.Address = o.address
 		reports = append(reports, t.check(env, supplied, profile, asked))
 	}
 	slices.SortFunc(reports, func(a, b graphReport) int { return strings.Compare(a.label(), b.label()) })
@@ -97,8 +111,12 @@ func (o *checkOptions) validate() (meaning.Profile, error) {
 	if o.format != "text" && o.format != "json" {
 		return "", fmt.Errorf("invalid --format %q: expected text or json", o.format)
 	}
-	if o.address != "" && !addressPattern.MatchString(o.address) {
-		return "", fmt.Errorf("invalid --address %q: expected <host>/<org>/<repo>", o.address)
+	for _, spec := range o.addresses {
+		address, path, named := strings.Cut(spec, "=")
+		if !addressPattern.MatchString(address) || (named && path == "") {
+			return "", fmt.Errorf("invalid --address %q: expected <host>/<org>/<repo>, or <host>/<org>/<repo>=<path> to name the graph it is for", spec)
+		}
+		o.addressFlags = append(o.addressFlags, addressFlag{spec, address, path})
 	}
 	switch p := meaning.Profile(o.profile); p {
 	case meaning.ProfileDefault, meaning.ProfileUniversal:
@@ -128,9 +146,13 @@ func loadSupplied(fsys meaning.FS, specs []string) (map[string]*meaning.Graph, e
 	return supplied, nil
 }
 
-// target is one graph to check and the paths it was read from.
+// target is one graph to check and the paths it was read from. owns holds the
+// absolute form of each path, and dir the absolute directory of a graph that was
+// read from one.
 type target struct {
 	paths []string
+	owns  map[string]bool
+	dir   string
 	graph *meaning.Graph
 }
 
@@ -143,6 +165,7 @@ func loadTargets(env Env, args []string) ([]target, error) {
 	}
 	var targets []target
 	var files []string
+	owned := map[string]bool{}
 	seen := map[string]bool{}
 	for _, arg := range args {
 		if arg == "" {
@@ -163,13 +186,14 @@ func loadTargets(env Env, args []string) ([]target, error) {
 		}
 		if !fi.IsDir() {
 			files = append(files, path)
+			owned[abs] = true
 			continue
 		}
 		g, err := meaning.LoadDir(env.FS, path)
 		if err != nil {
 			return nil, err
 		}
-		targets = append(targets, target{paths: []string{path}, graph: g})
+		targets = append(targets, target{paths: []string{path}, owns: map[string]bool{abs: true}, dir: abs, graph: g})
 	}
 	if len(files) > 0 {
 		slices.Sort(files)
@@ -177,9 +201,92 @@ func loadTargets(env Env, args []string) ([]target, error) {
 		if err != nil {
 			return nil, err
 		}
-		targets = append(targets, target{paths: files, graph: g})
+		targets = append(targets, target{paths: files, owns: owned, graph: g})
 	}
 	return targets, nil
+}
+
+// assignAddresses gives each graph that is being checked its address. A graph
+// that has none is checked without one, as before. An address comes from
+// --address (bare for the only graph, else <address>=<path> for the graph that
+// holds the path) or from --graph: a directory that is checked and is also
+// supplied with --graph <address>=<directory> is that graph, with that address.
+// A contradiction is an error: a graph with two addresses, an address for two
+// graphs, an address for a path that is not checked, a bare address when more
+// than one graph is checked, a directory supplied under two addresses.
+func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[string]*meaning.Graph) error {
+	abs := func(path string) (string, error) { return env.Abs(filepath.Clean(path)) }
+	owner := map[string]int{} // the target that each checked path belongs to
+	for i, t := range targets {
+		for full := range t.owns {
+			owner[full] = i
+		}
+	}
+	addresses := make([]string, len(targets))
+	holder := map[string]int{} // the target that each address was given to
+	give := func(i int, address, from string) error {
+		switch other, taken := holder[address]; {
+		case addresses[i] != "" && addresses[i] != address:
+			return fmt.Errorf("%s gives the graph at %s the address %s, but another flag gave it the address %s", from, targets[i].label(), address, addresses[i])
+		case taken && other != i:
+			return fmt.Errorf("%s gives the address %s to the graph at %s, but it is the address of the graph at %s", from, address, targets[i].label(), targets[other].label())
+		}
+		addresses[i], holder[address] = address, i
+		return nil
+	}
+	for _, a := range o.addressFlags {
+		i := 0
+		if a.path == "" {
+			switch {
+			case len(targets) != 1:
+				return fmt.Errorf("--address %s names no path, but %d graphs are being checked: write --address %s=<path>, once for each path", a.address, len(targets), a.address)
+			case len(o.addressFlags) != 1:
+				return fmt.Errorf("--address %s names no path, but there are other --address flags: write --address %s=<path>", a.address, a.address)
+			}
+		} else {
+			full, err := abs(a.path)
+			if err != nil {
+				return err
+			}
+			var checked bool
+			if i, checked = owner[full]; !checked {
+				return fmt.Errorf("--address %s: %s is not one of the paths being checked", a.spec, a.path)
+			}
+		}
+		if addresses[i] != "" {
+			return fmt.Errorf("--address %s and an earlier --address both name the graph at %s (%s)", a.spec, targets[i].label(), addresses[i])
+		}
+		if err := give(i, a.address, "--address "+a.spec); err != nil {
+			return err
+		}
+	}
+	for i, t := range targets {
+		if t.dir == "" {
+			continue // files named together are not a directory that --graph supplies
+		}
+		var same []string // the addresses --graph gives to this directory
+		for _, address := range slices.Sorted(maps.Keys(supplied)) {
+			other, err := abs(supplied[address].Dir)
+			if err != nil {
+				return err
+			}
+			if other == t.dir {
+				same = append(same, address)
+			}
+		}
+		switch {
+		case len(same) > 1:
+			return fmt.Errorf("%s is given with --graph under %d addresses (%s): a graph has one", t.label(), len(same), strings.Join(same, ", "))
+		case len(same) == 1:
+			if err := give(i, same[0], "--graph "+same[0]+"="+supplied[same[0]].Dir); err != nil {
+				return err
+			}
+		}
+	}
+	for i, t := range targets {
+		t.graph.Address = addresses[i]
+	}
+	return nil
 }
 
 // graphReport is the result of checking one graph.
@@ -194,6 +301,8 @@ type graphReport struct {
 }
 
 func (r graphReport) label() string { return strings.Join(r.Paths, " ") }
+
+func (t target) label() string { return strings.Join(t.paths, " ") }
 
 func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meaning.Profile, asked map[string]bool) graphReport {
 	base := meaning.GraphResolver(supplied)

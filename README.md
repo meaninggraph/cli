@@ -58,9 +58,19 @@ meaninggraph check model --graph github.com/meaninggraph/core=/tmp/core
 | Flag | Meaning |
 |---|---|
 | `--format text\|json` | Output format. Text is `file:line: severity: message [rule]` plus one summary line per graph; JSON has the same findings with a stable shape. |
-| `--graph <host>/<org>/<repo>=<dir>` | Another graph that references may name, read from a local directory. Repeatable. The directory is checked against the schema like any graph (a supplied graph that is itself invalid is an `unresolved-graph` error). A graph that no file refers to is a warning (`unused-graph`), which says so when the address differs from a referenced one only by case; addresses are compared exactly. |
-| `--address <host>/<org>/<repo>` | The address of the graph being checked, so that a `meaning://` reference to itself resolves (it must not carry `?ref=`). Valid when one graph is checked. |
+| `--graph <host>/<org>/<repo>=<dir>` | Another graph that references may name, read from a local directory. Repeatable. A directory that is also one of the paths being checked is that graph, checked in full once, with this address (see "A graph and its dependency in one run"). The directory is checked against the schema like any graph (a supplied graph that is itself invalid is an `unresolved-graph` error). A graph that no file refers to is a warning (`unused-graph`), which says so when the address differs from a referenced one only by case; addresses are compared exactly. |
+| `--address <host>/<org>/<repo>` or `--address <host>/<org>/<repo>=<path>` | The address of a graph being checked, so that a `meaning://` reference to itself resolves (it must not carry `?ref=`). The bare form is for one graph. When several are checked, give one `<address>=<path>` for each, repeated: `<path>` is one of the paths being checked, written any way (the files named together are one graph, so any one of them names it). A directory that is checked and is also given with `--graph <address>=<directory>` has that address without `--address`. Contradictions are usage errors (exit 2): two addresses for one graph, one address for two graphs, an address for a path that is not checked, a bare address when more than one graph is checked, a directory given with `--graph` under two addresses. |
 | `--profile universal` | The extra rules `core` applies to its own universal concepts: a `LICENSE` file, `license: CC0-1.0` on every file, no `models` and no bindings, no meaning file below the root, and one word names one concept. Needs a directory. |
+
+**A graph and its dependency in one run.** A consumer that wants its own graph and a graph it depends on both checked in full can name both and say which is which, instead of running the tool twice:
+
+```sh
+meaninggraph check model /tmp/core \
+  --address github.com/datatug/chinookdb=model \
+  --graph github.com/meaninggraph/core=/tmp/core
+```
+
+`model` is checked as `github.com/datatug/chinookdb`, and `/tmp/core` is both the directory references to `github.com/meaninggraph/core` are read from and a graph that is checked like any other, with that address (no `--address` is needed for it). Each graph has the findings it has in a run of its own (`check model --address github.com/datatug/chinookdb --graph github.com/meaninggraph/core=/tmp/core`, and `check /tmp/core --address github.com/meaninggraph/core`), and each has a summary line; nothing is checked twice. A test compares the one run with the two on a graph and a dependency that both have findings: the findings are the same, graph for graph. `--profile` applies to every graph that is checked, so it is not what you want for a dependency that is not a repository of universal concepts.
 
 Output is deterministic: findings are sorted by file, line, rule and message, and graphs by path. Each finding has a file, a line when known, a stable rule id, a severity (`error`, `warning` or `info`) and a message.
 
