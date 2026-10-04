@@ -85,7 +85,8 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := o.assignAddresses(env, targets, supplied); err != nil {
+	checked, err := o.assignAddresses(env, targets, supplied)
+	if err != nil {
 		return err
 	}
 	if profile == meaning.ProfileUniversal && slices.ContainsFunc(targets, func(t target) bool { return t.graph.Dir == "" }) {
@@ -97,7 +98,7 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 		reports = append(reports, t.check(env, supplied, profile, asked))
 	}
 	slices.SortFunc(reports, func(a, b graphReport) int { return strings.Compare(a.label(), b.label()) })
-	reports[0].add(unusedGraphs(reports[0].Paths[0], supplied, asked)...)
+	reports[0].add(unusedGraphs(reports[0].Paths[0], supplied, asked, checked)...)
 	if err := o.write(cmd.OutOrStdout(), reports); err != nil {
 		return err
 	}
@@ -213,8 +214,10 @@ func loadTargets(env Env, args []string) ([]target, error) {
 // supplied with --graph <address>=<directory> is that graph, with that address.
 // A contradiction is an error: a graph with two addresses, an address for two
 // graphs, an address for a path that is not checked, a bare address when more
-// than one graph is checked, a directory supplied under two addresses.
-func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[string]*meaning.Graph) error {
+// than one graph is checked, a directory supplied under two addresses. It returns
+// the addresses of the supplied directories that are checked in this run, which
+// are in use.
+func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[string]*meaning.Graph) (map[string]bool, error) {
 	abs := func(path string) (string, error) { return env.Abs(filepath.Clean(path)) }
 	owner := map[string]int{} // the target that each checked path belongs to
 	for i, t := range targets {
@@ -223,6 +226,7 @@ func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[s
 		}
 	}
 	addresses := make([]string, len(targets))
+	inUse := map[string]bool{} // the addresses of supplied directories that are checked too
 	holder := map[string]int{} // the target that each address was given to
 	give := func(i int, address, from string) error {
 		switch other, taken := holder[address]; {
@@ -239,25 +243,25 @@ func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[s
 		if a.path == "" {
 			switch {
 			case len(targets) != 1:
-				return fmt.Errorf("--address %s names no path, but %d graphs are being checked: write --address %s=<path>, once for each path", a.address, len(targets), a.address)
+				return nil, fmt.Errorf("--address %s names no path, but %d graphs are being checked: write --address %s=<path>, once for each path", a.address, len(targets), a.address)
 			case len(o.addressFlags) != 1:
-				return fmt.Errorf("--address %s names no path, but there are other --address flags: write --address %s=<path>", a.address, a.address)
+				return nil, fmt.Errorf("--address %s names no path, but there are other --address flags: write --address %s=<path>", a.address, a.address)
 			}
 		} else {
 			full, err := abs(a.path)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			var checked bool
 			if i, checked = owner[full]; !checked {
-				return fmt.Errorf("--address %s: %s is not one of the paths being checked", a.spec, a.path)
+				return nil, fmt.Errorf("--address %s: %s is not one of the paths being checked", a.spec, a.path)
 			}
 		}
 		if addresses[i] != "" {
-			return fmt.Errorf("--address %s and an earlier --address both name the graph at %s (%s)", a.spec, targets[i].label(), addresses[i])
+			return nil, fmt.Errorf("--address %s and an earlier --address both name the graph at %s (%s)", a.spec, targets[i].label(), addresses[i])
 		}
 		if err := give(i, a.address, "--address "+a.spec); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	for i, t := range targets {
@@ -268,7 +272,7 @@ func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[s
 		for _, address := range slices.Sorted(maps.Keys(supplied)) {
 			other, err := abs(supplied[address].Dir)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if other == t.dir {
 				same = append(same, address)
@@ -276,17 +280,18 @@ func (o *checkOptions) assignAddresses(env Env, targets []target, supplied map[s
 		}
 		switch {
 		case len(same) > 1:
-			return fmt.Errorf("%s is given with --graph under %d addresses (%s): a graph has one", t.label(), len(same), strings.Join(same, ", "))
+			return nil, fmt.Errorf("%s is given with --graph under %d addresses (%s): a graph has one", t.label(), len(same), strings.Join(same, ", "))
 		case len(same) == 1:
 			if err := give(i, same[0], "--graph "+same[0]+"="+supplied[same[0]].Dir); err != nil {
-				return err
+				return nil, err
 			}
+			inUse[same[0]] = true
 		}
 	}
 	for i, t := range targets {
 		t.graph.Address = addresses[i]
 	}
-	return nil
+	return inUse, nil
 }
 
 // graphReport is the result of checking one graph.
@@ -403,11 +408,12 @@ func isHex(s string) bool {
 }
 
 // unusedGraphs warns about a graph given with --graph that no reference named,
-// and says so when a reference differs from it only by case.
-func unusedGraphs(file string, supplied map[string]*meaning.Graph, asked map[string]bool) []meaning.Finding {
+// and says so when a reference differs from it only by case. A supplied
+// directory that is also checked in this run (checked) is in use.
+func unusedGraphs(file string, supplied map[string]*meaning.Graph, asked, checked map[string]bool) []meaning.Finding {
 	var findings []meaning.Finding
 	for _, address := range slices.Sorted(maps.Keys(supplied)) {
-		if asked[address] {
+		if asked[address] || checked[address] {
 			continue
 		}
 		message := fmt.Sprintf("the graph %s was given with --graph, but no file refers to it", address)

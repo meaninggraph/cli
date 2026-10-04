@@ -144,6 +144,9 @@ func TestCheckAGraphAndItsDependencyInOneRun(t *testing.T) {
 		// the dependency: a self reference that resolves with its address, a concept that extends one that is not there, and a checkout at the pin
 		"/core/core.meaning.yaml": file(concept("customer", "entity", ""), concept("client", "entity", ", extends: 'meaning://github.com/org/core/customer'"), concept("orphan", "entity", ", extends: nope")),
 		"/core/.git/HEAD":         pin + "\n",
+		// a warning in each graph: a meaning file below the directory of the graph
+		"/core/sub/x.meaning.yaml": file(concept("x", "entity", "")),
+		"/mine/sub/y.meaning.yaml": file(concept("y", "entity", "")),
 		// the consumer: one good reference, one to a concept the dependency lacks, and a pin that no checkout has
 		"/mine/a.meaning.yaml": file(concept("buyer", "entity", ", extends: 'meaning://github.com/org/core/customer?ref="+pin+"'"), concept("lost", "entity", ", extends: 'meaning://github.com/org/core/missing?ref="+pin+"'"), concept("self", "entity", ", extends: 'meaning://github.com/org/me/buyer'")),
 		// a second consumer, whose pin does not match the checkout
@@ -157,7 +160,7 @@ func TestCheckAGraphAndItsDependencyInOneRun(t *testing.T) {
 		t.Fatalf("codes %d %d %d\n%s\n%s", mine.code, alone.code, both.code, mine.stdout, alone.stdout)
 	}
 	one, two, together := graphsOf(t, mine)["/mine"], graphsOf(t, alone)["/core"], graphsOf(t, both)
-	if len(together) != 2 || len(one.Findings) == 0 || len(two.Findings) == 0 {
+	if len(together) != 2 || len(one.Findings) == 0 || len(two.Findings) == 0 || one.Warnings == 0 || two.Warnings == 0 {
 		t.Fatalf("graphs %+v; the runs found %d and %d", together, len(one.Findings), len(two.Findings))
 	}
 	if !reflect.DeepEqual(together["/mine"], one) || !reflect.DeepEqual(together["/core"], two) {
@@ -203,5 +206,32 @@ func TestCheckAGraphThatIsAlsoSuppliedHasThatAddressAndIsCheckedOnce(t *testing.
 	// Files named together are not a directory that --graph supplies.
 	if got := execute(files, "check", "/core/core.meaning.yaml", "--graph", "github.com/org/core=/core"); got.code != ExitFindings {
 		t.Errorf("a file next to a supplied directory has no address: %+v", got)
+	}
+}
+
+// A supplied directory that is also checked is in use: it gets no unused-graph
+// warning that it would not have in a run of its own, and every graph has, warnings
+// included, the findings of its own run.
+func TestCheckAGraphThatIsAlsoSuppliedIsNotUnused(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"/b/b.meaning.yaml": file(concept("b", "entity", "")),
+		"/d/d.meaning.yaml": file(concept("d", "entity", "")),
+		"/e/e.meaning.yaml": file(concept("e", "entity", "")),
+	}
+	const b = "github.com/org/b"
+	alone := execute(files, "check", "/b", "--graph", b+"=/b")
+	if alone.code != ExitClean || strings.Contains(alone.stdout, "unused-graph") {
+		t.Fatalf("a graph that is checked and supplied: %+v", alone)
+	}
+	separate := graphsOf(t, execute(files, "check", "--format", "json", "/b", "--address", b))
+	separate["/d"] = graphsOf(t, execute(files, "check", "--format", "json", "/d"))["/d"]
+	together := graphsOf(t, execute(files, "check", "--format", "json", "/b", "/d", "--graph", b+"=/b"))
+	if len(together) != 2 || !reflect.DeepEqual(together["/b"], separate["/b"]) || !reflect.DeepEqual(together["/d"], separate["/d"]) {
+		t.Fatalf("one run and two runs differ:\n%+v\n%+v", together, separate)
+	}
+	// A supplied directory that is not checked, and that nothing refers to, still warns.
+	if got := execute(files, "check", "/b", "--graph", b+"=/b", "--graph", "github.com/org/e=/e"); !strings.Contains(got.stdout, "the graph github.com/org/e was given with --graph, but no file refers to it") || strings.Contains(got.stdout, "github.com/org/b was given") {
+		t.Fatalf("got %+v", got)
 	}
 }
