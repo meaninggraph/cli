@@ -3,6 +3,7 @@ package meaning
 import (
 	"errors"
 	"io/fs"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -83,7 +84,7 @@ func TestCheckoutCommitReportsAGitFileThatCannotBeRead(t *testing.T) {
 	t.Parallel()
 	files := memfs.New(map[string]string{"/d/.git": "gitdir: /g\n", "/g/HEAD": strings.Repeat("a", 40)})
 	_, err := CheckoutCommit(unreadableFile{FS: files, path: "/d/.git"}, "/d")
-	if err == nil || !strings.Contains(err.Error(), "/d/.git cannot be read") {
+	if err == nil || !strings.Contains(err.Error(), "/d/.git: denied") {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -282,9 +283,103 @@ func (pipeEntry) Type() fs.FileMode { return fs.ModeNamedPipe }
 // deniedListing cannot list the git directory.
 type deniedListing struct{ FS }
 
-func (deniedListing) ReadDir(name string) ([]fs.DirEntry, error) {
+func (d deniedListing) ReadDir(name string) ([]fs.DirEntry, error) {
 	if strings.HasSuffix(name, ".git") {
 		return nil, errors.New("denied")
 	}
-	return nil, fs.ErrNotExist
+	return d.FS.ReadDir(name)
+}
+
+// typedFS lists the named paths as the given kind of file (a pipe, a device)
+// whatever the file system under it holds there, as ReadDir of a real directory
+// would for a file that mkfifo made.
+type typedFS struct {
+	FS
+	kinds map[string]fs.FileMode
+}
+
+func (t typedFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	entries, err := t.FS.ReadDir(name)
+	for i, entry := range entries {
+		if kind, ok := t.kinds[path.Join(name, entry.Name())]; ok {
+			entries[i] = kindEntry{entry, kind}
+		}
+	}
+	return entries, err
+}
+
+type kindEntry struct {
+	fs.DirEntry
+	kind fs.FileMode
+}
+
+func (k kindEntry) Type() fs.FileMode { return k.kind }
+
+func (k kindEntry) IsDir() bool { return k.kind.IsDir() }
+
+// opensNothing fails the test when a file that must not be opened is: opening a
+// named pipe waits for a writer, so a CLI that opens one never returns.
+type opensNothing struct {
+	FS
+	t     *testing.T
+	paths []string
+}
+
+func (o opensNothing) ReadFileMax(name string, max int64) ([]byte, error) {
+	if slices.Contains(o.paths, name) {
+		o.t.Errorf("%s was opened, though it is not a regular file", name)
+	}
+	return o.FS.ReadFileMax(name, max)
+}
+
+// The .git pointer file and commondir are read like HEAD and the refs are: a
+// pipe, a device, a link and a file over the limit are not read, and are never
+// opened (a pipe would block), so the pin cannot be verified.
+func TestGitPointerAndCommondirAreReadOnlyWhenRegularLinkFreeAndSmall(t *testing.T) {
+	t.Parallel()
+	sha := strings.Repeat("a", 40)
+	pointer := map[string]string{"/d/.git": "gitdir: /w\n", "/w/HEAD": "ref: refs/heads/main\n", "/w/refs/heads/main": sha, "/w/commondir": "/c\n", "/c/refs/heads/main": sha}
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+		links []string
+		kinds map[string]fs.FileMode
+		bad   string // the path that is not read
+		want  string // a part of the error
+	}{
+		{"a .git that is a named pipe", pointer, nil, map[string]fs.FileMode{"/d/.git": fs.ModeNamedPipe}, "/d/.git", "not read"},
+		{"a .git that is a device", pointer, nil, map[string]fs.FileMode{"/d/.git": fs.ModeDevice | fs.ModeCharDevice}, "/d/.git", "not read"},
+		{"a .git that is a link to a pointer file", pointer, []string{"/d/.git"}, nil, "/d/.git", "not read"},
+		{"a .git over the limit", map[string]string{"/d/.git": "gitdir: " + strings.Repeat("x", maxGitPointerBytes)}, nil, nil, "", "larger than"},
+		{"a commondir that is a named pipe", pointer, nil, map[string]fs.FileMode{"/w/commondir": fs.ModeNamedPipe}, "/w/commondir", "not read"},
+		{"a commondir that is a device", pointer, nil, map[string]fs.FileMode{"/w/commondir": fs.ModeDevice}, "/w/commondir", "not read"},
+		{"a commondir that is a link", pointer, []string{"/w/commondir"}, nil, "/w/commondir", "not read"},
+		{"a commondir over the limit", map[string]string{"/d/.git": "gitdir: /w\n", "/w/HEAD": sha, "/w/commondir": strings.Repeat("x", maxGitPointerBytes+1)}, nil, nil, "", "larger than"},
+		{"a commondir that names nothing", map[string]string{"/d/.git": "gitdir: /w\n", "/w/HEAD": sha, "/w/commondir": "\n"}, nil, nil, "", "does not name a git directory"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sys FS = typedFS{memfs.New(tc.files, tc.links...), tc.kinds}
+			sys = opensNothing{sys, t, []string{tc.bad}}
+			if _, err := CheckoutCommit(sys, "/d"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("CheckoutCommit: err = %v, want one containing %q", err, tc.want)
+			}
+			if _, err := RefTargets(sys, "/d", "main"); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("RefTargets: err = %v, want one containing %q", err, tc.want)
+			}
+		})
+	}
+	// The same files, regular, are read: the commit is found through the pointer
+	// and through commondir.
+	if got, err := CheckoutCommit(memfs.New(pointer), "/d"); err != nil || got != sha {
+		t.Errorf("regular files: %q, %v", got, err)
+	}
+	// A commondir that is not there is the git directory itself.
+	if got, err := CheckoutCommit(memfs.New(map[string]string{"/d/.git": "gitdir: /w\n", "/w/HEAD": sha}), "/d"); err != nil || got != sha {
+		t.Errorf("no commondir: %q, %v", got, err)
+	}
+	// A checkout directory that cannot be listed is an error, not "no .git".
+	if _, err := CheckoutCommit(deniedListing{memfs.New(map[string]string{"/x.git/.git/HEAD": sha})}, "/x.git"); err == nil || !strings.Contains(err.Error(), "denied") {
+		t.Errorf("a directory that cannot be listed: %v", err)
+	}
 }
