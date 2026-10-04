@@ -301,7 +301,7 @@ func TestCheckReportsAnOutputThatCannotBeWritten(t *testing.T) {
 func TestRootCommandHelpAndVersion(t *testing.T) {
 	t.Parallel()
 	help := execute(nil)
-	if help.code != ExitClean || !strings.Contains(help.stdout, "check") || !strings.Contains(help.stdout, "self-update") {
+	if help.code != ExitClean || !strings.Contains(help.stdout, "check") || !strings.Contains(help.stdout, "schema") || !strings.Contains(help.stdout, "self-update") {
 		t.Fatalf("help = %+v", help)
 	}
 	if got := execute(nil, "--version"); got.code != ExitClean || got.stdout != info.Short()+"\n" || got.stderr != "" {

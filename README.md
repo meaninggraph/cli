@@ -33,6 +33,7 @@ go install github.com/meaninggraph/cli/cmd/meaninggraph@v0.1.0   # a released ve
 
 ```
 meaninggraph check [path...]        check meaning files
+meaninggraph schema [--source]      print the embedded meaning.schema.json, or the core commit it was taken from
 meaninggraph version                print the version, commit and build date  (also: --version)
 meaninggraph self-update            update this binary from the latest GitHub release
 ```
@@ -70,6 +71,17 @@ Output is deterministic: findings are sorted by file, line, rule and message, an
 | 0 | No finding of error severity. Warnings and info do not fail a check. |
 | 1 | At least one finding of error severity. |
 | 2 | Wrong usage, or a file or directory that cannot be read. Nothing was checked. With `--format json` the error is also written to stdout as `{"tool", "version", "ok": false, "error"}`, so a program that reads stdout always gets JSON. |
+
+### schema
+
+`meaninggraph schema` prints `meaning.schema.json`, the schema `check` validates against, exactly as it is embedded in the binary: the same bytes as the file of that name in [github.com/meaninggraph/core](https://github.com/meaninggraph/core) at the commit it was taken from, with nothing added (no line break, no re-indentation). `meaninggraph schema --source` prints that commit, the one recorded in `pkg/meaning/meaning.schema.source`, as 40 hexadecimal digits and a line break. A repository that pins both this tool and a commit of core can test that the two agree, before a file fails:
+
+```sh
+meaninggraph schema | cmp - core/meaning.schema.json                              # the schemas are the same bytes
+test "$(meaninggraph schema --source)" = "$(git -C core rev-parse HEAD)"          # and from the same commit
+```
+
+The first line is the one that matters: a core commit that does not change the schema differs in `--source` and not in the schema. A test compares the printed bytes with the embedded file and with the SHA-256 that `meaning.schema.source` records.
 
 ### What it checks
 

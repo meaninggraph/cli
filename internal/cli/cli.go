@@ -118,6 +118,6 @@ func newRoot(env Env) root {
 	cmd.SetOut(env.Stdout)
 	cmd.SetErr(env.Stderr)
 	buildinfocmd.WireCobra(cmd, info)
-	cmd.AddCommand(newCheckCommand(env), newSelfUpdateCommand(env))
+	cmd.AddCommand(newCheckCommand(env), newSchemaCommand(), newSelfUpdateCommand(env))
 	return root{cmd: cmd}
 }
