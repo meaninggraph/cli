@@ -305,9 +305,11 @@ func (r *reader) document() (*Node, *SyntaxError) {
 	}
 	line := r.cur().no
 	if first := r.cur(); isMarker(first.raw, "---") {
-		if rest := strings.TrimSpace(strings.TrimPrefix(first.raw, "---")); rest != "" && !strings.HasPrefix(rest, "#") {
+		rest := strings.TrimSpace(strings.TrimPrefix(first.raw, "---"))
+		if rest != "" && !strings.HasPrefix(rest, "#") {
 			return nil, syntax(first.no, RuleYAMLDocuments, "text on the --- line; start the document on the next line")
 		}
+		r.acceptTabs(first.no, rest, 0, len(rest), true) // the text of a comment after the marker
 		r.pos++
 	}
 	for _, l := range r.lines[r.pos:] {
@@ -340,10 +342,11 @@ func dashTabError(no int) *SyntaxError {
 	return syntax(no, RuleYAMLTab, "a tab after a dash is not accepted; use a space")
 }
 
-// nested reads the value that follows a key or a dash with nothing after it:
-// a block on the next lines, more indented than p (or, after a key, a
-// sequence at p itself when seqSame), else null.
-func (r *reader) nested(no, p int, seqSame bool) (*Node, *SyntaxError) {
+// nested reads the value that follows a key or a dash with nothing after it but
+// a comment (comment, possibly empty): a block on the next lines, more indented
+// than p (or, after a key, a sequence at p itself when seqSame), else null.
+func (r *reader) nested(no, p int, seqSame bool, comment string) (*Node, *SyntaxError) {
+	r.acceptTabs(no, comment, 0, len(comment), true) // the text of a comment on the line of the key or dash
 	from := r.pos
 	r.skipBlank()
 	if r.eof() {
@@ -450,7 +453,7 @@ func (r *reader) parseMap(ind int) (*Node, *SyntaxError) {
 func (r *reader) afterIndicator(rest string, no, p int, seqSame bool) (*Node, *SyntaxError) {
 	rest = strings.TrimLeft(rest, " ")
 	if rest == "" || rest[0] == '#' {
-		return r.nested(no, p, seqSame)
+		return r.nested(no, p, seqSame, rest)
 	}
 	return r.value(rest, no, p, true)
 }
@@ -480,7 +483,7 @@ func (r *reader) parseSeq(ind int) (*Node, *SyntaxError) {
 		switch {
 		case rest == "" || rest[0] == '#':
 			r.pos++
-			item, err = r.nested(l.no, ind, false)
+			item, err = r.nested(l.no, ind, false, rest)
 		case isSeqEntry(rest) || r.isKeyLine(rest, l.no):
 			// A sequence or a mapping that starts on the dash's line: read the
 			// rest of the line as a line of its own, at its own column.

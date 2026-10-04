@@ -3,6 +3,7 @@ package meaning
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -402,5 +403,91 @@ func TestTabsAreCheckedInOnePass(t *testing.T) {
 	node, err, steps := parseYAML([]byte("a: 1\n" + strings.Repeat("\t\n", (MaxFileBytes-5)/2)))
 	if node != nil || err == nil || err.Rule != RuleYAMLTab || err.Line != 2 || steps > 100 {
 		t.Fatalf("a file of lines of tabs: %v, %v after %d steps", node, err, steps)
+	}
+}
+
+// A comment that follows a key, a dash or the --- marker with nothing else on
+// its line may hold tabs between its # and its last character, as the comment
+// after a value does (the values are the ones the reference parser reads); a tab
+// at the end of the comment, or before its #, is refused as everywhere else.
+func TestATabInTheCommentOfAKeyOrDashLineIsRead(t *testing.T) {
+	t.Parallel()
+	for text, want := range map[string]string{
+		"a: # note\tmore\n  b: 1\n":                  `{"a":{"b":1}}`,
+		"- # note\tmore\n  one\n":                    `["one"]`,
+		"--- # note\tmore\na: 1\n":                   `{"a":1}`,
+		"a:   #\tx\n":                                `{"a":null}`,
+		"\"a\": # a\t\tb\n  - x\n":                   `{"a":["x"]}`,
+		"- a: # c\td\n    b: 1\n- - # e\tf\n  - x\n": `[{"a":{"b":1}},[null,"x"]]`,
+		"x:\n- # a\tb\n  v\n":                        `{"x":["v"]}`,
+		"a: # k: a\tb\nb: 2\n":                       `{"a":null,"b":2}`,
+		"a: # note\tmore\r\n  b: 1\r\n":              `{"a":{"b":1}}`,
+		"--- # note\tmore\r\n- x\r\n":                `["x"]`,
+		"---   # note\tmore\n":                       `null`,
+	} {
+		if got := valueOf(t, text); got != want {
+			t.Errorf("%q: got %s, want %s", text, got, want)
+		}
+	}
+	for _, text := range []string{"a: # note\t\n  b: 1\n", "- # note\t\n  one\n", "--- # note\t\na: 1\n", "a:\t# note\n  b: 1\n", "-\t# note\n  one\n"} {
+		if _, err := ParseYAML([]byte(text)); err == nil || err.Rule != RuleYAMLTab {
+			t.Errorf("%q: got %v, want %s", text, err, RuleYAMLTab)
+		}
+	}
+}
+
+// The tab in such a comment changes nothing but the tab: for the heads (a key,
+// a dash, the marker, in several places), the comments, the lines that follow
+// and the line ends of a generated family (the one the reference parser was
+// asked about when the position was accepted), a document is read as the same
+// document with spaces in place of the tabs of the comment, or refused for the
+// same rule on the same line.
+func TestATabInTheCommentOfAKeyOrDashLineChangesNothingElse(t *testing.T) {
+	t.Parallel()
+	heads := []struct {
+		prefix string
+		head   func(comment string) string
+		column int
+	}{
+		{"", func(c string) string { return "a: " + c }, 0},
+		{"x:\n", func(c string) string { return "  a:  " + c }, 2},
+		{"", func(c string) string { return `"a": ` + c }, 0},
+		{"", func(c string) string { return "- a: " + c }, 2},
+		{"", func(c string) string { return "- " + c }, 0},
+		{"x:\n", func(c string) string { return "- " + c }, 0},
+		{"", func(c string) string { return "- - " + c }, 2},
+		{"", func(c string) string { return "--- " + c }, 0},
+		{"# top\n", func(c string) string { return "---   " + c }, 0},
+	}
+	comments := []string{"# note\tmore", "#\tx", "# \tx", "# a\t\tb", "# a\t: b", "# a\t- b", "# a\t[b", "# a\t\"q", "#\t#"}
+	tails := func(o int) []string {
+		in, at := strings.Repeat(" ", o+2), strings.Repeat(" ", o)
+		return []string{"", in + "b: 1\n", in + "- x\n", in + "v\n", in + "v\n" + in + "w\n", in + "\"v\"\n", in + "[x, y]\n", in + "# k\n" + in + "b: 1\n",
+			in + "# k\n" + in + "v\n", "\n" + in + "b: 1\n", in + "# a\tb\n" + in + "b: 1\n", at + "b: 2\n", at + "- x\n", "z: 9\n"}
+	}
+	n := 0
+	for _, eol := range []string{"\n", "\r\n"} {
+		for _, h := range heads {
+			for _, c := range comments {
+				for _, tail := range tails(h.column) {
+					doc := strings.ReplaceAll(h.prefix+h.head(c)+"\n"+tail, "\n", eol)
+					twin := strings.ReplaceAll(h.prefix+h.head(strings.ReplaceAll(c, "\t", " "))+"\n"+tail, "\n", eol)
+					got, gotErr := ParseYAML([]byte(doc))
+					want, wantErr := ParseYAML([]byte(twin))
+					switch {
+					case (gotErr == nil) != (wantErr == nil):
+						t.Fatalf("%q: %v, but %q: %v", doc, gotErr, twin, wantErr)
+					case gotErr != nil && (gotErr.Rule != wantErr.Rule || gotErr.Line != wantErr.Line):
+						t.Fatalf("%q: %v, but %q: %v", doc, gotErr, twin, wantErr)
+					case gotErr == nil && !reflect.DeepEqual(got.Value(), want.Value()):
+						t.Fatalf("%q reads %v, but %q reads %v", doc, got.Value(), twin, want.Value())
+					}
+					n++
+				}
+			}
+		}
+	}
+	if n != 2*9*9*14 {
+		t.Fatalf("%d documents", n)
 	}
 }

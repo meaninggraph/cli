@@ -124,14 +124,14 @@ The reference parser refuses a tab used as indentation and reads it elsewhere, i
 | Position | Result |
 |---|---|
 | Inside a double-quoted or single-quoted scalar (a quoted key too, also inside `[ ]` and `{ }`) | read: the value has the tab |
-| In the text of a comment, between the `#` and the last character of the comment | read: the comment is not data |
+| In the text of a comment, between the `#` and the last character of the comment (a comment on a line of its own, after a value, or after a key, a dash or the `---` marker with nothing else on the line) | read: the comment is not data |
 | In plain text or in the text of a block scalar, between two characters that are not blanks (continuation lines included) | read: it is part of the text |
 | In indentation of any line (a comment line, a blank line, a block scalar line) and right after the indentation of a block scalar text line | refused |
 | On a line of its own (a line that is only a tab, also the last line without a line break) | refused |
 | Before a `#`, at the end of a line outside quotes, at the end of a comment, at the end of the text of a block scalar | refused |
 | After a colon or a dash, at the start of a value, between tokens, inside `[ ]` or `{ }` outside quotes | refused |
 
-Each of these was checked against the reference parser's values for the generated documents of `values.mjs` (groups `tab read`, where the CLI must read what the reference reads, and `tab refused`, where it must not read the document at all). Some of the refused positions are positions where the reference parser reads the tab too (a tab at the end of a line, for example); those are `stricter` corpus items: the subset is smaller than the reference's on purpose, because a smaller subset can be proven.
+Each of these was checked against the reference parser's values for the generated documents of `values.mjs` (groups `tab read`, where the CLI must read what the reference reads, and `tab refused`, where it must not read the document at all). The last of the three comment positions (a key, a dash or `---` with nothing else on the line) was checked by a generated family of 48,576 documents (22 comment texts with a tab, 16 heads in different places, 3 spacings, 21 to 24 sets of lines that follow, LF and CRLF) run through the reference parser (`yaml` 2.9.1) and `ParseYAML`: 44,088 are read by both with the same data, 528 are refused by both, and the other 3,960 are refused by `ParseYAML` for a reason that has nothing to do with the tab (the comment-between rule below, or a block scalar that starts on the next line); none is read by `ParseYAML` and refused by the reference parser, and each document is read like the same one with spaces for the tabs. The family is not in the recorded values. Some of the refused positions are positions where the reference parser reads the tab too (a tab at the end of a line, for example); those are `stricter` corpus items: the subset is smaller than the reference's on purpose, because a smaller subset can be proven.
 
 ### Comments
 
