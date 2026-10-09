@@ -1,0 +1,7 @@
+{
+  "description": "A recordset block is a removed construct.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "recordset was removed from ModelSpec",
+  "warns": []
+}

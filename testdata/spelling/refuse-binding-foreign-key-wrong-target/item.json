@@ -1,0 +1,8 @@
+{
+  "description": "A foreign-key binding references a record type that is not the one the concept's rows are.",
+  "expect": "refuse",
+  "rule": "binding-role",
+  "warns": [
+    "earlier"
+  ]
+}

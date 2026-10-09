@@ -111,6 +111,10 @@ The first line is the one that matters: a core commit that does not change the s
 
   This catches a forgotten checkout of the wrong version. It proves nothing about the working tree (files edited, added or deleted since the checkout pass), nothing about the git objects (a commit id in `HEAD` need not exist), and it can be fooled by a directory whose `.git/HEAD` was written by hand: it is a check against a mistake, not against a forgery.
 - ModelSpec beyond what bindings read: only the entities, keys and properties of the model are used, and models of another repository are not read (a binding to one is an error, as in the reference checker).
+
+### Both spellings of a model
+
+ModelSpec renamed three words: `entity "X"` became `record "X"`, a member `property "p"` became `field "p"`, and `entity = "X"` on a member became `record = "X"`. The model reader reads both, and a file may mix them; a binding such as `modelspec:///shop.Invoice` with `property: CustomerId` resolves the same way against a model in either spelling (the binding key `property:` and the roles of a meaning file are MeaningGraph's own words and have not changed). A model that uses the earlier spelling gets one warning, `deprecated-spelling`, per model file and run, that names `modelspec rewrite --write`; it never fails a check or changes an exit status. A member that holds both `entity =` and `record =`, a record type and an `entity` of one name, and any block of a removed or reserved word (`collection`, `recordset`, `column`, `projection`, `index`, `migration`) are refused, with a message that names the word. The cases are in `testdata/spelling`, apart from `testdata/corpus` because the reference checker that corpus is compared with reads only the earlier spelling.
 - Registry-level rules (who may publish a graph, its licences, its dependencies).
 
 ### The YAML subset
@@ -201,7 +205,7 @@ g, err := meaning.LoadDir(meaning.OSFS{}, "model")
 findings := meaning.Checker{Resolve: meaning.GraphResolver(others)}.Check(g)
 ```
 
-**The model reader is a stand-in.** `HCLReader` reads the ModelSpec model the way the Node reference checker does (a port of its small HCL parser). It sits behind one interface, `ModelReader`, and is to be replaced by the ModelSpec library (`github.com/modelspec-org/cli`, package `pkg/modelspec`) once that has a release. Nothing else changes when it is.
+**The model reader is a stand-in.** `HCLReader` reads the ModelSpec model the way the Node reference checker does (a port of its small HCL parser), and also the current spelling of the words ModelSpec renamed (above). It sits behind one interface, `ModelReader`, and is to be replaced by the ModelSpec library (`github.com/modelspec-org/cli`, package `pkg/modelspec`) once that has a release. Nothing else changes when it is.
 
 ## Testing
 

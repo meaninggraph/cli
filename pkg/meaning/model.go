@@ -4,6 +4,19 @@ package meaning
 // module: its entities, their keys and their properties.
 type Model struct {
 	Entities map[string]*Entity
+	// Earlier says which earlier spellings the model file uses (entity, property
+	// and entity = for record, field and record =). They are read as the words
+	// they were replaced by; this is how a check can report them.
+	Earlier EarlierSpelling
+}
+
+// EarlierSpelling counts the uses of the earlier ModelSpec spellings in a model
+// file. The zero value says the file uses none.
+type EarlierSpelling struct {
+	// Count is the number of earlier spellings the file uses.
+	Count int
+	// Line is the 1-based line of the first of them.
+	Line int
 }
 
 // Entity is an entity of a ModelSpec module.

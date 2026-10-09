@@ -32,6 +32,7 @@ const (
 	RuleSource           = "undeclared-source"
 	RuleEntityBindings   = "entity-bindings"
 	RuleModels           = "models"
+	RuleEarlierSpelling  = "deprecated-spelling"
 	RuleBindingModel     = "binding-model"
 	RuleBindingRole      = "binding-role"
 	RuleUniversal        = "universal"
@@ -152,6 +153,8 @@ type run struct {
 	unreadable map[string]bool
 	parents    map[*Concept]parentEntry
 	chains     map[*Concept]chainInfo
+	// noticed holds the model files already reported for an earlier spelling.
+	noticed map[string]bool
 }
 
 // Check validates every file of g against the schema and checks what the

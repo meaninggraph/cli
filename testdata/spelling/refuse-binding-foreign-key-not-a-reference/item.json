@@ -1,0 +1,8 @@
+{
+  "description": "A foreign-key binding names a member that is not a reference.",
+  "expect": "refuse",
+  "rule": "binding-role",
+  "warns": [
+    "earlier"
+  ]
+}

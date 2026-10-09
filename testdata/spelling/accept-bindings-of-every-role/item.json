@@ -1,0 +1,7 @@
+{
+  "description": "Entity, identifier, display-name, value and foreign-key bindings resolve alike in both spellings.",
+  "expect": "accept",
+  "warns": [
+    "earlier"
+  ]
+}

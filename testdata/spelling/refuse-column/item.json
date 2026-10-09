@@ -1,0 +1,7 @@
+{
+  "description": "A column block is a removed construct.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "column was removed from ModelSpec",
+  "warns": []
+}

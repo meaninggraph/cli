@@ -1,0 +1,7 @@
+{
+  "description": "A collection block is a removed construct.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "collection was removed from ModelSpec",
+  "warns": []
+}

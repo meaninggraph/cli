@@ -1,0 +1,16 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+models: {shop: shop.modelspec.hcl}
+concepts:
+  - id: invoice
+    kind: entity
+    labels: {en: invoice}
+    description: An invoice.
+    bindings:
+      - model: modelspec:///shop.Invoice
+        role: entity
+      - model: modelspec:///shop.Invoice
+        role: identifier
+        property: Nope

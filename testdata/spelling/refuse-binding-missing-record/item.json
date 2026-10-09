@@ -1,0 +1,8 @@
+{
+  "description": "A binding names a record type the module does not have.",
+  "expect": "refuse",
+  "rule": "binding-model",
+  "warns": [
+    "earlier"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "description": "A migration block is a reserved word.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "migration is a reserved word in ModelSpec",
+  "warns": []
+}

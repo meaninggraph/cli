@@ -15,6 +15,9 @@ import (
 // numbers, booleans or lists of those. Expressions, interpolation and
 // map-style values are refused rather than guessed.
 //
+// It also reads the current spelling of the words ModelSpec renamed (record,
+// field and record = for entity, property and entity =) as the same things.
+//
 // It is a stand-in. Once the ModelSpec library (github.com/modelspec-org/cli,
 // package pkg/modelspec) is released, a ModelReader built on it replaces this
 // one; see ModelReader.
@@ -141,7 +144,9 @@ type hclBlock struct {
 	typ, name  string
 	line       int
 	attributes map[string]any
-	blocks     []*hclBlock
+	// attributeLines is the line each attribute was written on.
+	attributeLines map[string]int
+	blocks         []*hclBlock
 }
 
 type hclParser struct {
@@ -228,7 +233,7 @@ const maxHCLDepth = 2
 // body parses attributes and blocks until the closing token (empty: end of
 // file); depth is the number of blocks around it.
 func (h *hclParser) body(closing string, depth int) (*hclBlock, error) {
-	out := &hclBlock{attributes: map[string]any{}}
+	out := &hclBlock{attributes: map[string]any{}, attributeLines: map[string]int{}}
 	for h.peek() != nil && h.peek().kind != closing {
 		name, err := h.expect("ident")
 		if err != nil {
@@ -247,6 +252,7 @@ func (h *hclParser) body(closing string, depth int) (*hclBlock, error) {
 				return nil, err
 			}
 			out.attributes[name.value.(string)] = v
+			out.attributeLines[name.value.(string)] = name.line
 			continue
 		}
 		label, err := h.expect("string")
@@ -288,35 +294,88 @@ func parseHCL(text string) ([]*hclBlock, error) {
 	return doc.blocks, nil
 }
 
+// The two spellings of the words ModelSpec renamed. The record type block, its
+// member block and the reference attribute of a member each have an earlier
+// spelling that is still read, as the word it was replaced by.
+const (
+	blockRecord      = "record"
+	blockRecordEarly = "entity"
+	memberField      = "field"
+	memberFieldEarly = "property"
+	refRecord        = "record"
+	refRecordEarly   = "entity"
+)
+
+// removedWords are constructs ModelSpec removed, and reservedWords are words it
+// keeps free; a model that declares either as a block is refused. Reading a
+// model for its bindings needs none of them, and this reader refuses every
+// block it does not know, so these only give the refusal a message that says
+// what the word is.
+var (
+	removedWords  = []string{"collection", "recordset", "column"}
+	reservedWords = []string{"projection", "index", "migration"}
+)
+
+// earlier counts the earlier spellings a model file uses, and where the first is.
+type earlier struct {
+	count, line int
+}
+
+func (e *earlier) note(line int) {
+	if e.count == 0 || line < e.line {
+		e.line = line
+	}
+	e.count++
+}
+
+// unknownBlock is the refusal of a block this reader does not know; plain is
+// the message for a block of any name. When the word is a removed construct or
+// a reserved one the message also says so.
+func unknownBlock(line int, typ, plain string) error {
+	switch {
+	case slices.Contains(removedWords, typ):
+		return hclErrorf(line, "%s was removed from ModelSpec; %s", typ, plain)
+	case slices.Contains(reservedWords, typ):
+		return hclErrorf(line, "%s is a reserved word in ModelSpec, with no content; %s", typ, plain)
+	}
+	return hclErrorf(line, "%s", plain)
+}
+
 // buildModel is the part of the Node converter (toModelspecJson) the checks
-// read: entities with their key and properties. Components and enums are
+// read: record types with their key and members. Components and enums are
 // validated the way the converter does, so that the same files are refused.
 func buildModel(blocks []*hclBlock) (*Model, error) {
 	model := &Model{Entities: map[string]*Entity{}}
 	declared := map[string]bool{}
+	var spelling earlier
 	for _, block := range blocks {
 		kind := block.typ
+		scope := kind
 		switch kind {
-		case "entity", "component", "enum":
+		case blockRecordEarly:
+			spelling.note(block.line)
+			scope = blockRecord
+		case blockRecord, "component", "enum":
 		default:
-			return nil, hclErrorf(block.line, "top-level %s blocks are not supported by this converter (entity, component, enum)", block.typ)
+			return nil, unknownBlock(block.line, block.typ, fmt.Sprintf("top-level %s blocks are not supported by this converter (record, entity, component, enum)", block.typ))
 		}
 		if isPrototypeName(block.name) {
 			return nil, prototypeNameError(block.line, kind, block.name)
 		}
-		if declared[kind+" "+block.name] {
+		// record and entity are one kind of block: "A" cannot be both.
+		if declared[scope+" "+block.name] {
 			return nil, hclErrorf(block.line, "duplicate %s %q", kind, block.name)
 		}
-		declared[kind+" "+block.name] = true
-		switch kind {
-		case "entity":
-			entity, err := buildEntity(block)
+		declared[scope+" "+block.name] = true
+		switch scope {
+		case blockRecord:
+			entity, err := buildEntity(block, &spelling)
 			if err != nil {
 				return nil, err
 			}
 			model.Entities[block.name] = entity
 		case "component":
-			if _, err := members(block, "field"); err != nil {
+			if _, err := members(block, &spelling, memberField); err != nil {
 				return nil, err
 			}
 		default:
@@ -325,16 +384,17 @@ func buildModel(blocks []*hclBlock) (*Model, error) {
 			}
 		}
 	}
+	model.Earlier = EarlierSpelling{Count: spelling.count, Line: spelling.line}
 	return model, nil
 }
 
-func buildEntity(block *hclBlock) (*Entity, error) {
+func buildEntity(block *hclBlock, spelling *earlier) (*Entity, error) {
 	for name := range block.attributes {
 		if name != "key" && name != "use" {
-			return nil, hclErrorf(block.line, "unsupported entity attribute %s", name)
+			return nil, hclErrorf(block.line, "unsupported %s attribute %s", block.typ, name)
 		}
 	}
-	properties, err := members(block, "property")
+	properties, err := members(block, spelling, memberFieldEarly, memberField)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +402,7 @@ func buildEntity(block *hclBlock) (*Entity, error) {
 	if key := block.attributes["key"]; truthy(key) {
 		list, ok := key.([]any)
 		if !ok {
-			return nil, hclErrorf(block.line, "entity %q key must be a list of property names", block.name)
+			return nil, hclErrorf(block.line, "%s %q key must be a list of property names", block.typ, block.name)
 		}
 		for _, k := range list {
 			if s, ok := k.(string); ok {
@@ -351,28 +411,44 @@ func buildEntity(block *hclBlock) (*Entity, error) {
 		}
 	}
 	for name, attrs := range properties {
-		p := Property{Reference: truthy(attrs["entity"])}
+		// members has refused a member that holds both reference words.
+		reference, ok := attrs[refRecord]
+		if !ok {
+			reference = attrs[refRecordEarly]
+		}
+		p := Property{Reference: truthy(reference)}
 		p.Type, _ = attrs["type"].(string)
-		p.Entity, _ = attrs["entity"].(string)
+		p.Entity, _ = reference.(string)
 		entity.Properties[name] = p
 	}
 	return entity, nil
 }
 
-// members collects the child blocks of the given type of an entity or
+// members collects the child blocks of the given types of a record type or
 // component: no other block type and no repeated name (the parser has refused
-// blocks inside them already).
-func members(block *hclBlock, memberType string) (map[string]map[string]any, error) {
+// blocks inside them already). A member that holds both spellings of the
+// reference word is refused. Each earlier spelling met is noted.
+func members(block *hclBlock, spelling *earlier, memberTypes ...string) (map[string]map[string]any, error) {
 	out := map[string]map[string]any{}
 	for _, child := range block.blocks {
-		if child.typ != memberType {
-			return nil, hclErrorf(child.line, "%s %q cannot contain a %s block (this converter supports %s)", block.typ, block.name, child.typ, memberType)
+		if !slices.Contains(memberTypes, child.typ) {
+			return nil, unknownBlock(child.line, child.typ, fmt.Sprintf("%s %q cannot contain a %s block (this converter supports %s)", block.typ, block.name, child.typ, strings.Join(memberTypes, " or ")))
 		}
 		if isPrototypeName(child.name) {
 			return nil, prototypeNameError(child.line, child.typ, child.name)
 		}
 		if _, dup := out[child.name]; dup {
 			return nil, hclErrorf(child.line, "duplicate %s %q in %s %q", child.typ, child.name, block.typ, block.name)
+		}
+		if child.typ == memberFieldEarly {
+			spelling.note(child.line)
+		}
+		_, hasEarly := child.attributes[refRecordEarly]
+		if hasEarly {
+			spelling.note(child.attributeLines[refRecordEarly])
+			if _, both := child.attributes[refRecord]; both {
+				return nil, hclErrorf(child.attributeLines[refRecordEarly], "%s %q in %s %q has both %s = and %s =; %s is the earlier spelling of %s, and a member refers to one record type", child.typ, child.name, block.typ, block.name, refRecordEarly, refRecord, refRecordEarly, refRecord)
+			}
 		}
 		out[child.name] = child.attributes
 	}
