@@ -380,7 +380,7 @@ func buildModel(blocks []*hclBlock) (*Model, error) {
 			}
 		default:
 			if len(block.blocks) > 0 {
-				return nil, hclErrorf(block.line, "enum %q cannot contain blocks", block.name)
+				return nil, unknownBlock(block.line, block.blocks[0].typ, fmt.Sprintf("enum %q cannot contain blocks (found a %s block)", block.name, block.blocks[0].typ))
 			}
 		}
 	}

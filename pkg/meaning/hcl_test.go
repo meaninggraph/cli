@@ -3,6 +3,7 @@ package meaning
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -216,7 +217,7 @@ func TestHCLReaderRefusesWhatTheReferenceParserRefuses(t *testing.T) {
 		{"duplicate entity", "entity \"A\" { }\nentity \"A\" { }", `duplicate entity "A"`},
 		{"duplicate component", "component \"A\" { }\ncomponent \"A\" { }", `duplicate component "A"`},
 		{"duplicate enum", "enum \"A\" { }\nenum \"A\" { }", `duplicate enum "A"`},
-		{"enum with blocks", "enum \"A\" {\n x \"y\" { }\n}", `enum "A" cannot contain blocks`},
+		{"enum with blocks", "enum \"A\" {\n x \"y\" { }\n}", `enum "A" cannot contain blocks (found a x block)`},
 		{"key is not a list", "entity \"A\" { key = \"Id\" }", `entity "A" key must be a list of property names`},
 		{"bad component field", "component \"A\" {\n field \"f\" {\n  x \"y\" { }\n }\n}", "nested more than 2 deep"},
 		{"bad entity inside", "entity \"A\" { property \"p\" { @ } }", "unexpected character"},
@@ -389,6 +390,12 @@ func TestHCLReaderRefusesRemovedConstructsAndReservedWords(t *testing.T) {
 					t.Errorf("%s %s %s: error = %v", parent, word, where, err)
 				}
 			}
+		}
+	}
+	for _, word := range append(slices.Clone(removedWords), reservedWords...) {
+		_, err := HCLReader{}.ReadModel(memfs.New(map[string]string{"/m.hcl": "enum \"E\" {\n  " + word + " \"B\" { }\n}\n"}), "/m.hcl")
+		if err == nil || !strings.Contains(err.Error(), word+" ") || !strings.Contains(err.Error(), `enum "E" cannot contain blocks (found a `+word+" block)") {
+			t.Errorf("%s inside an enum: error = %v", word, err)
 		}
 	}
 	// A word that merely resembles one is an unknown block like any other.
