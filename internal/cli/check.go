@@ -94,8 +94,9 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 	}
 	var reports []graphReport
 	asked := map[string]bool{}
+	noticed := map[string]bool{} // a model file listed by several graphs is reported once
 	for _, t := range targets {
-		reports = append(reports, t.check(env, supplied, profile, asked))
+		reports = append(reports, t.check(env, supplied, profile, asked, noticed))
 	}
 	slices.SortFunc(reports, func(a, b graphReport) int { return strings.Compare(a.label(), b.label()) })
 	reports[0].add(unusedGraphs(reports[0].Paths[0], supplied, asked, checked)...)
@@ -341,7 +342,7 @@ func (r graphReport) label() string { return strings.Join(r.Paths, " ") }
 
 func (t target) label() string { return strings.Join(t.paths, " ") }
 
-func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meaning.Profile, asked map[string]bool) graphReport {
+func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meaning.Profile, asked, noticed map[string]bool) graphReport {
 	base := meaning.GraphResolver(supplied)
 	used := map[string]map[string]bool{}
 	resolve := func(repo, pin string) (*meaning.Graph, error) {
@@ -355,7 +356,7 @@ func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meani
 		}
 		return g, err
 	}
-	findings := meaning.Checker{Resolve: resolve, Profile: profile}.Check(t.graph)
+	findings := meaning.Checker{Resolve: resolve, Profile: profile, Noticed: noticed}.Check(t.graph)
 	for _, repo := range slices.Sorted(maps.Keys(used)) {
 		for _, pin := range slices.Sorted(maps.Keys(used[repo])) {
 			if f, ok := verifyPin(env, t.paths[0], supplied[repo], pin); ok {

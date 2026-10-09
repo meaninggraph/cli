@@ -111,7 +111,7 @@ func TestBindingsAgainstARealHCLModel(t *testing.T) {
 	if len(got) != 1 || got[0].Rule != RuleEarlierSpelling || got[0].Severity != Warning || got[0].File != "/g/m.hcl" || got[0].Line != 1 || HasErrors(got) {
 		t.Fatalf("findings = %v", got)
 	}
-	for _, want := range []string{"2 earlier spellings", `modelspec rewrite --write "/g/m.hcl"`} {
+	for _, want := range []string{"2 earlier spellings", `modelspec rewrite --write "/g"`, "--module <name>=<file>", "entity for record, property for field, entity = for record ="} {
 		if !strings.Contains(got[0].Message, want) {
 			t.Errorf("the notice %q lacks %q", got[0].Message, want)
 		}
@@ -160,7 +160,7 @@ func TestTheEarlierSpellingIsReportedOncePerModelFile(t *testing.T) {
 	}
 	if g := (Checker{Models: fakeModels{"/g/m.hcl": {Earlier: EarlierSpelling{Count: 1, Line: 4}, Entities: chinook.Entities}}}).Check(mustLoad(t, map[string]string{
 		"/g/a.meaning.yaml": head + modelsLine + "concepts:\n" + cn("a", "entity", ""),
-	}, "/g/a.meaning.yaml")); len(g) != 1 || g[0].Line != 4 || !strings.Contains(g[0].Message, "an earlier spelling:") {
+	}, "/g/a.meaning.yaml")); len(g) != 1 || g[0].Line != 4 || !strings.Contains(g[0].Message, "an earlier spelling (") {
 		t.Fatalf("a single spelling: %v", g)
 	}
 }

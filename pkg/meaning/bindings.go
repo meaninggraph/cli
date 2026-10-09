@@ -56,19 +56,17 @@ func (r *run) loadModels(f *File) (models map[string]*Model, failed bool) {
 // file uses the earlier ModelSpec spellings. They are read as the words that
 // replaced them, so the notice never fails a check.
 func (r *run) noticeEarlierSpelling(path string, model *Model) {
-	if model.Earlier.Count == 0 || r.noticed[path] {
+	if model.Earlier.Count == 0 || r.c.Noticed[path] {
 		return
 	}
-	if r.noticed == nil {
-		r.noticed = map[string]bool{}
-	}
-	r.noticed[path] = true
+	r.c.Noticed[path] = true
 	what := "an earlier spelling"
 	if model.Earlier.Count > 1 {
 		what = fmt.Sprintf("%d earlier spellings", model.Earlier.Count)
 	}
 	r.add(path, model.Earlier.Line, RuleEarlierSpelling, Warning,
-		"the model uses %s: entity, property and entity = are the earlier spellings of record, field and record =, and are read as those; modelspec rewrite --write %q rewrites the file", what, path)
+		"the model uses %s (entity for record, property for field, entity = for record =), read as the current words; write those, or run modelspec rewrite --write %q to rewrite the model and its JSON form together (a file not named *.modelspec.hcl also needs --module <name>=<file>)",
+		what, filepath.Dir(path))
 }
 
 // fsModels reads a model through the file system the graph was loaded from.

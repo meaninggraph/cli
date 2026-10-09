@@ -144,3 +144,39 @@ func TestSpellingNoticeIsOncePerModelFile(t *testing.T) {
 		t.Fatalf("code %d\n%s%s", code, out, stderr.String())
 	}
 }
+
+// Two graphs of one run that list one model file report it once, in one report.
+func TestSpellingNoticeIsOncePerRunNotPerGraph(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	model := "entity \"Customer\" {\n  key = [\"CustomerId\"]\n  property \"CustomerId\" { type = \"int\" }\n}\n"
+	meaningFile := "format: meaning/draft-1\nid: demo\nname: N\ndescription: d\nmodels: {shop: ../shop.modelspec.hcl}\nconcepts:\n" +
+		"  - {id: customer, kind: entity, labels: {en: customer}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: entity}]}\n"
+	for name, content := range map[string]string{"shop.modelspec.hcl": model, "a/a.meaning.yaml": meaningFile, "b/b.meaning.yaml": meaningFile} {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"check", "--format", "json", filepath.Join(dir, "a"), filepath.Join(dir, "b")}, Env{Stdout: &stdout, Stderr: &stderr, FS: meaning.OSFS{}, Abs: filepath.Abs, SelfUpdate: offline})
+	var report spellingReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	notices, warnings := 0, 0
+	for _, g := range report.Graphs {
+		warnings += g.Warnings
+		for _, f := range g.Findings {
+			if f.Rule == meaning.RuleEarlierSpelling {
+				notices++
+			}
+		}
+	}
+	if code != ExitClean || len(report.Graphs) != 2 || notices != 1 || warnings != 1 {
+		t.Fatalf("code %d, %d graphs, %d notices, %d warnings\n%s%s", code, len(report.Graphs), notices, warnings, stdout.String(), stderr.String())
+	}
+}

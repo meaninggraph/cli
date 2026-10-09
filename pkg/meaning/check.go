@@ -129,6 +129,11 @@ type Checker struct {
 	Models ModelReader
 	// Profile selects extra rules.
 	Profile Profile
+	// Noticed holds the model files already reported for an earlier ModelSpec
+	// spelling, by path as written. A caller that checks several graphs in one
+	// run shares one map between their Checkers, so that a model file listed by
+	// more than one graph is reported once; when nil, the check keeps its own.
+	Noticed map[string]bool
 }
 
 type node struct {
@@ -153,8 +158,6 @@ type run struct {
 	unreadable map[string]bool
 	parents    map[*Concept]parentEntry
 	chains     map[*Concept]chainInfo
-	// noticed holds the model files already reported for an earlier spelling.
-	noticed map[string]bool
 }
 
 // Check validates every file of g against the schema and checks what the
@@ -175,6 +178,9 @@ func (c Checker) check(g *Graph) *run {
 	}
 	if c.Models == nil {
 		c.Models = HCLReader{}
+	}
+	if c.Noticed == nil {
+		c.Noticed = map[string]bool{}
 	}
 	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, unreadable: map[string]bool{}, valueIndex: map[*Concept]map[string][]string{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
 	if r.other == nil {
