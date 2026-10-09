@@ -1,0 +1,22 @@
+format: meaning/draft-1
+id: demo
+name: Demo
+description: A demo graph.
+models: {shop: shop.modelspec.hcl}
+concepts:
+  - id: customer
+    kind: entity
+    labels: {en: customer}
+    description: A customer.
+    bindings:
+      - model: modelspec:///shop.Customer
+        role: entity
+  - id: invoice-customer
+    kind: attribute
+    labels: {en: invoice-customer}
+    description: The customer of an invoice.
+    values-of: customer
+    bindings:
+      - model: modelspec:///shop.Invoice
+        role: foreign-key
+        property: Total

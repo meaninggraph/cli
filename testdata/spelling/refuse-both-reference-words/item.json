@@ -1,0 +1,7 @@
+{
+  "description": "One member holds both entity = and record =.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "has both entity = and record =",
+  "warns": []
+}

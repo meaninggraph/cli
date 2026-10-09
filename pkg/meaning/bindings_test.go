@@ -106,9 +106,72 @@ func TestBindingsAgainstARealHCLModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The model is in the earlier spelling: that is reported, as a warning, and nothing else is.
+	got := (Checker{}).Check(g)
+	if len(got) != 1 || got[0].Rule != RuleEarlierSpelling || got[0].Severity != Warning || got[0].File != "/g/m.hcl" || got[0].Line != 1 || HasErrors(got) {
+		t.Fatalf("findings = %v", got)
+	}
+	for _, want := range []string{"2 earlier spellings", `modelspec rewrite --write "/g"`, "--module <name>=<file>", "entity for record, property for field, entity = for record ="} {
+		if !strings.Contains(got[0].Message, want) {
+			t.Errorf("the notice %q lacks %q", got[0].Message, want)
+		}
+	}
+}
+
+func TestBindingsAgainstARealHCLModelInTheCurrentSpelling(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"/g/sub/a.meaning.yaml": head + "models: {chinook: ../m.hcl}\nconcepts:\n" + cn("artist", "entity", bindings(bind("chinook.Artist", "entity", ""), bind("chinook.Artist", "identifier", "ArtistId"))),
+		"/g/m.hcl":              "record \"Artist\" {\n key = [\"ArtistId\"]\n field \"ArtistId\" { type = \"int\" }\n}\n",
+	}
+	g, err := LoadFiles(memfs.New(files), []string{"/g/sub/a.meaning.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got := (Checker{}).Check(g); len(got) != 0 {
 		t.Fatalf("findings = %v", got)
 	}
+}
+
+func TestTheEarlierSpellingIsReportedOncePerModelFile(t *testing.T) {
+	t.Parallel()
+	earlier := "entity \"Artist\" {\n key = [\"ArtistId\"]\n property \"ArtistId\" { type = \"int\" }\n}\n"
+	artist := cn("artist", "entity", bindings(bind("chinook.Artist", "entity", "")))
+	files := map[string]string{
+		"/g/a.meaning.yaml": head + "models: {chinook: m.hcl, again: m.hcl, other: o.hcl}\nconcepts:\n" + artist,
+		"/g/b.meaning.yaml": head + "models: {chinook: m.hcl}\nconcepts:\n" + cn("artist2", "entity", bindings(bind("chinook.Artist", "entity", ""))),
+		"/g/m.hcl":          earlier,
+		"/g/o.hcl":          earlier,
+	}
+	g, err := LoadFiles(memfs.New(files), []string{"/g/a.meaning.yaml", "/g/b.meaning.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := (Checker{}).Check(g)
+	var notices []string
+	for _, f := range got {
+		if f.Rule != RuleEarlierSpelling {
+			t.Errorf("unexpected finding %+v", f)
+		}
+		notices = append(notices, f.File)
+	}
+	if strings.Join(notices, " ") != "/g/m.hcl /g/o.hcl" {
+		t.Fatalf("notices for %v", notices)
+	}
+	if g := (Checker{Models: fakeModels{"/g/m.hcl": {Earlier: EarlierSpelling{Count: 1, Line: 4}, Entities: chinook.Entities}}}).Check(mustLoad(t, map[string]string{
+		"/g/a.meaning.yaml": head + modelsLine + "concepts:\n" + cn("a", "entity", ""),
+	}, "/g/a.meaning.yaml")); len(g) != 1 || g[0].Line != 4 || !strings.Contains(g[0].Message, "an earlier spelling (") {
+		t.Fatalf("a single spelling: %v", g)
+	}
+}
+
+func mustLoad(t *testing.T, files map[string]string, paths ...string) *Graph {
+	t.Helper()
+	g, err := LoadFiles(memfs.New(files), paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return g
 }
 
 func TestParseModelRef(t *testing.T) {

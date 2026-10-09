@@ -1,0 +1,8 @@
+{
+  "description": "A binding names a member the record type does not have.",
+  "expect": "refuse",
+  "rule": "binding-model",
+  "warns": [
+    "earlier"
+  ]
+}

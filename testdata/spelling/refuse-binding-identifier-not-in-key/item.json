@@ -1,0 +1,8 @@
+{
+  "description": "An identifier binding names a member outside the key.",
+  "expect": "refuse",
+  "rule": "binding-role",
+  "warns": [
+    "earlier"
+  ]
+}

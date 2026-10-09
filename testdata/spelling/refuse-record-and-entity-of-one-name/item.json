@@ -1,0 +1,7 @@
+{
+  "description": "A record type and an entity of one name are one record type declared twice.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "duplicate record \"Customer\"",
+  "warns": []
+}

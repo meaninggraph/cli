@@ -37,7 +37,11 @@ func (r *run) loadModels(f *File) (models map[string]*Model, failed bool) {
 		if strings.HasSuffix(relative, "/") {
 			err = fmt.Errorf("%s ends in a slash, so it names a directory, not a model file", relative)
 		} else {
-			model, err = r.local.fsModels(r.c.Models, filepath.Join(filepath.Dir(f.Path), relative))
+			path := filepath.Join(filepath.Dir(f.Path), relative)
+			model, err = r.local.fsModels(r.c.Models, path)
+			if err == nil {
+				r.noticeEarlierSpelling(path, model)
+			}
 		}
 		if err != nil {
 			r.err(f, f.Root.Field("models").Line, RuleModels, "models: module %s: %v", module, err)
@@ -46,6 +50,23 @@ func (r *run) loadModels(f *File) (models map[string]*Model, failed bool) {
 		models[module] = model
 	}
 	return models, false
+}
+
+// noticeEarlierSpelling reports, once per model file and as a warning, that the
+// file uses the earlier ModelSpec spellings. They are read as the words that
+// replaced them, so the notice never fails a check.
+func (r *run) noticeEarlierSpelling(path string, model *Model) {
+	if model.Earlier.Count == 0 || r.c.Noticed[path] {
+		return
+	}
+	r.c.Noticed[path] = true
+	what := "an earlier spelling"
+	if model.Earlier.Count > 1 {
+		what = fmt.Sprintf("%d earlier spellings", model.Earlier.Count)
+	}
+	r.add(path, model.Earlier.Line, RuleEarlierSpelling, Warning,
+		"the model uses %s (entity for record, property for field, entity = for record =), read as the current words; write those, or run modelspec rewrite --write %q to rewrite the model and its JSON form together (a file not named *.modelspec.hcl also needs --module <name>=<file>)",
+		what, filepath.Dir(path))
 }
 
 // fsModels reads a model through the file system the graph was loaded from.

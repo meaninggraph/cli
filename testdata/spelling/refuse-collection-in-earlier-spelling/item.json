@@ -1,0 +1,7 @@
+{
+  "description": "A removed construct beside records in the earlier spelling.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "collection was removed from ModelSpec",
+  "warns": []
+}

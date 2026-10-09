@@ -1,0 +1,7 @@
+{
+  "description": "Earlier and current words side by side in one file, in one record type, and both reference words on different members.",
+  "expect": "accept",
+  "rule": "",
+  "message": "",
+  "warns": ["mixed"]
+}

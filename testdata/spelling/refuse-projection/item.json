@@ -1,0 +1,7 @@
+{
+  "description": "A projection block is a reserved word.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "projection is a reserved word in ModelSpec",
+  "warns": []
+}

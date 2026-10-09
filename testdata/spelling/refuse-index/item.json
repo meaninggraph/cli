@@ -1,0 +1,7 @@
+{
+  "description": "A index block is a reserved word.",
+  "expect": "refuse",
+  "rule": "models",
+  "message": "index is a reserved word in ModelSpec",
+  "warns": []
+}
