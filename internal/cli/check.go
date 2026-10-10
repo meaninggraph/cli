@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/meaninggraph/cli/pkg/meaning"
 )
@@ -67,15 +66,15 @@ usage or a file that cannot be read.`,
   meaninggraph check model ../core --address github.com/org/data=model --graph github.com/meaninggraph/core=../core`,
 		RunE: func(cmd *cobra.Command, args []string) error { return o.run(cmd, env, args) },
 	}
-	flags := cmd.Flags()
-	flags.StringVar(&o.format, "format", "text", "output format: text or json")
-	o.graphFlags(flags)
+	cmd.Flags().StringVar(&o.format, "format", "text", "output format: text or json")
+	o.graphFlags(cmd)
 	return cmd
 }
 
 // graphFlags are the flags that say which graphs are checked and how, shared by
 // check and links.
-func (o *checkOptions) graphFlags(flags *pflag.FlagSet) {
+func (o *checkOptions) graphFlags(cmd *cobra.Command) {
+	flags := cmd.Flags()
 	flags.StringArrayVar(&o.graphs, "graph", nil, "another graph references may name, as <host>/<org>/<repo>=<directory>; repeatable")
 	flags.StringArrayVar(&o.addresses, "address", nil, "the address of a graph being checked, <host>/<org>/<repo>, so that references to itself resolve: bare for one graph, else <address>=<path> once per checked path; repeatable")
 	flags.StringVar(&o.profile, "profile", "", `extra rules: "universal" for a repository of universal concepts such as meaninggraph/core`)
@@ -105,7 +104,7 @@ The paths, the flags and the exit codes are those of "check".`,
   meaninggraph links model --graph github.com/meaninggraph/core=../core`,
 		RunE: func(cmd *cobra.Command, args []string) error { return o.run(cmd, env, args) },
 	}
-	o.graphFlags(cmd.Flags())
+	o.graphFlags(cmd)
 	return cmd
 }
 
