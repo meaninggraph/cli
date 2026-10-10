@@ -45,6 +45,9 @@ type Env struct {
 	// Abs makes a path absolute, so that one directory written two ways is
 	// read once.
 	Abs func(string) (string, error)
+	// WriteFile replaces the content of an existing file; only rewrite --write
+	// uses it.
+	WriteFile func(name string, data []byte) error
 	// Interactive says whether the process has a terminal to ask a question
 	// on; nil means the update library's own terminal check.
 	Interactive func() bool
@@ -55,7 +58,7 @@ type Env struct {
 
 // OSEnv is the environment of the real process.
 func OSEnv() Env {
-	return Env{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, FS: meaning.OSFS{}, Abs: filepath.Abs, SelfUpdate: selfUpdateConfig}
+	return Env{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, FS: meaning.OSFS{}, Abs: filepath.Abs, WriteFile: replaceFile, SelfUpdate: selfUpdateConfig}
 }
 
 // errFindings is returned by a check that found errors; Run turns it into
@@ -122,6 +125,15 @@ func newRoot(env Env) root {
 	cmd.SetOut(env.Stdout)
 	cmd.SetErr(env.Stderr)
 	buildinfocmd.WireCobra(cmd, info)
-	cmd.AddCommand(newCheckCommand(env), newLinksCommand(env), newSchemaCommand(), newSelfUpdateCommand(env))
+	cmd.AddCommand(newCheckCommand(env), newLinksCommand(env), newRewriteCommand(env), newSchemaCommand(), newSelfUpdateCommand(env))
 	return root{cmd: cmd}
+}
+
+// replaceFile writes data over an existing file, keeping its permissions.
+func replaceFile(name string, data []byte) error {
+	fi, err := os.Stat(name)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(name, data, fi.Mode().Perm())
 }
