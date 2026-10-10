@@ -88,8 +88,12 @@ func Run(args []string, env Env) int {
 	return ExitUsage
 }
 
-// wantsJSON reports whether the arguments ask for --format json.
+// wantsJSON reports whether the arguments ask for JSON: --format json, or the
+// command links, which prints nothing else.
 func wantsJSON(args []string) bool {
+	if len(args) > 0 && args[0] == "links" {
+		return true
+	}
 	for i, arg := range args {
 		if arg == "--format=json" || (arg == "--format" && i+1 < len(args) && args[i+1] == "json") {
 			return true
@@ -118,6 +122,6 @@ func newRoot(env Env) root {
 	cmd.SetOut(env.Stdout)
 	cmd.SetErr(env.Stderr)
 	buildinfocmd.WireCobra(cmd, info)
-	cmd.AddCommand(newCheckCommand(env), newSchemaCommand(), newSelfUpdateCommand(env))
+	cmd.AddCommand(newCheckCommand(env), newLinksCommand(env), newSchemaCommand(), newSelfUpdateCommand(env))
 	return root{cmd: cmd}
 }

@@ -129,8 +129,8 @@ func TestSpellingNoticeIsOncePerModelFile(t *testing.T) {
 	dir := t.TempDir()
 	model := "entity \"Customer\" {\n  key = [\"CustomerId\"]\n  property \"CustomerId\" { type = \"int\" }\n}\n"
 	meaningFile := func(id string) string {
-		return "format: meaning/draft-1\nid: " + id + "\nname: N\ndescription: d\nmodels: {shop: shop.modelspec.hcl}\nconcepts:\n" +
-			"  - {id: customer-" + id + ", kind: entity, labels: {en: customer-" + id + "}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: entity}]}\n"
+		return "format: meaning/draft-2\nid: " + id + "\nname: N\ndescription: d\nmodels: {shop: shop.modelspec.hcl}\nconcepts:\n" +
+			"  - {id: customer-" + id + ", kind: entity, labels: {en: customer-" + id + "}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: instances}]}\n"
 	}
 	for name, content := range map[string]string{"shop.modelspec.hcl": model, "a.meaning.yaml": meaningFile("a"), "b.meaning.yaml": meaningFile("b")} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
@@ -150,8 +150,8 @@ func TestSpellingNoticeIsOncePerRunNotPerGraph(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	model := "entity \"Customer\" {\n  key = [\"CustomerId\"]\n  property \"CustomerId\" { type = \"int\" }\n}\n"
-	meaningFile := "format: meaning/draft-1\nid: demo\nname: N\ndescription: d\nmodels: {shop: ../shop.modelspec.hcl}\nconcepts:\n" +
-		"  - {id: customer, kind: entity, labels: {en: customer}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: entity}]}\n"
+	meaningFile := "format: meaning/draft-2\nid: demo\nname: N\ndescription: d\nmodels: {shop: ../shop.modelspec.hcl}\nconcepts:\n" +
+		"  - {id: customer, kind: entity, labels: {en: customer}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: instances}]}\n"
 	for name, content := range map[string]string{"shop.modelspec.hcl": model, "a/a.meaning.yaml": meaningFile, "b/b.meaning.yaml": meaningFile} {
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {

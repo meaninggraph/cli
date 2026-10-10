@@ -13,13 +13,16 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/meaninggraph/cli/pkg/meaning"
 )
 
 type checkOptions struct {
 	format, profile string
-	graphs          []string
+	// links says the command is links: it prints the links of each graph.
+	links  bool
+	graphs []string
 	// addresses are the --address flags as written; addressFlags are the same, parsed.
 	addresses    []string
 	addressFlags []addressFlag
@@ -34,11 +37,13 @@ func newCheckCommand(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check [path...]",
 		Short: "Check meaning files: schema, references, extends and bindings",
-		Long: `Check meaning files against the meaning/draft-1 schema and the rules the
-schema cannot say: every reference resolves, extends joins compatible kinds
-without a cycle, values-of and units-of name entities, measures and ratios are
-consistent, ids and words are unique, and every binding names an existing entity
-and property of the ModelSpec model its file lists in "models" and fits its role.
+		Long: `Check meaning files against the schema of the format each file says
+(meaning/draft-1 or meaning/draft-2) and the rules the schema cannot say: every
+reference resolves, extends joins compatible kinds without a cycle, values-of and
+units-of name entities or value sets, measures and ratios are consistent, ids and
+words are unique, and every binding names an existing record type and field of the
+ModelSpec model its file lists in "models" and fits its role. The files of one
+graph are in one format; a file in meaning/draft-1 gets a warning that says so.
 
 A path is a directory, whose *.meaning.yaml files directly in it are one graph
 (files in subdirectories are not part of it), or a file; all the files named
@@ -64,9 +69,43 @@ usage or a file that cannot be read.`,
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&o.format, "format", "text", "output format: text or json")
+	o.graphFlags(flags)
+	return cmd
+}
+
+// graphFlags are the flags that say which graphs are checked and how, shared by
+// check and links.
+func (o *checkOptions) graphFlags(flags *pflag.FlagSet) {
 	flags.StringArrayVar(&o.graphs, "graph", nil, "another graph references may name, as <host>/<org>/<repo>=<directory>; repeatable")
 	flags.StringArrayVar(&o.addresses, "address", nil, "the address of a graph being checked, <host>/<org>/<repo>, so that references to itself resolve: bare for one graph, else <address>=<path> once per checked path; repeatable")
 	flags.StringVar(&o.profile, "profile", "", `extra rules: "universal" for a repository of universal concepts such as meaninggraph/core`)
+}
+
+func newLinksCommand(env Env) *cobra.Command {
+	o := checkOptions{format: "json", links: true}
+	cmd := &cobra.Command{
+		Use:   "links [path...]",
+		Short: "Print the links of a graph: what its bindings say, and what its model says without a binding",
+		Long: `Check meaning files as "check" does, and print as JSON the links of each graph
+that passes the check. A link is one fact of the form "this record type, or this
+field, holds this concept in this role". A written link comes from a binding line.
+A derived link is computed from the model and is never written: a field that
+refers to a record type holds, with role reference, each concept bound to that
+record type with role instances, and the key of a record type bound to a concept
+identifies that concept, with role identifier. A derived link has "derived": true.
+A line you wrote for the same concept, record type, field and role takes the place
+of the derived link and brings its note.
+
+The links are sorted by concept, model, field and role, comparing bytes, and the
+role is always in the current words (instances, reference). For a graph that has
+an error, the links are not defined and are null: its findings are printed instead.
+
+The paths, the flags and the exit codes are those of "check".`,
+		Example: `  meaninggraph links model
+  meaninggraph links model --graph github.com/meaninggraph/core=../core`,
+		RunE: func(cmd *cobra.Command, args []string) error { return o.run(cmd, env, args) },
+	}
+	o.graphFlags(cmd.Flags())
 	return cmd
 }
 
@@ -96,7 +135,7 @@ func (o *checkOptions) run(cmd *cobra.Command, env Env, args []string) error {
 	asked := map[string]bool{}
 	noticed := map[string]bool{} // a model file listed by several graphs is reported once
 	for _, t := range targets {
-		reports = append(reports, t.check(env, supplied, profile, asked, noticed))
+		reports = append(reports, t.check(env, supplied, profile, asked, noticed, o.links))
 	}
 	slices.SortFunc(reports, func(a, b graphReport) int { return strings.Compare(a.label(), b.label()) })
 	reports[0].add(unusedGraphs(reports[0].Paths[0], supplied, asked, checked)...)
@@ -329,20 +368,27 @@ func spellingNote(t target, supplied map[string]*meaning.Graph, inUse map[string
 
 // graphReport is the result of checking one graph.
 type graphReport struct {
-	Paths    []string          `json:"paths"`
-	Address  string            `json:"address,omitempty"`
+	Paths   []string `json:"paths"`
+	Address string   `json:"address,omitempty"`
+	// Format is the format the files of the graph say (meaning/draft-1 or
+	// meaning/draft-2); it is absent when no file says a known format, and when
+	// the files say two (the findings say so).
+	Format   string            `json:"format,omitempty"`
 	Files    int               `json:"files"`
 	Concepts int               `json:"concepts"`
 	Errors   int               `json:"errors"`
 	Warnings int               `json:"warnings"`
 	Findings []meaning.Finding `json:"findings"`
+	// links are the links of the graph, for the command links; nil says the graph
+	// has an error, so that they are not defined.
+	links []meaning.Link
 }
 
 func (r graphReport) label() string { return strings.Join(r.Paths, " ") }
 
 func (t target) label() string { return strings.Join(t.paths, " ") }
 
-func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meaning.Profile, asked, noticed map[string]bool) graphReport {
+func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meaning.Profile, asked, noticed map[string]bool, withLinks bool) graphReport {
 	base := meaning.GraphResolver(supplied)
 	used := map[string]map[string]bool{}
 	resolve := func(repo, pin string) (*meaning.Graph, error) {
@@ -356,7 +402,14 @@ func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meani
 		}
 		return g, err
 	}
-	findings := meaning.Checker{Resolve: resolve, Profile: profile, Noticed: noticed}.Check(t.graph)
+	checker := meaning.Checker{Resolve: resolve, Profile: profile, Noticed: noticed}
+	var findings []meaning.Finding
+	var links []meaning.Link
+	if withLinks {
+		findings, links = checker.CheckLinks(t.graph)
+	} else {
+		findings = checker.Check(t.graph)
+	}
 	for _, repo := range slices.Sorted(maps.Keys(used)) {
 		for _, pin := range slices.Sorted(maps.Keys(used[repo])) {
 			if f, ok := verifyPin(env, t.paths[0], supplied[repo], pin); ok {
@@ -368,8 +421,12 @@ func (t target) check(env Env, supplied map[string]*meaning.Graph, profile meani
 		findings = append(findings, meaning.Finding{File: t.paths[0], Rule: "graph-path-spelling", Severity: meaning.Info, Message: t.spelling})
 	}
 	// A graph with no finding has an empty list, not none: JSON says [] for it.
-	report := graphReport{Paths: t.paths, Address: t.graph.Address, Files: len(t.graph.Files), Concepts: len(t.graph.Concepts), Findings: []meaning.Finding{}}
+	report := graphReport{Paths: t.paths, Address: t.graph.Address, Format: t.graph.Format(), Files: len(t.graph.Files), Concepts: len(t.graph.Concepts), Findings: []meaning.Finding{}}
 	report.add(findings...)
+	// Pin findings can make a graph fail that passed its own check.
+	if report.Errors == 0 {
+		report.links = links
+	}
 	return report
 }
 
@@ -464,6 +521,9 @@ func unusedGraphs(file string, supplied map[string]*meaning.Graph, asked, checke
 }
 
 func (o *checkOptions) write(w io.Writer, reports []graphReport) error {
+	if o.links {
+		return writeLinks(w, reports)
+	}
 	if o.format == "json" {
 		return writeJSON(w, reports)
 	}
@@ -503,9 +563,28 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
+// jsonSchemaInfo says which schemas the check validated with. Format and
+// CoreCommit are those of meaning/draft-1, the schema "schema" prints by
+// default: they are kept as they were for readers of earlier reports. Schemas
+// lists the schema of each format that is read, and each graph of the report says
+// its own format.
 type jsonSchemaInfo struct {
+	Format     string           `json:"format"`
+	CoreCommit string           `json:"core_commit"`
+	Schemas    []jsonSchemaItem `json:"schemas"`
+}
+
+type jsonSchemaItem struct {
 	Format     string `json:"format"`
 	CoreCommit string `json:"core_commit"`
+}
+
+func schemaInfo() jsonSchemaInfo {
+	info := jsonSchemaInfo{Format: meaning.Draft1, CoreCommit: meaning.SchemaCommit()}
+	for _, format := range []string{meaning.Draft1, meaning.Draft2} {
+		info.Schemas = append(info.Schemas, jsonSchemaItem{Format: format, CoreCommit: meaning.SchemaCommitFor(format)})
+	}
+	return info
 }
 
 type jsonReport struct {
@@ -517,11 +596,36 @@ type jsonReport struct {
 }
 
 func writeJSON(w io.Writer, reports []graphReport) error {
-	ok := !slices.ContainsFunc(reports, func(r graphReport) bool { return r.Errors > 0 })
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(jsonReport{
-		Tool: "meaninggraph", Version: info.Version, OK: ok, Graphs: reports,
-		Schema: jsonSchemaInfo{Format: "meaning/draft-1", CoreCommit: meaning.SchemaCommit()},
-	})
+	return enc.Encode(jsonReport{Tool: "meaninggraph", Version: info.Version, OK: allClean(reports), Graphs: reports, Schema: schemaInfo()})
+}
+
+func allClean(reports []graphReport) bool {
+	return !slices.ContainsFunc(reports, func(r graphReport) bool { return r.Errors > 0 })
+}
+
+// linkedGraph is a graph of the report of links: the report of the check, and
+// the links, null for a graph that has an error.
+type linkedGraph struct {
+	graphReport
+	Links []meaning.Link `json:"links"`
+}
+
+type jsonLinksReport struct {
+	Tool    string         `json:"tool"`
+	Version string         `json:"version"`
+	Schema  jsonSchemaInfo `json:"schema"`
+	OK      bool           `json:"ok"`
+	Graphs  []linkedGraph  `json:"graphs"`
+}
+
+func writeLinks(w io.Writer, reports []graphReport) error {
+	graphs := make([]linkedGraph, len(reports))
+	for i, r := range reports {
+		graphs[i] = linkedGraph{graphReport: r, Links: r.links}
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(jsonLinksReport{Tool: "meaninggraph", Version: info.Version, OK: allClean(reports), Graphs: graphs, Schema: schemaInfo()})
 }

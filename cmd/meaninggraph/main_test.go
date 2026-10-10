@@ -54,7 +54,7 @@ func TestMainPrintsTheVersionAndExitsZero(t *testing.T) {
 
 func TestMainChecksFilesAndPassesTheExitCodeOn(t *testing.T) {
 	dir := t.TempDir()
-	good := "format: meaning/draft-1\nid: demo\nname: Demo\ndescription: d\nconcepts:\n  - {id: a, kind: entity, labels: {en: a}, description: d}\n"
+	good := "format: meaning/draft-2\nid: demo\nname: Demo\ndescription: d\nconcepts:\n  - {id: a, kind: entity, labels: {en: a}, description: d}\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.meaning.yaml"), []byte(good), 0o600); err != nil {
 		t.Fatal(err)
 	}

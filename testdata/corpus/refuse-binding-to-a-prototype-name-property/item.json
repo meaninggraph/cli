@@ -1,0 +1,5 @@
+{
+  "description": "A property binding to toString, which the entity does not have.",
+  "expect": "refuse",
+  "rule": "binding-model"
+}
