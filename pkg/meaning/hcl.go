@@ -471,21 +471,23 @@ func truthy(v any) bool {
 }
 
 // prototypeNames are the names of the properties of JavaScript's
-// Object.prototype. The reference checker keeps the entities, properties,
-// components, fields and enums of a model in plain JavaScript objects and asks
-// `name in object`, so it takes any of these names for one that was declared
-// twice, and refuses the model.
+// Object.prototype. The reference checker kept the entities, properties,
+// components, fields and enums of a model in plain JavaScript objects and asked
+// `name in object`, so it took any of these names for one that was declared
+// twice, and refused the model, until core dd5ce32, which keeps them in objects
+// without a prototype and accepts them as ordinary names. This reader still
+// refuses them (cli#10).
 var prototypeNames = []string{
 	"__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__", "__proto__",
 	"constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable", "toLocaleString", "toString", "valueOf",
 }
 
-// PrototypeNames lists the names that the reference checker refuses in a model
-// (see the findings of HCLReader), sorted.
+// PrototypeNames lists the names that HCLReader refuses in a model, which the
+// reference checker refused before core dd5ce32, sorted.
 func PrototypeNames() []string { return slices.Clone(prototypeNames) }
 
 func isPrototypeName(name string) bool { return slices.Contains(prototypeNames, name) }
 
 func prototypeNameError(line int, kind, name string) error {
-	return hclErrorf(line, "%s %q has the name of a property of JavaScript's Object.prototype; the reference checker (github.com/meaninggraph/core) refuses a model that declares such a name, so rename it (the names are %s)", kind, name, strings.Join(prototypeNames, ", "))
+	return hclErrorf(line, "%s %q has the name of a property of JavaScript's Object.prototype; this reader refuses a model that declares such a name (the reference checker, github.com/meaninggraph/core, did so until its commit dd5ce32), so rename it (the names are %s)", kind, name, strings.Join(prototypeNames, ", "))
 }
