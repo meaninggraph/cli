@@ -1,5 +1,5 @@
 {
-  "description": "format: meaning/draft-2.",
+  "description": "format: meaning/draft-3, an identifier that does not exist.",
   "expect": "refuse",
   "rule": "schema"
 }

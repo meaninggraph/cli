@@ -118,13 +118,13 @@ func TestSchemaProblemsReportsAnyValidatorError(t *testing.T) {
 
 func TestCompileSchemaRefusesBadSchemas(t *testing.T) {
 	t.Parallel()
-	if _, err := compileSchema([]byte("{not json")); err == nil {
+	if _, err := compileSchema("test.json", []byte("{not json")); err == nil {
 		t.Error("invalid JSON must fail")
 	}
-	if _, err := compileSchema([]byte(`{"type": 5}`)); err == nil {
+	if _, err := compileSchema("test.json", []byte(`{"type": 5}`)); err == nil {
 		t.Error("an invalid schema must fail")
 	}
-	if _, err := compileSchema([]byte(`{"type": "object"}`)); err != nil {
+	if _, err := compileSchema("test.json", []byte(`{"type": "object"}`)); err != nil {
 		t.Errorf("a valid schema compiles: %v", err)
 	}
 }

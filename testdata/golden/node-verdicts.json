@@ -2,7 +2,7 @@
   "generated_by": "scripts/differential/regenerate.sh",
   "node_checker": {
     "repository": "https://github.com/meaninggraph/core",
-    "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7",
+    "commit": "25242a6c84d1b8d4799c718ef237944a429835ba",
     "node": "v24.20.0",
     "ajv": "8.20.0",
     "ajv_formats": "3.0.1",
@@ -324,6 +324,18 @@
         "demo.meaning.yaml: concept a: modelspec://github.com/org/repo/chinook.Artist points at another repository; this check resolves same-repository models only"
       ]
     },
+    "refuse-binding-to-a-prototype-name-entity": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///chinook.constructor: module chinook has no entity constructor"
+      ]
+    },
+    "refuse-binding-to-a-prototype-name-property": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: modelspec:///chinook.Artist: entity Artist has no property toString"
+      ]
+    },
     "refuse-binding-two-entity-bindings": {
       "verdict": "refuse",
       "problems": [
@@ -339,7 +351,7 @@
     "refuse-binding-value-on-a-reference": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: concept a: Album.ArtistId has role value but is a reference to Artist; bind it with role foreign-key"
+        "demo.meaning.yaml: concept a: Album.ArtistId has role value but is a reference to Artist; bind it with role reference"
       ]
     },
     "refuse-casefold-10d50-10d70": {
@@ -508,6 +520,12 @@
         "demo.meaning.yaml: concept customer extends: no source configured for meaning://github.com/org/other"
       ]
     },
+    "refuse-hcl-key-is-a-string": {
+      "verdict": "refuse",
+      "problems": [
+        "demo.meaning.yaml: concept a: Artist.ArtistId has role identifier but is not in the key of Artist []"
+      ]
+    },
     "refuse-key-null-as-code": {
       "verdict": "refuse",
       "problems": [
@@ -599,7 +617,7 @@
     "refuse-model-hcl-unknown-block": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: models: line 1: top-level table blocks are not supported by this converter (entity, component, enum)"
+        "demo.meaning.yaml: models: line 1: top-level table blocks are not supported by this converter (record, entity, component, enum)"
       ]
     },
     "refuse-model-hcl-unterminated-string": {
@@ -618,172 +636,92 @@
       ]
     },
     "refuse-model-prototype-attribute-component": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate attribute valueOf",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-attribute-entity": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate attribute __proto__",
+        "demo.meaning.yaml: models: line 13: unsupported entity attribute __proto__",
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
         "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
       ]
     },
     "refuse-model-prototype-attribute-enum": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate attribute hasOwnProperty",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-attribute-field": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 14: duplicate attribute constructor",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-attribute-property": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 17: duplicate attribute toString",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-component": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate component \"valueOf\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-constructor": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"constructor\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-defineGetter": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineGetter__\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-defineSetter": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"__defineSetter__\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-enum": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate enum \"hasOwnProperty\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-field": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 14: duplicate field \"constructor\" in component \"C\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-hasOwnProperty": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"hasOwnProperty\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-isPrototypeOf": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"isPrototypeOf\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-lookupGetter": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupGetter__\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-lookupSetter": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"__lookupSetter__\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-property": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 16: duplicate property \"toString\" in entity \"Song\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-propertyIsEnumerable": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"propertyIsEnumerable\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-proto": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"__proto__\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-toLocaleString": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"toLocaleString\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-toString": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"toString\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-model-prototype-name-valueOf": {
-      "verdict": "refuse",
-      "problems": [
-        "demo.meaning.yaml: models: line 13: duplicate entity \"valueOf\"",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models",
-        "demo.meaning.yaml: concept artist: modelspec:///chinook.Artist: module chinook is not listed in models"
-      ]
+      "verdict": "accept",
+      "problems": []
     },
     "refuse-models-path-with-trailing-slash": {
       "verdict": "refuse",
@@ -1029,7 +967,7 @@
     "refuse-schema-missing-format": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: schema: / must have required property 'format'"
+        "demo.meaning.yaml: schema: format must be meaning/draft-1 or meaning/draft-2"
       ]
     },
     "refuse-schema-name-is-a-boolean": {
@@ -1053,7 +991,7 @@
     "refuse-schema-role-not-allowed-for-kind": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: schema: /concepts/0/bindings/0/role must be equal to one of the allowed values (entity, identifier, display-name, foreign-key)",
+        "demo.meaning.yaml: schema: /concepts/0/bindings/0/role must be equal to one of the allowed values (entity, instances, identifier, display-name, foreign-key, reference)",
         "demo.meaning.yaml: schema: /concepts/0 must match \"then\" schema"
       ]
     },
@@ -1120,7 +1058,7 @@
     "refuse-schema-wrong-format-version": {
       "verdict": "refuse",
       "problems": [
-        "demo.meaning.yaml: schema: /format must be equal to constant"
+        "demo.meaning.yaml: schema: format must be meaning/draft-1 or meaning/draft-2"
       ]
     },
     "refuse-supplied-graph-null-concept": {
@@ -1430,19 +1368,7 @@
         "Source contains multiple documents; please use YAML.parseAllDocuments() at line 10, column 1:"
       ]
     },
-    "stricter-binding-to-a-prototype-name-entity": {
-      "verdict": "accept",
-      "problems": []
-    },
-    "stricter-binding-to-a-prototype-name-property": {
-      "verdict": "accept",
-      "problems": []
-    },
     "stricter-empty-directory": {
-      "verdict": "accept",
-      "problems": []
-    },
-    "stricter-hcl-key-is-a-string": {
       "verdict": "accept",
       "problems": []
     },

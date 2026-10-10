@@ -47,6 +47,14 @@ func graphOf(t *testing.T, files map[string]string, address string) *Graph {
 	return g
 }
 
+// withoutEarlierFormat drops the notice that every file in meaning/draft-1
+// gets, for the tests whose subject is another rule and whose fixtures are in
+// that format on purpose: they show that reading draft-1 gave the same findings
+// as before. TestEarlierFormat is the test of the notice.
+func withoutEarlierFormat(findings []Finding) []Finding {
+	return slices.DeleteFunc(slices.Clone(findings), func(f Finding) bool { return f.Rule == RuleEarlierFormat })
+}
+
 func ruleList(findings []Finding) []string {
 	var rules []string
 	for _, f := range findings {
@@ -65,7 +73,7 @@ func runCases(t *testing.T, cases []testCase) {
 			for name, content := range tc.files {
 				files["/g/"+name] = content
 			}
-			findings := tc.checker.Check(graphOf(t, files, ""))
+			findings := withoutEarlierFormat(tc.checker.Check(graphOf(t, files, "")))
 			if got := ruleList(findings); !slices.Equal(got, tc.rules) {
 				t.Fatalf("rules = %v, want %v\n%v", got, tc.rules, findings)
 			}
@@ -170,12 +178,12 @@ func TestSelfAddress(t *testing.T) {
 		cn("employee", "entity", ", extends: 'meaning://github.com/org/me/person'"),
 		cn("pinned", "entity", ", extends: 'meaning://github.com/org/me/person"+pin+"'"),
 	)}
-	got := Checker{}.Check(graphOf(t, files, "github.com/org/me"))
+	got := withoutEarlierFormat(Checker{}.Check(graphOf(t, files, "github.com/org/me")))
 	if rules := ruleList(got); !slices.Equal(rules, []string{RuleSelfPin}) {
 		t.Fatalf("rules = %v\n%v", rules, got)
 	}
 	// Without its address the graph cannot find itself.
-	got = Checker{}.Check(graphOf(t, files, ""))
+	got = withoutEarlierFormat(Checker{}.Check(graphOf(t, files, "")))
 	if rules := ruleList(got); !slices.Equal(rules, []string{RulePinMismatch, RuleUnresolved, RuleUnresolved}) {
 		t.Fatalf("rules = %v\n%v", rules, got)
 	}
@@ -354,7 +362,7 @@ func TestUniversalProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := universal.Check(g); len(got) != 0 {
+	if got := withoutEarlierFormat(universal.Check(g)); len(got) != 0 {
 		t.Fatalf("findings = %v", got)
 	}
 	// Without a LICENSE in the directory the rule fires.
@@ -362,7 +370,7 @@ func TestUniversalProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := universal.Check(dir); len(got) != 1 || got[0].Message != "LICENSE is missing" {
+	if got := withoutEarlierFormat(universal.Check(dir)); len(got) != 1 || got[0].Message != "LICENSE is missing" {
 		t.Fatalf("findings = %v", got)
 	}
 }
@@ -438,7 +446,7 @@ func TestLongExtendsChainsAreCheckedInLinearTime(t *testing.T) {
 		}
 		r := Checker{}.check(graphOf(t, map[string]string{"/g/a.meaning.yaml": text}, ""))
 		SortFindings(r.findings)
-		return r.steps, r.findings
+		return r.steps, withoutEarlierFormat(r.findings)
 	}
 	for _, close := range []bool{false, true} {
 		small, _ := steps(500, close)
@@ -498,7 +506,7 @@ func TestSymbolicLinksAndUnreadableDirectoriesAreReported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := Checker{}.Check(g)
+	got := withoutEarlierFormat(Checker{}.Check(g))
 	if rules := ruleList(got); !slices.Equal(rules, []string{RuleSymlink, RuleUnreadableDir}) {
 		t.Fatalf("findings = %v", got)
 	}
@@ -512,7 +520,7 @@ func TestSymbolicLinksAndUnreadableDirectoriesAreReported(t *testing.T) {
 	g.Files[0].Root.Fields["license"] = &Node{Kind: String, Text: "CC0-1.0"}
 	g.Files[0].License = "CC0-1.0"
 	var severity Severity
-	for _, f := range (Checker{Profile: ProfileUniversal}).Check(g) {
+	for _, f := range withoutEarlierFormat((Checker{Profile: ProfileUniversal}).Check(g)) {
 		if f.Rule == RuleUnreadableDir {
 			severity = f.Severity
 		}
@@ -526,7 +534,7 @@ func TestSymbolicLinksAndUnreadableDirectoriesAreReported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rules := ruleList(Checker{}.Check(g)); !slices.Equal(rules, []string{RuleNoFiles, RuleSymlink}) {
+	if rules := ruleList(withoutEarlierFormat(Checker{}.Check(g))); !slices.Equal(rules, []string{RuleNoFiles, RuleSymlink}) {
 		t.Fatalf("rules = %v", rules)
 	}
 }
@@ -549,7 +557,7 @@ func TestAGraphWithoutAFileSystemCannotReadModels(t *testing.T) {
 	files := map[string]string{"/g/a.meaning.yaml": head + "models: {m: m.hcl}\nconcepts:\n" + cn("a", "entity", "")}
 	g := graphOf(t, files, "")
 	g.fs, g.Dir = nil, ""
-	got := Checker{}.Check(g)
+	got := withoutEarlierFormat(Checker{}.Check(g))
 	if rules := ruleList(got); !slices.Equal(rules, []string{RuleModels}) || !strings.Contains(got[0].Message, "was not loaded from a file system") {
 		t.Fatalf("findings = %v", got)
 	}
@@ -566,7 +574,7 @@ func TestAGraphThatIsNotValidIsReportedOnce(t *testing.T) {
 		cn("four", "entity", ", extends: meaning://github.com/org/other/y?ref=abc"),
 		cn("five", "entity", ", extends: meaning://github.com/org/other/z?ref=abc"),
 	)}, "")
-	findings := Checker{Resolve: GraphResolver(map[string]*Graph{"github.com/org/bad": bad})}.Check(local)
+	findings := withoutEarlierFormat(Checker{Resolve: GraphResolver(map[string]*Graph{"github.com/org/bad": bad})}.Check(local))
 	var unreadable, unsupplied int
 	for _, f := range findings {
 		if f.Rule != RuleUnresolved {
@@ -630,7 +638,7 @@ func TestHostileInputIsHandledInLinearWork(t *testing.T) {
 	}
 	g := graphOf(t, map[string]string{"/g/a.meaning.yaml": units.String()}, "")
 	var findings []Finding
-	if n, _ := allocations(func() { findings = Checker{}.Check(g) }); n > 3_000_000 {
+	if n, _ := allocations(func() { findings = withoutEarlierFormat(Checker{}.Check(g)) }); n > 3_000_000 {
 		t.Errorf("1,000 units over 10,000 values took %d allocations", n)
 	}
 	if len(findings) != 0 {
@@ -645,7 +653,7 @@ func TestHostileInputIsHandledInLinearWork(t *testing.T) {
 		fmt.Fprintf(&shared, "  - {id: c%d, kind: entity, labels: {en: same}, description: d}\n", i)
 	}
 	g = graphOf(t, map[string]string{"/g/a.meaning.yaml": shared.String()}, "")
-	if n, _ := allocations(func() { findings = Checker{Profile: ProfileUniversal}.Check(g) }); n > 1_000_000 {
+	if n, _ := allocations(func() { findings = withoutEarlierFormat(Checker{Profile: ProfileUniversal}.Check(g)) }); n > 1_000_000 {
 		t.Errorf("3,000 concepts sharing a word took %d allocations", n)
 	}
 	words := 0

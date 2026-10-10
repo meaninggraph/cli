@@ -1,5 +1,6 @@
 {
-  "description": "A model with an entity named toLocaleString, a property of Object.prototype: the reference checker refuses the model, and so does the CLI, saying why.",
+  "description": "A model with an entity named toLocaleString, the name of a property of Object.prototype: the CLI refuses the model, saying why; the reference checker accepts it (see stricter).",
   "expect": "refuse",
-  "rule": "models"
+  "rule": "models",
+  "stricter": "The reference checker (core since #5, commit dd5ce32) keeps the names of a model in objects without a prototype, so a name of Object.prototype is an ordinary name and the model is accepted, as ModelSpec's own lint accepts it. The CLI still refuses a model that declares one (as the reference checker did until then), so that reading meaning/draft-1 does not change in the release that reads meaning/draft-2; accepting these names is a separate change (cli#10)."
 }

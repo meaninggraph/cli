@@ -77,11 +77,12 @@ func (g *Graph) fsModels(reader ModelReader, path string) (*Model, error) {
 	return reader.ReadModel(g.fs, path)
 }
 
-// entityBindings are the entities whose rows are instances of a concept (role entity).
+// entityBindings are the entities whose rows are instances of a concept (role
+// instances, written entity in an earlier file).
 func entityBindings(c *Concept) []ModelRef {
 	var out []ModelRef
 	for _, b := range c.Bindings {
-		if ref, ok := ParseModelRef(b.Model); ok && b.Role == "entity" {
+		if ref, ok := ParseModelRef(b.Model); ok && roleOf(b) == "instances" {
 			out = append(out, ref)
 		}
 	}
@@ -100,7 +101,7 @@ func names(refs []ModelRef) []string {
 func (r *run) checkBindings(f *File, c *Concept, label string, models map[string]*Model, modelsFailed bool) {
 	entities := entityBindings(c)
 	if len(entities) > 1 {
-		r.err(f, c.lineOf("bindings"), RuleEntityBindings, "%s: has %d entity bindings (%v); a concept binds one entity", label, len(entities), names(entities))
+		r.err(f, c.lineOf("bindings"), RuleEntityBindings, "%s: has %d %s bindings (%v); a concept binds one entity", label, len(entities), instancesWord(c.format), names(entities))
 	}
 	for _, b := range c.Bindings {
 		ref, ok := ParseModelRef(b.Model)
@@ -125,12 +126,13 @@ func (r *run) checkBindings(f *File, c *Concept, label string, models map[string
 			r.err(f, b.Line, RuleBindingModel, "%s: %s: module %s has no entity %s", label, b.Model, ref.Module, ref.Name)
 			continue
 		}
-		if b.Property == "" {
+		name := b.Member(c.format)
+		if name == "" {
 			continue
 		}
-		member, ok := entity.Properties[b.Property]
+		member, ok := entity.Properties[name]
 		if !ok {
-			r.err(f, b.Line, RuleBindingModel, "%s: %s: entity %s has no property %s", label, b.Model, ref.Name, b.Property)
+			r.err(f, b.Line, RuleBindingModel, "%s: %s: entity %s has no property %s", label, b.Model, ref.Name, name)
 			continue
 		}
 		r.checkRole(f, c, b, ref, entity, member, entities)
@@ -139,7 +141,8 @@ func (r *run) checkBindings(f *File, c *Concept, label string, models map[string
 
 // checkRole checks that a property fits the role a binding gives it.
 func (r *run) checkRole(f *File, c *Concept, b Binding, ref ModelRef, entity *Entity, member Property, entities []ModelRef) {
-	at := fmt.Sprintf("concept %s: %s.%s", c.ID, ref.Name, b.Property)
+	name := b.Member(c.format)
+	at := fmt.Sprintf("concept %s: %s.%s", c.ID, ref.Name, name)
 	fail := func(format string, args ...any) { r.roleFailure(f, b, at, format, args...) }
 	// identifier and display-name describe the rows of the concept's own entity.
 	if b.Role == "identifier" || b.Role == "display-name" {
@@ -152,7 +155,7 @@ func (r *run) checkRole(f *File, c *Concept, b Binding, ref ModelRef, entity *En
 	}
 	switch b.Role {
 	case "identifier":
-		if !contains(entity.Key, b.Property) {
+		if !contains(entity.Key, name) {
 			fail("has role identifier but is not in the key of %s %v", ref.Name, entity.Key)
 		}
 	case "display-name":
@@ -161,9 +164,10 @@ func (r *run) checkRole(f *File, c *Concept, b Binding, ref ModelRef, entity *En
 		}
 	case "value":
 		if member.IsReference() {
-			fail("has role value but is %s; bind it with role foreign-key", describe(member))
+			fail("has role value but is %s; bind it with role %s", describe(member), referenceWord(c.format))
 		}
-	case "foreign-key":
+	}
+	if roleOf(b) == "reference" {
 		r.checkForeignKey(f, c, b, ref, member, at)
 	}
 }
@@ -192,14 +196,14 @@ func describe(p Property) string {
 func (r *run) checkForeignKey(f *File, c *Concept, b Binding, ref ModelRef, member Property, at string) {
 	fail := func(format string, args ...any) { r.roleFailure(f, b, at, format, args...) }
 	if !member.IsReference() {
-		fail("has role foreign-key but is not a reference (it is %s)", an(member.Type))
+		fail("has role %s but is not a reference (it is %s)", b.Role, an(member.Type))
 		return
 	}
 	target := node{concept: c, graph: r.local}
-	if c.Kind != "entity" {
+	if kindOf(c) != "entity" {
 		domain, ok := r.inherited(c, r.local, func(x *Concept) string { return x.ValuesOf })
 		if !ok {
-			fail("has role foreign-key, so %s needs values-of: the entity its references point at", c.ID)
+			fail("has role %s, so %s needs values-of: the entity its references point at", b.Role, c.ID)
 			return
 		}
 		if target, ok = r.resolveConcept(domain.concept.ValuesOf, domain.graph); !ok {
@@ -212,7 +216,7 @@ func (r *run) checkForeignKey(f *File, c *Concept, b Binding, ref ModelRef, memb
 		expected = entityBindings(target.concept)
 	}
 	if len(expected) == 0 {
-		fail("has role foreign-key, but %s has no entity binding in this repository, so it cannot be checked that %s holds its instances; bind %s (or a concept of this repository that extends it) to its entity", target.concept.ID, describeTarget(member), target.concept.ID)
+		fail("has role %s, but %s has no entity binding in this repository, so it cannot be checked that %s holds its instances; bind %s (or a concept of this repository that extends it) to its entity", b.Role, target.concept.ID, describeTarget(member), target.concept.ID)
 		return
 	}
 	for _, e := range expected {

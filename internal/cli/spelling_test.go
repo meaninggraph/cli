@@ -13,10 +13,11 @@ import (
 )
 
 // testdata/spelling holds the cases of ModelSpec's renamed words (record, field
-// and record = for entity, property and entity =). The Node reference checker
-// that testdata/corpus is compared with reads only the earlier spelling, so
-// these cases are not in that corpus and have no recorded verdict of it; they
-// are checked against what ModelSpec's own reference CLI says of the models.
+// and record = for entity, property and entity =). They were written when the Node
+// reference checker that testdata/corpus is compared with read only the earlier
+// spelling (it reads both from core dd5ce32), so these cases are not in that
+// corpus and have no recorded verdict of it; they are checked against what
+// ModelSpec's own reference CLI says of the models.
 //
 // A case is a directory with an item.json and one directory per variant, each
 // a graph of one meaning file and its model. A case with an "earlier" and a
@@ -129,8 +130,8 @@ func TestSpellingNoticeIsOncePerModelFile(t *testing.T) {
 	dir := t.TempDir()
 	model := "entity \"Customer\" {\n  key = [\"CustomerId\"]\n  property \"CustomerId\" { type = \"int\" }\n}\n"
 	meaningFile := func(id string) string {
-		return "format: meaning/draft-1\nid: " + id + "\nname: N\ndescription: d\nmodels: {shop: shop.modelspec.hcl}\nconcepts:\n" +
-			"  - {id: customer-" + id + ", kind: entity, labels: {en: customer-" + id + "}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: entity}]}\n"
+		return "format: meaning/draft-2\nid: " + id + "\nname: N\ndescription: d\nmodels: {shop: shop.modelspec.hcl}\nconcepts:\n" +
+			"  - {id: customer-" + id + ", kind: entity, labels: {en: customer-" + id + "}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: instances}]}\n"
 	}
 	for name, content := range map[string]string{"shop.modelspec.hcl": model, "a.meaning.yaml": meaningFile("a"), "b.meaning.yaml": meaningFile("b")} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
@@ -150,8 +151,8 @@ func TestSpellingNoticeIsOncePerRunNotPerGraph(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	model := "entity \"Customer\" {\n  key = [\"CustomerId\"]\n  property \"CustomerId\" { type = \"int\" }\n}\n"
-	meaningFile := "format: meaning/draft-1\nid: demo\nname: N\ndescription: d\nmodels: {shop: ../shop.modelspec.hcl}\nconcepts:\n" +
-		"  - {id: customer, kind: entity, labels: {en: customer}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: entity}]}\n"
+	meaningFile := "format: meaning/draft-2\nid: demo\nname: N\ndescription: d\nmodels: {shop: ../shop.modelspec.hcl}\nconcepts:\n" +
+		"  - {id: customer, kind: entity, labels: {en: customer}, description: d, bindings: [{model: 'modelspec:///shop.Customer', role: instances}]}\n"
 	for name, content := range map[string]string{"shop.modelspec.hcl": model, "a/a.meaning.yaml": meaningFile, "b/b.meaning.yaml": meaningFile} {
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
