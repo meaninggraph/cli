@@ -37,7 +37,7 @@ graph to decide. The files are written with their other words changed, and
 
 The command reads what it wrote: a file whose result is not the data of the file
 with those words changed, or that holds a word in a form it does not know how to
-edit, is not rewritten; the command says which line, writes nothing at all, and
+edit, is not rewritten; the command says why (for a word it cannot edit, which line), writes nothing at all, and
 exits 2. Files that a generator writes are changed in the generator, which writes
 them again.`,
 		Example: `  meaninggraph rewrite model

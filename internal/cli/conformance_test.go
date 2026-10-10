@@ -25,9 +25,10 @@ import (
 // and `meaninggraph links` and compares.
 //
 // The rule is the corpus test's: the same verdict, accept or refuse, in both
-// formats. For an accepted graph the same warnings that stand for the reference
-// checker's four notices (earlier-format, earlier-role-name, retired-value and
-// unknown-value); for a refused one only rules the reference checker reports as
+// formats. For an accepted graph the same warnings as the reference checker's
+// notices earlier-format, earlier-role-name and retired-value (its fourth notice,
+// unknown-value, is about stored values, which this checker does not read, and is
+// left out); for a refused one only rules the reference checker reports as
 // well (it goes on after the schema where this checker stops, so it may report
 // more); for a graph whose links the reference checker lists, the same links.
 // Where the verdicts differ, the case is in conformanceStricter with its reason,

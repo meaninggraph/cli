@@ -13,10 +13,11 @@ import (
 )
 
 // testdata/spelling holds the cases of ModelSpec's renamed words (record, field
-// and record = for entity, property and entity =). The Node reference checker
-// that testdata/corpus is compared with reads only the earlier spelling, so
-// these cases are not in that corpus and have no recorded verdict of it; they
-// are checked against what ModelSpec's own reference CLI says of the models.
+// and record = for entity, property and entity =). They were written when the Node
+// reference checker that testdata/corpus is compared with read only the earlier
+// spelling (it reads both from core dd5ce32), so these cases are not in that
+// corpus and have no recorded verdict of it; they are checked against what
+// ModelSpec's own reference CLI says of the models.
 //
 // A case is a directory with an item.json and one directory per variant, each
 // a graph of one meaning file and its model. A case with an "earlier" and a
