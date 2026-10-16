@@ -4,6 +4,10 @@
 
 `meaninggraph check` is one installable binary that checks the same things as the reference checker in that repository (a Node script that other repositories fetch at a pinned commit): same schema, same cross-concept rules, same binding checks. It is meant never to accept a file the reference checker refuses, and the tests and the mutation run below check that on thousands of files; it refuses some files the reference checker accepts, each on a stated rule (see Differences). It is tested against the reference checker, not proven equal to it. It reads files, writes nothing, sends nothing and has no telemetry.
 
+## Used in DataTug development
+
+[DataTug](https://datatug.app) is developing the semantic links between model fields and shared meanings. MeaningGraph's checker validates those meaning definitions; this integration work is ongoing. [See the tools behind DataTug](https://datatug.app/en/under-the-hood/tools-we-built/#contracts).
+
 ## Install
 
 There is no package-manager install yet. Use a release archive from GitHub, or `go install`.
