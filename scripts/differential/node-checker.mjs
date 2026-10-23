@@ -25,7 +25,9 @@ export async function createChecker(coreArg, { graphRoot = '/' } = {}) {
       const copy = mkdtempSync(join(tmpdir(), 'meaning-differential-'));
       try {
         cpSync(dir, copy, { recursive: true });
+        // check.mjs finds the schema of draft 2 beside the one of draft 1.
         cpSync(schemaPath, join(copy, 'meaning.schema.json'));
+        cpSync(join(core, 'meaning.draft-2.schema.json'), join(copy, 'meaning.draft-2.schema.json'));
         return checkCore(copy).problems.map((p) => p.replaceAll(`${copy}/`, ''));
       } finally {
         rmSync(copy, { recursive: true, force: true });

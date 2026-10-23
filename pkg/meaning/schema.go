@@ -14,21 +14,70 @@ import (
 	"golang.org/x/text/message"
 )
 
+// The two formats of a meaning file, as a file writes them on its format line.
+const (
+	// Draft1 is the earlier format: the kind attribute, the binding key
+	// property, and a list of values on an entity, an attribute or a dimension.
+	Draft1 = "meaning/draft-1"
+	// Draft2 is the format with the kind property, the binding key field and the
+	// kind value-set.
+	Draft2 = "meaning/draft-2"
+)
+
 //go:embed meaning.schema.json
 var schemaJSON []byte
 
 //go:embed meaning.schema.source
 var schemaSource string
 
+//go:embed meaning.draft-2.schema.json
+var schemaDraft2JSON []byte
+
+//go:embed meaning.draft-2.schema.source
+var schemaDraft2Source string
+
 // SchemaJSON returns meaning.schema.json of github.com/meaninggraph/core, the
 // schema of format meaning/draft-1, as it is embedded. SchemaSource says which
 // commit it was taken from; scripts/check-schema-drift.sh compares both with a
-// checkout of core.
+// checkout of core. SchemaJSONFor gives the schema of either format.
 func SchemaJSON() []byte { return slices.Clone(schemaJSON) }
 
 // SchemaSource records where SchemaJSON comes from: repository, commit, path
 // and sha256 of the file, one "key: value" per line.
 func SchemaSource() string { return schemaSource }
+
+// SchemaJSONFor returns the embedded schema of a format, Draft1 or Draft2, as
+// the bytes of the file of github.com/meaninggraph/core it was taken from
+// (meaning.schema.json and meaning.draft-2.schema.json). It is nil for any
+// other format.
+func SchemaJSONFor(format string) []byte {
+	switch format {
+	case Draft1:
+		return SchemaJSON()
+	case Draft2:
+		return slices.Clone(schemaDraft2JSON)
+	}
+	return nil
+}
+
+// SchemaSourceFor records where SchemaJSONFor(format) comes from, in the form
+// of SchemaSource; it is empty for a format that is neither Draft1 nor Draft2.
+func SchemaSourceFor(format string) string {
+	switch format {
+	case Draft1:
+		return schemaSource
+	case Draft2:
+		return schemaDraft2Source
+	}
+	return ""
+}
+
+// SchemaCommitFor is the commit of github.com/meaninggraph/core the schema of a
+// format was taken from.
+func SchemaCommitFor(format string) string { return commitOf(SchemaSourceFor(format)) }
+
+// KnownFormat reports whether a format line names a format that is read.
+func KnownFormat(format string) bool { return format == Draft1 || format == Draft2 }
 
 // Validator checks a value against the meaning-file schema. *jsonschema.Schema
 // is one; tests supply others.
@@ -49,11 +98,20 @@ func commitOf(source string) string {
 	return ""
 }
 
-// DefaultSchema returns the schema embedded in the binary, compiled once.
+// DefaultSchema returns the schema of Draft1 embedded in the binary, compiled
+// once.
 func DefaultSchema() Validator { return embeddedSchema() }
 
+// Draft2Schema returns the schema of Draft2 embedded in the binary, compiled
+// once.
+func Draft2Schema() Validator { return embeddedDraft2Schema() }
+
 var embeddedSchema = sync.OnceValue(func() *jsonschema.Schema {
-	return must(compileSchema(schemaJSON))
+	return must(compileSchema("meaning.schema.json", schemaJSON))
+})
+
+var embeddedDraft2Schema = sync.OnceValue(func() *jsonschema.Schema {
+	return must(compileSchema("meaning.draft-2.schema.json", schemaDraft2JSON))
 })
 
 func must[T any](v T, err error) T {
@@ -63,10 +121,10 @@ func must[T any](v T, err error) T {
 	return v
 }
 
-// compileSchema compiles a JSON Schema document (draft 2020-12) with format
-// assertions switched on, as the reference checker's Ajv does, and with the
-// reference checker's rule for format uri.
-func compileSchema(data []byte) (*jsonschema.Schema, error) {
+// compileSchema compiles a JSON Schema document (draft 2020-12), known by name,
+// with format assertions switched on, as the reference checker's Ajv does, and
+// with the reference checker's rule for format uri.
+func compileSchema(name string, data []byte) (*jsonschema.Schema, error) {
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
@@ -81,7 +139,7 @@ func compileSchema(data []byte) (*jsonschema.Schema, error) {
 		return nil
 	}})
 	compiler.UseLoader(staticLoader{doc})
-	return compiler.Compile("meaning.schema.json")
+	return compiler.Compile(name)
 }
 
 // staticLoader serves the one schema document, whatever address is asked for.
