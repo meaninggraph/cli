@@ -6,7 +6,7 @@
 
 ## Used in DataTug development
 
-[DataTug](https://datatug.app) is developing the semantic links between model fields and shared meanings. MeaningGraph's checker validates those meaning definitions; this integration work is ongoing. [See the tools behind DataTug](https://datatug.app/en/under-the-hood/tools-we-built/#contracts).
+[DataTug](https://datatug.app) uses MeaningGraph to link model fields to shared meanings, and MeaningGraph's checker validates those meaning definitions. [See the tools behind DataTug](https://datatug.app/en/under-the-hood/tools-we-built/#contracts).
 
 ## Install
 
