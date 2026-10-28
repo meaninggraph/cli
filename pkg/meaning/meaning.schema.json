@@ -91,8 +91,8 @@
           "description": "A property of that entity. Kept separate from the reference because modelspec:// fragments address enum values only."
         },
         "role": {
-          "enum": ["entity", "identifier", "display-name", "foreign-key", "value"],
-          "description": "What the binding holds. entity: the rows of the ModelSpec entity are instances of this concept (no property). identifier: the property is the entity's key. display-name: the property is the name people know an instance by. foreign-key: the property is a reference to the entity whose rows are instances of this concept (or of the concept named by values-of). value: the property holds this concept's value."
+          "enum": ["entity", "instances", "identifier", "display-name", "foreign-key", "reference", "value"],
+          "description": "What the binding holds. entity, also written instances: the rows of the ModelSpec entity are instances of this concept (no property). identifier: the property is the entity's key. display-name: the property is the name people know an instance by. foreign-key, also written reference: the property is a reference to the entity whose rows are instances of this concept (or of the concept named by values-of). value: the property holds this concept's value."
         },
         "match": {
           "type": "string",
@@ -103,7 +103,7 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "role": { "const": "entity" } } },
+          "if": { "properties": { "role": { "enum": ["entity", "instances"] } } },
           "then": { "not": { "required": ["property"] } },
           "else": { "required": ["property"] }
         },
@@ -190,7 +190,7 @@
           "if": { "properties": { "kind": { "const": "entity" } } },
           "then": {
             "not": { "anyOf": [{ "required": ["values-of"] }, { "required": ["units-of"] }, { "required": ["unit"] }] },
-            "properties": { "bindings": { "type": "array", "items": { "type": "object", "properties": { "role": { "enum": ["entity", "identifier", "display-name", "foreign-key"] } } } } }
+            "properties": { "bindings": { "type": "array", "items": { "type": "object", "properties": { "role": { "enum": ["entity", "instances", "identifier", "display-name", "foreign-key", "reference"] } } } } }
           }
         },
         {
@@ -203,7 +203,7 @@
         {
           "if": { "properties": { "kind": { "enum": ["attribute", "dimension"] } } },
           "then": {
-            "properties": { "bindings": { "type": "array", "items": { "type": "object", "properties": { "role": { "enum": ["value", "foreign-key"] } } } } }
+            "properties": { "bindings": { "type": "array", "items": { "type": "object", "properties": { "role": { "enum": ["value", "foreign-key", "reference"] } } } } }
           }
         }
       ]

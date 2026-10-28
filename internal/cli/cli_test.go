@@ -19,7 +19,7 @@ import (
 	"github.com/meaninggraph/cli/pkg/meaning"
 )
 
-const head = "format: meaning/draft-1\nid: demo\nname: Demo\ndescription: d\n"
+const head = "format: meaning/draft-2\nid: demo\nname: Demo\ndescription: d\n"
 
 func concept(id, kind, rest string) string {
 	return "  - {id: " + id + ", kind: " + kind + ", labels: {en: " + id + "}, description: d" + rest + "}\n"
@@ -73,7 +73,7 @@ func TestCheckDefaultsToTheCurrentDirectory(t *testing.T) {
 func TestCheckReportsFindingsInOrder(t *testing.T) {
 	t.Parallel()
 	got := execute(map[string]string{
-		"/g/a.meaning.yaml":     file(concept("a", "attribute", ", of: nowhere"), concept("b", "entity", ", extends: gone")),
+		"/g/a.meaning.yaml":     file(concept("a", "property", ", of: nowhere"), concept("b", "entity", ", extends: gone")),
 		"/g/b.meaning.yaml":     "a: b\n  c: d\n",
 		"/g/sub/c.meaning.yaml": file(concept("c", "entity", "")),
 	}, "check", "/g")
