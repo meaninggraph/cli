@@ -56,6 +56,10 @@ type File struct {
 	// ParseErr is why Root is nil.
 	ParseErr *SyntaxError
 
+	// Format is the value of the file's format line, as written: Draft1,
+	// Draft2, or anything else (or nothing) for a file the checker refuses.
+	Format string
+
 	ID, Name, License string
 	// Models maps a module short name to the path of its source, relative to
 	// the file.
@@ -79,10 +83,15 @@ type Concept struct {
 	Labels                         map[string]string
 	Synonyms                       map[string][]string
 	Values                         []Value
-	Measure                        *Measure
-	Bindings                       []Binding
-	Line                           int
-	node                           *Node
+	// Complete is the key complete of a value set (Draft2): true says that the
+	// list holds all the values there are.
+	Complete bool
+	Measure  *Measure
+	Bindings []Binding
+	Line     int
+	node     *Node
+	// format is the Format of the file the concept is declared in.
+	format string
 }
 
 // Value is a known value of a concept.
@@ -91,6 +100,8 @@ type Value struct {
 	Labels  map[string]string
 	Aliases map[string][]string
 	Codes   map[string]string
+	// Retired is the key retired (Draft2): the value should no longer be used.
+	Retired bool
 }
 
 // Measure is the measure part of a concept of kind measure.
@@ -99,10 +110,13 @@ type Measure struct {
 	Inputs, Dimensions   []string
 }
 
-// Binding binds a concept to an entity or property of a model.
+// Binding binds a concept to a record type or a field of a model. The member of
+// the record type is written under the key property in a Draft1 file and under
+// the key field in a Draft2 file; Property holds what the first says and Field
+// what the second says. Member gives the one that the file uses.
 type Binding struct {
-	Model, Property, Role, Match, Note string
-	Line                               int
+	Model, Property, Field, Role, Match, Note string
+	Line                                      int
 }
 
 // lineOf is the line of a field of the concept, or of the concept.
@@ -171,13 +185,16 @@ func decodeFile(path string, data []byte) *File {
 		return f
 	}
 	f.Root = root
+	f.Format = root.text("format")
 	f.ID, f.Name, f.License = root.text("id"), root.text("name"), root.text("license")
 	f.Models = root.Field("models").strings()
 	for _, s := range root.Field("sources").items() {
 		f.Sources = append(f.Sources, Source{ID: s.text("id"), Line: s.Line})
 	}
 	for _, c := range root.Field("concepts").items() {
-		f.Concepts = append(f.Concepts, decodeConcept(c))
+		concept := decodeConcept(c)
+		concept.format = f.Format
+		f.Concepts = append(f.Concepts, concept)
 	}
 	return f
 }
@@ -188,12 +205,14 @@ func decodeConcept(n *Node) *Concept {
 		Of: n.text("of"), Extends: n.text("extends"), ValuesOf: n.text("values-of"), UnitsOf: n.text("units-of"),
 		Unit: n.text("unit"), Source: n.text("source"),
 		Labels: n.Field("labels").strings(), Synonyms: n.Field("synonyms").wordLists(),
-		Line: n.Line, node: n,
+		Complete: n.flag("complete"),
+		Line:     n.Line, node: n,
 	}
 	for _, v := range n.Field("values").items() {
 		c.Values = append(c.Values, Value{
 			ID: v.text("id"), Labels: v.Field("labels").strings(),
 			Aliases: v.Field("aliases").wordLists(), Codes: v.Field("codes").strings(),
+			Retired: v.flag("retired"),
 		})
 	}
 	if m := n.Field("measure"); m != nil {
@@ -204,7 +223,7 @@ func decodeConcept(n *Node) *Concept {
 	}
 	for _, b := range n.Field("bindings").items() {
 		c.Bindings = append(c.Bindings, Binding{
-			Model: b.text("model"), Property: b.text("property"), Role: b.text("role"),
+			Model: b.text("model"), Property: b.text("property"), Field: b.text("field"), Role: b.text("role"),
 			Match: b.text("match"), Note: b.text("note"), Line: b.Line,
 		})
 	}
@@ -215,6 +234,13 @@ func decodeConcept(n *Node) *Concept {
 func (n *Node) text(key string) string {
 	s, _ := n.Field(key).Str()
 	return s
+}
+
+// flag is the value of a key that holds a boolean, false when it holds anything
+// else or is not there.
+func (n *Node) flag(key string) bool {
+	v := n.Field(key)
+	return v != nil && v.Kind == Bool && v.Text == "true"
 }
 
 // items are the elements of a Seq that are maps; anything else is skipped.

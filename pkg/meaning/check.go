@@ -98,7 +98,7 @@ func unreadable(g *Graph) error {
 		if f.ParseErr != nil {
 			return fmt.Errorf("%s: %s", f.Path, f.ParseErr.Message)
 		}
-		if problems := schemaProblems(DefaultSchema(), f.Root); len(problems) > 0 {
+		if problems := fileSchemaProblems(f, DefaultSchema(), Draft2Schema()); len(problems) > 0 {
 			return fmt.Errorf("%s: schema: %s", f.Path, problems[0])
 		}
 	}
@@ -121,8 +121,12 @@ const (
 // Checker checks a Graph. The zero value checks against the embedded schema,
 // with no other graph available.
 type Checker struct {
-	// Schema validates each file; the embedded schema when nil.
+	// Schema validates each file of Draft1 (and a file that is not a mapping);
+	// the embedded schema of Draft1 when nil.
 	Schema Validator
+	// SchemaDraft2 validates each file of Draft2; the embedded schema of Draft2
+	// when nil.
+	SchemaDraft2 Validator
 	// Resolve reads other graphs; when nil none is available.
 	Resolve Resolver
 	// Models reads the models bindings name; HCLReader when nil.
@@ -148,7 +152,7 @@ type run struct {
 	findings []Finding
 	pins     map[string]string
 	// valueIndex holds the indexes of valuesNamed.
-	valueIndex map[*Concept]map[string][]string
+	valueIndex map[*Concept]map[string][]Value
 	// steps counts the lookups of what a concept extends: a test reads it to show
 	// that the work grows in step with the number of concepts.
 	steps int
@@ -158,6 +162,9 @@ type run struct {
 	unreadable map[string]bool
 	parents    map[*Concept]parentEntry
 	chains     map[*Concept]chainInfo
+	// loaded holds the files that passed the schema, with their models, for the
+	// links of the graph.
+	loaded []loadedFile
 }
 
 // Check validates every file of g against the schema and checks what the
@@ -170,19 +177,31 @@ func (c Checker) Check(g *Graph) []Finding {
 	return r.findings
 }
 
+// CheckLinks checks g like Check and also returns the links of the graph, the
+// written and the derived ones (see Link). The links are nil when the check
+// finds an error, because a written line that contradicts the model makes the
+// derived links unreliable: they are not defined for a graph that fails its
+// check, and a reader must not show them. A graph that passes and has no links
+// has an empty, non-nil list.
+func (c Checker) CheckLinks(g *Graph) ([]Finding, []Link) {
+	r := c.check(g)
+	SortFindings(r.findings)
+	if HasErrors(r.findings) {
+		return r.findings, nil
+	}
+	return r.findings, deriveLinks(r.loaded)
+}
+
 // check runs the checks and returns the run that holds the findings (unsorted)
 // and the counts the tests read.
 func (c Checker) check(g *Graph) *run {
-	if c.Schema == nil {
-		c.Schema = DefaultSchema()
-	}
 	if c.Models == nil {
 		c.Models = HCLReader{}
 	}
 	if c.Noticed == nil {
 		c.Noticed = map[string]bool{}
 	}
-	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, unreadable: map[string]bool{}, valueIndex: map[*Concept]map[string][]string{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
+	r := &run{c: c, local: g, other: c.Resolve, pins: map[string]string{}, unreadable: map[string]bool{}, valueIndex: map[*Concept]map[string][]Value{}, parents: map[*Concept]parentEntry{}, chains: map[*Concept]chainInfo{}}
 	if r.other == nil {
 		r.other = func(repo, _ string) (*Graph, error) {
 			return nil, fmt.Errorf("meaning://%s is not available: no graph was supplied", repo)
@@ -190,6 +209,12 @@ func (c Checker) check(g *Graph) *run {
 	}
 	if len(g.Files) == 0 {
 		r.add(g.Dir, 0, RuleNoFiles, Error, "no %s file", "*"+FileSuffix)
+	}
+	if formats, firstFile := formatsOf(g); len(formats) > 1 {
+		// The files of one graph refer to each other by bare id, so they change
+		// format together.
+		second := firstFile[formats[1]]
+		r.err(second, second.Root.Field("format").lineOr(1), RuleFormatMixed, "%s", formatMixed(formats, firstFile))
 	}
 	for _, d := range g.duplicates {
 		r.add(d.second.File.Path, d.second.Concept.Line, RuleDuplicateConcept, Error,
@@ -229,12 +254,25 @@ func (r *run) checkFile(f *File) {
 		r.err(f, f.ParseErr.Line, f.ParseErr.Rule, "%s", f.ParseErr.Message)
 		return
 	}
-	problems := schemaProblems(r.c.Schema, f.Root)
+	if f.Format == Draft1 {
+		r.add(f.Path, f.Root.Field("format").lineOr(1), RuleEarlierFormat, Warning,
+			"the file is in %s, the earlier format; it is read in full. Write %s with meaninggraph rewrite --write (a file made by a generator is changed in its generator)", Draft1, Draft2)
+	}
+	problems := fileSchemaProblems(f, r.c.schemaFor(Draft1), r.c.schemaFor(Draft2))
 	for _, p := range problems {
 		r.err(f, f.Root.At(p.path), RuleSchema, "schema: %s", p)
 	}
+	if KnownFormat(f.Format) {
+		for _, w := range formatWords(f) {
+			r.err(f, w.line, RuleFormatWord, "%s", w.message)
+		}
+	}
 	if len(problems) > 0 {
 		return
+	}
+	if names, line := earlierRoleNames(f); f.Format == Draft2 && len(names) > 0 {
+		r.add(f.Path, line, RuleEarlierRoleName, Warning,
+			"the role names entity and foreign-key are the earlier spellings of instances and reference (this file uses %s)", strings.Join(names, " and "))
 	}
 	seen := map[string]bool{}
 	for _, s := range f.Sources {
@@ -244,6 +282,7 @@ func (r *run) checkFile(f *File) {
 		seen[s.ID] = true
 	}
 	models, failed := r.loadModels(f)
+	r.loaded = append(r.loaded, loadedFile{file: f, models: models})
 	for _, c := range f.Concepts {
 		r.checkConcept(f, c, seen)
 		r.checkBindings(f, c, "concept "+c.ID, models, failed)
@@ -253,8 +292,8 @@ func (r *run) checkFile(f *File) {
 func (r *run) checkConcept(f *File, c *Concept, sources map[string]bool) {
 	label := "concept " + c.ID
 	if c.Of != "" {
-		if owner, ok := r.lookup(f, c.lineOf("of"), label+" of", c.Of); ok && owner.concept.Kind != "entity" {
-			r.err(f, c.lineOf("of"), RuleTargetKind, "%s: of names %s, which is %s, not an entity", label, c.Of, an(owner.concept.Kind))
+		if owner, ok := r.lookup(f, c.lineOf("of"), label+" of", c.Of); ok && !isEntityLike(owner.concept) {
+			r.err(f, c.lineOf("of"), RuleTargetKind, "%s: of names %s, which is %s, not %s", label, c.Of, an(owner.concept.Kind), entityLikeWords(c.format))
 		}
 	}
 	if c.Extends != "" {
@@ -265,8 +304,8 @@ func (r *run) checkConcept(f *File, c *Concept, sources map[string]bool) {
 		if target == "" {
 			continue
 		}
-		if found, ok := r.lookup(f, c.lineOf(key), label+" "+key, target); ok && found.concept.Kind != "entity" {
-			r.err(f, c.lineOf(key), RuleTargetKind, "%s: %s names %s, which is %s, not an entity", label, key, target, an(found.concept.Kind))
+		if found, ok := r.lookup(f, c.lineOf(key), label+" "+key, target); ok && !isEntityLike(found.concept) {
+			r.err(f, c.lineOf(key), RuleTargetKind, "%s: %s names %s, which is %s, not %s", label, key, target, an(found.concept.Kind), entityLikeWords(c.format))
 		}
 		if c.Extends != "" {
 			r.checkNarrowing(f, c, label, key, target)
@@ -293,27 +332,16 @@ func (c *Concept) targetOf(key string) string {
 func (r *run) checkExtends(f *File, c *Concept, label string) {
 	line := c.lineOf("extends")
 	if parent, ok := r.lookup(f, line, label+" extends", c.Extends); ok {
-		allowed := extendsCompatibility[c.Kind]
-		if !contains(allowed, parent.concept.Kind) {
+		allowed := extendsKinds[kindOf(c)]
+		if !contains(allowed, kindOf(parent.concept)) {
 			r.err(f, line, RuleExtendsKind, "%s: %s cannot extend %s, which is %s; extends means \"is a kind of\", and %s may extend only %s",
-				label, an(c.Kind), c.Extends, an(parent.concept.Kind), an(c.Kind), strings.Join(allowed, " or "))
+				label, an(c.Kind), c.Extends, an(parent.concept.Kind), an(c.Kind), strings.Join(wordsOf(allowed, c.format), " or "))
 		}
 	}
 	// The chain of extends, through any graph, comes back to a concept it has passed.
 	if path, cyclic := r.extendsCycle(node{concept: c, graph: r.local}); cyclic {
 		r.err(f, line, RuleExtendsCycle, "%s: extends forms a cycle (%s)", label, path)
 	}
-}
-
-// extendsCompatibility says which kinds a concept of a kind may extend: extends
-// means "is a kind of". An attribute and a dimension are both a property of an
-// entity (a dimension is one that answers are grouped by), so they may extend
-// each other.
-var extendsCompatibility = map[string][]string{
-	"entity":    {"entity"},
-	"attribute": {"attribute", "dimension"},
-	"dimension": {"dimension", "attribute"},
-	"measure":   {"measure"},
 }
 
 func contains[T comparable](list []T, v T) bool {
@@ -367,10 +395,18 @@ func (r *run) checkUnit(f *File, c *Concept, label string) {
 		return
 	}
 	named := r.valuesNamed(entity.concept)[lower(c.Unit)]
-	if len(named) != 1 {
+	switch {
+	case len(named) == 1 && named[0].Retired:
+		r.add(f.Path, c.lineOf("unit"), RuleRetiredValue, Warning, "%s: unit %q names the value %s of %s, which is retired",
+			label, c.Unit, named[0].ID, domain.concept.UnitsOf)
+	case len(named) != 1:
 		found := "none"
 		if len(named) > 0 {
-			found = strings.Join(named, ", ")
+			ids := make([]string, len(named))
+			for i, v := range named {
+				ids[i] = v.ID
+			}
+			found = strings.Join(ids, ", ")
 		}
 		r.err(f, c.lineOf("unit"), RuleUnit, "%s: unit %q must name exactly one value of %s (units-of), but names %s",
 			label, c.Unit, domain.concept.UnitsOf, found)
@@ -381,17 +417,17 @@ func (r *run) checkUnit(f *File, c *Concept, label string) {
 // (labels, aliases and codes) that name them, in the order of the values. It
 // is built once per concept: every unit that names a value of it reads the
 // index, so the work stays linear however many units there are.
-func (r *run) valuesNamed(entity *Concept) map[string][]string {
+func (r *run) valuesNamed(entity *Concept) map[string][]Value {
 	if index, done := r.valueIndex[entity]; done {
 		return index
 	}
-	index := map[string][]string{}
+	index := map[string][]Value{}
 	for _, v := range entity.Values {
 		named := map[string]bool{}
 		for _, w := range v.words(true) {
 			if word := lower(w); !named[word] {
 				named[word] = true
-				index[word] = append(index[word], v.ID)
+				index[word] = append(index[word], v)
 			}
 		}
 	}
@@ -419,13 +455,13 @@ func (v Value) words(codes bool) []string {
 func (r *run) checkMeasure(f *File, c *Concept, label string) {
 	line := c.lineOf("measure")
 	for _, ref := range c.Measure.Inputs {
-		if in, ok := r.lookup(f, line, label+" measure.inputs", ref); ok && !contains([]string{"attribute", "measure"}, in.concept.Kind) {
-			r.err(f, line, RuleMeasureInput, "%s: measure.inputs names %s, which is %s; a measure is computed from attributes and measures only", label, ref, an(in.concept.Kind))
+		if in, ok := r.lookup(f, line, label+" measure.inputs", ref); ok && !contains(measureInputs, kindOf(in.concept)) {
+			r.err(f, line, RuleMeasureInput, "%s: measure.inputs names %s, which is %s; a measure is computed from %s and measures only", label, ref, an(in.concept.Kind), pluralPropertyWord(c.format))
 		}
 	}
 	for _, ref := range c.Measure.Dimensions {
-		if d, ok := r.lookup(f, line, label+" measure.dimensions", ref); ok && !contains([]string{"dimension", "attribute"}, d.concept.Kind) {
-			r.err(f, line, RuleMeasureDimension, "%s: measure.dimensions names %s, which is %s; a measure is grouped by dimensions or attributes only", label, ref, an(d.concept.Kind))
+		if d, ok := r.lookup(f, line, label+" measure.dimensions", ref); ok && !contains(measureDimensions, kindOf(d.concept)) {
+			r.err(f, line, RuleMeasureDimension, "%s: measure.dimensions names %s, which is %s; a measure is grouped by dimensions or %s only", label, ref, an(d.concept.Kind), pluralPropertyWord(c.format))
 		}
 	}
 	// A kind of a measure inherits its aggregation, so a ratio that extends a measure which sums is wrong too.

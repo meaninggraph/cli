@@ -107,7 +107,7 @@ func TestBindingsAgainstARealHCLModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The model is in the earlier spelling: that is reported, as a warning, and nothing else is.
-	got := (Checker{}).Check(g)
+	got := withoutEarlierFormat((Checker{}).Check(g))
 	if len(got) != 1 || got[0].Rule != RuleEarlierSpelling || got[0].Severity != Warning || got[0].File != "/g/m.hcl" || got[0].Line != 1 || HasErrors(got) {
 		t.Fatalf("findings = %v", got)
 	}
@@ -128,7 +128,7 @@ func TestBindingsAgainstARealHCLModelInTheCurrentSpelling(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := (Checker{}).Check(g); len(got) != 0 {
+	if got := withoutEarlierFormat((Checker{}).Check(g)); len(got) != 0 {
 		t.Fatalf("findings = %v", got)
 	}
 }
@@ -147,7 +147,7 @@ func TestTheEarlierSpellingIsReportedOncePerModelFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := (Checker{}).Check(g)
+	got := withoutEarlierFormat((Checker{}).Check(g))
 	var notices []string
 	for _, f := range got {
 		if f.Rule != RuleEarlierSpelling {
@@ -158,9 +158,9 @@ func TestTheEarlierSpellingIsReportedOncePerModelFile(t *testing.T) {
 	if strings.Join(notices, " ") != "/g/m.hcl /g/o.hcl" {
 		t.Fatalf("notices for %v", notices)
 	}
-	if g := (Checker{Models: fakeModels{"/g/m.hcl": {Earlier: EarlierSpelling{Count: 1, Line: 4}, Entities: chinook.Entities}}}).Check(mustLoad(t, map[string]string{
+	if g := withoutEarlierFormat((Checker{Models: fakeModels{"/g/m.hcl": {Earlier: EarlierSpelling{Count: 1, Line: 4}, Entities: chinook.Entities}}}).Check(mustLoad(t, map[string]string{
 		"/g/a.meaning.yaml": head + modelsLine + "concepts:\n" + cn("a", "entity", ""),
-	}, "/g/a.meaning.yaml")); len(g) != 1 || g[0].Line != 4 || !strings.Contains(g[0].Message, "an earlier spelling (") {
+	}, "/g/a.meaning.yaml"))); len(g) != 1 || g[0].Line != 4 || !strings.Contains(g[0].Message, "an earlier spelling (") {
 		t.Fatalf("a single spelling: %v", g)
 	}
 }

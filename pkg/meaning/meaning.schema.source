@@ -1,4 +1,4 @@
 repository: https://github.com/meaninggraph/core
-commit: cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7
+commit: 25242a6c84d1b8d4799c718ef237944a429835ba
 path: meaning.schema.json
-sha256: 19294c66f5ad6b7e2b0c986a8f3dd7ee2ca9bae07570abdbf47d94602580037a
+sha256: e79734cd9f2468ef26beb6f0fa22b63edf457166166af32b42b32b8f7451d05f

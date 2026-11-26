@@ -1,0 +1,5 @@
+{
+  "description": "A binding to modelspec:///chinook.constructor, an entity the model does not have.",
+  "expect": "refuse",
+  "rule": "binding-model"
+}

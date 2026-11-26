@@ -1,5 +1,5 @@
 {
-  "description": "The universal concepts of github.com/meaninggraph/core, copied from the commit named in the golden file.",
+  "description": "The universal concepts of github.com/meaninggraph/core, copied at commit cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7 (the golden file names a later commit, at which two of the six files differ).",
   "expect": "accept",
   "profile": "universal",
   "address": "github.com/meaninggraph/core"
